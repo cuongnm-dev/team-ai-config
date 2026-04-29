@@ -60,7 +60,36 @@ function Resolve-DirtyRepo {
   Write-Host "  Review with:  git -C $Path status"
   Write-Host "  Keep changes: git -C $Path stash push -u"
   Write-Host "  Discard all:  `$env:AI_KIT_FORCE_CLEAN='1'; ai-kit update"
+  Write-Host "  Or run:       ai-kit reset    (interactive: review then discard)"
   exit 1
+}
+
+function DoReset {
+  Ensure-Repo
+  Push-Location $RepoDir
+  try {
+    $dirty = @(git status --porcelain)
+    if ($dirty.Count -eq 0) {
+      Write-Ok "Repo already clean. Nothing to reset."
+      return
+    }
+
+    Write-Host "Local changes:" -ForegroundColor White
+    git status --short
+    Write-Host ''
+    Write-Warn "ai-kit reset will:"
+    Write-Warn "  1. git reset --hard HEAD       (discard tracked file edits)"
+    Write-Warn "  2. git clean -fd               (remove untracked files/dirs)"
+    Write-Warn "  3. git pull --ff-only          (re-sync to remote)"
+    Write-Host ''
+    $yn = Read-Host 'Continue? (y/N)'
+    if ($yn -notmatch '^[Yy]') { Write-Host 'Aborted.'; return }
+
+    git reset --hard HEAD
+    git clean -fd
+    git pull --ff-only --quiet
+    Write-Ok "Repo reset to $(git rev-parse --short HEAD)"
+  } finally { Pop-Location }
 }
 
 function Ensure-Repo {
@@ -610,6 +639,7 @@ Maintainer:
   edit               Open team-ai-config in VS Code / `$env:EDITOR / Explorer
 
 Misc:
+  reset              Discard local repo edits + pull (interactive)
   uninstall          Remove $AiKitHome (keeps deployed config)
   help               Show this message
 
@@ -637,6 +667,7 @@ switch ($Command) {
   'edit'              { DoEdit }
   'docs'              { DoDocs }
   'doc'               { DoDocs }
+  'reset'             { DoReset }
   'version'           { DoVersion }
   '-v'                { DoVersion }
   '--version'         { DoVersion }

@@ -139,6 +139,31 @@ cmd_version() {
   echo "MCP image:        $img"
 }
 
+cmd_reset() {
+  ensure_repo
+  cd "$REPO_DIR"
+  local dirty
+  dirty=$(git status --porcelain)
+  if [ -z "$dirty" ]; then
+    ok "Repo already clean. Nothing to reset."
+    return
+  fi
+  echo -e "${C_BOLD}Local changes:${C_RESET}"
+  git status --short
+  echo ""
+  warn "ai-kit reset will:"
+  warn "  1. git reset --hard HEAD       (discard tracked edits)"
+  warn "  2. git clean -fd               (remove untracked)"
+  warn "  3. git pull --ff-only          (re-sync to remote)"
+  echo ""
+  read -p "Continue? (y/N) " yn
+  [[ "$yn" =~ ^[Yy] ]] || { echo "Aborted."; return; }
+  git reset --hard HEAD
+  git clean -fd
+  git pull --ff-only --quiet
+  ok "Repo reset to $(git rev-parse --short HEAD)"
+}
+
 cmd_uninstall() {
   ensure_repo
   warn "This will REMOVE $AI_KIT_HOME and stop the MCP container."
@@ -455,6 +480,7 @@ Maintainer:
   edit               Open team-ai-config in \$EDITOR (or VS Code if found)
 
 Misc:
+  reset              Discard local repo edits + pull (interactive)
   uninstall          Remove ~/.ai-kit (keeps deployed config)
   help               Show this message
 
@@ -478,6 +504,7 @@ case "${1:-help}" in
   diff)                shift; cmd_diff "$@" ;;
   edit)                shift; cmd_edit "$@" ;;
   docs|doc)            shift; cmd_docs "$@" ;;
+  reset)               shift; cmd_reset "$@" ;;
   version|-v|--version) shift; cmd_version "$@" ;;
   uninstall)           shift; cmd_uninstall "$@" ;;
   help|-h|--help)      cmd_help ;;
