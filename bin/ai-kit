@@ -62,8 +62,9 @@ cmd_update() {
   info "Deploying claude/ + cursor/"
   bash "$REPO_DIR/deploy.sh"
 
-  info "Refreshing MCP image"
+  info "Refreshing MCP image (stop -> pull -> start)"
   cd "$REPO_DIR/mcp/etc-platform"
+  docker compose down >/dev/null 2>&1 || true
   docker compose pull --quiet
   docker compose up -d
   cd - >/dev/null
@@ -122,7 +123,7 @@ cmd_mcp() {
     stop)    docker compose down ;;
     restart) docker compose restart ;;
     logs)    shift; docker compose logs "${@:--f}" etc-platform ;;
-    pull)    docker compose pull && docker compose up -d ;;
+    pull)    docker compose down >/dev/null 2>&1 || true; docker compose pull && docker compose up -d ;;
     status|ps) docker compose ps ;;
     *) err "Unknown mcp verb: $verb"; echo "  Use: start | stop | restart | logs | pull | status"; exit 1 ;;
   esac

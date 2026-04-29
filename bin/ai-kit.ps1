@@ -19,6 +19,39 @@ function Write-Warn($msg) { Write-Host "  ⚠ $msg" -ForegroundColor Yellow }
 function Write-Err($msg)  { Write-Host "  ✗ $msg" -ForegroundColor Red }
 function Write-Dim($msg)  { Write-Host $msg -ForegroundColor DarkGray }
 
+function Invoke-GitChecked {
+  param(
+    [Parameter(Mandatory)] [string[]] $Args,
+    [Parameter(Mandatory)] [string] $ErrorMessage
+  )
+
+  & git @Args
+  if ($LASTEXITCODE -ne 0) {
+    Write-Err $ErrorMessage
+    exit 1
+  }
+}
+
+function Resolve-DirtyRepo {
+  param([Parameter(Mandatory)] [string] $Path)
+
+  $dirty = @(git -C $Path status --porcelain)
+  if ($dirty.Count -eq 0) { return }
+
+  if ($env:AI_KIT_FORCE_CLEAN -eq '1') {
+    Write-Warn "AI_KIT_FORCE_CLEAN=1 - discarding local repo changes"
+    Invoke-GitChecked -Args @('-C', $Path, 'reset', '--hard', 'HEAD') -ErrorMessage "Failed to reset local changes in $Path"
+    Invoke-GitChecked -Args @('-C', $Path, 'clean', '-fd') -ErrorMessage "Failed to clean untracked files in $Path"
+    return
+  }
+
+  Write-Err "Local changes detected in $Path. Refusing to auto-merge."
+  Write-Host "  Review with:  git -C $Path status"
+  Write-Host "  Keep changes: git -C $Path stash push -u"
+  Write-Host "  Discard all:  `$env:AI_KIT_FORCE_CLEAN='1'; ai-kit update"
+  exit 1
+}
+
 function Ensure-Repo {
   if (-not (Test-Path (Join-Path $RepoDir '.git'))) {
     Write-Err "team-ai-config not found at $RepoDir"
@@ -41,10 +74,19 @@ function DoInstall {
 function DoUpdate {
   Ensure-Repo
   Write-Info "Pulling latest team config"
-  git -C $RepoDir fetch --quiet
-  $before = (git -C $RepoDir rev-parse HEAD).Trim()
-  git -C $RepoDir pull --ff-only --quiet
-  $after  = (git -C $RepoDir rev-parse HEAD).Trim()
+  Resolve-DirtyRepo -Path $RepoDir
+  Invoke-GitChecked -Args @('-C', $RepoDir, 'fetch', '--quiet') -ErrorMessage 'Failed to fetch latest team config'
+  $before = (& git -C $RepoDir rev-parse HEAD).Trim()
+  if ($LASTEXITCODE -ne 0) {
+    Write-Err "Failed to read current commit at $RepoDir"
+    exit 1
+  }
+  Invoke-GitChecked -Args @('-C', $RepoDir, 'pull', '--ff-only', '--quiet') -ErrorMessage 'Failed to pull latest team config'
+  $after  = (& git -C $RepoDir rev-parse HEAD).Trim()
+  if ($LASTEXITCODE -ne 0) {
+    Write-Err "Failed to read updated commit at $RepoDir"
+    exit 1
+  }
   if ($before -eq $after) {
     Write-Ok "Already up to date ($($before.Substring(0,7)))"
   } else {
@@ -55,9 +97,14 @@ function DoUpdate {
 
   Write-Info "Deploying claude\ + cursor\"
   & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoDir 'deploy.ps1')
+  if ($LASTEXITCODE -ne 0) {
+    Write-Err "Deploy failed"
+    exit 1
+  }
 
-  Write-Info "Refreshing MCP image"
+  Write-Info "Refreshing MCP image (stop -> pull -> start)"
   Push-Location (Join-Path $RepoDir 'mcp\etc-platform')
+  docker compose down 2>$null | Out-Null
   docker compose pull --quiet
   docker compose up -d
   Pop-Location
@@ -126,7 +173,7 @@ function DoMcp {
       'stop'    { docker compose down }
       'restart' { docker compose restart }
       'logs'    { docker compose logs -f etc-platform }
-      'pull'    { docker compose pull; docker compose up -d }
+      'pull'    { docker compose down 2>$null | Out-Null; docker compose pull; docker compose up -d }
       'status'  { docker compose ps }
       'ps'      { docker compose ps }
       default   { Write-Err "Unknown mcp verb: $verb"; Write-Host "  Use: start | stop | restart | logs | pull | status"; exit 1 }
