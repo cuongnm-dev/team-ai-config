@@ -440,16 +440,21 @@ function Docs-RenderMd {
   } elseif (Get-Command bat -ErrorAction SilentlyContinue) {
     & bat --style=plain --paging=always $File
   } else {
-    # Set console output to UTF-8 so Vietnamese chars render correctly on PS 5.1
+    # Set console output + codepage to UTF-8 so Vietnamese diacritics render
     $prev = [Console]::OutputEncoding
+    $prevCP = $null
+    try {
+      $prevCP = (chcp) -replace '[^\d]'
+      $null = chcp 65001
+    } catch {}
     try {
       [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
       $content = [System.IO.File]::ReadAllText($File, [System.Text.Encoding]::UTF8)
-      # Strip BOM if present
       if ($content.Length -gt 0 -and $content[0] -eq [char]0xFEFF) { $content = $content.Substring(1) }
       $content
     } finally {
       [Console]::OutputEncoding = $prev
+      if ($prevCP) { try { $null = chcp $prevCP } catch {} }
     }
   }
 }
