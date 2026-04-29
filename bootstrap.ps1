@@ -88,7 +88,7 @@ foreach ($t in @('git','docker','python','curl','node')) {
 }
 # Node version check (>= 18)
 if (Get-Command node -ErrorAction SilentlyContinue) {
-  $nodeMajor = [int](& node -p 'process.versions.node.split(".")[0]')
+  $nodeMajor = [int]((& node --version).TrimStart('v').Split('.')[0])
   if ($nodeMajor -lt 18) {
     Write-Err "node v$nodeMajor too old — ai-kit needs Node >= 18"
     $missing += 'node'
@@ -176,17 +176,18 @@ if (-not (Get-Command glow -ErrorAction SilentlyContinue)) {
   }
 }
 
-# Install Node deps (one-time)
-if (Test-Path (Join-Path $RepoDir 'package.json')) {
-  if (-not (Test-Path (Join-Path $RepoDir 'node_modules'))) {
-    Write-Info 'Installing Node.js dependencies'
-    Push-Location $RepoDir
-    try {
-      & npm install --omit=dev --silent
-      if ($LASTEXITCODE -eq 0) { Write-Ok 'Node deps installed' }
-      else { Write-Host '  ! npm install failed — CLI will fall back to legacy mode' -ForegroundColor Yellow }
-    } finally { Pop-Location }
-  }
+# Install Node deps into $AiKitHome (where ai-kit.cmd + ai-kit looks for node_modules)
+$pkgSrc = Join-Path $RepoDir 'package.json'
+$pkgDst = Join-Path $AiKitHome 'package.json'
+if ((Test-Path $pkgSrc) -and (-not (Test-Path (Join-Path $AiKitHome 'node_modules')))) {
+  Write-Info 'Installing Node.js dependencies'
+  Copy-Item -Force $pkgSrc $pkgDst
+  Push-Location $AiKitHome
+  try {
+    & npm install --omit=dev --silent
+    if ($LASTEXITCODE -eq 0) { Write-Ok 'Node deps installed' }
+    else { Write-Host '  ! npm install failed — CLI will fall back to legacy mode' -ForegroundColor Yellow }
+  } finally { Pop-Location }
 }
 
 # Run first-time deploy + MCP via ai-kit (use repo path directly since PATH not yet refreshed)

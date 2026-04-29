@@ -12,7 +12,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-$nodeMajor = [int](& node -p 'process.versions.node.split(".")[0]')
+$nodeMajor = [int]((& node --version).TrimStart('v').Split('.')[0])
 if ($nodeMajor -lt 18) {
   Write-Host "X Node.js $nodeMajor detected - ai-kit needs >= 18." -ForegroundColor Red
   exit 1
