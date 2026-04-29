@@ -465,11 +465,22 @@ cmd_docs() {
     --open|-o)            cmd_edit ;;
     skills)
       shift
-      [ "${1:-}" = "--brief" ] && docs_skills_index brief || docs_skills_index full
+      if [ "${1:-}" = "--brief" ]; then
+        docs_skills_index brief
+      else
+        # Render curated skills.md if exists, else fallback to auto-extract
+        local skills_md="$REPO_DIR/docs/skills.md"
+        [ -f "$skills_md" ] && docs_render_md "$skills_md" || docs_skills_index full
+      fi
       ;;
     agents)
       shift
-      [ "${1:-}" = "--brief" ] && docs_agents_index brief || docs_agents_index full
+      if [ "${1:-}" = "--brief" ]; then
+        docs_agents_index brief
+      else
+        local agents_md="$REPO_DIR/docs/agents.md"
+        [ -f "$agents_md" ] && docs_render_md "$agents_md" || docs_agents_index full
+      fi
       ;;
     *)
       local topic="$1"

@@ -609,12 +609,24 @@ function DoDocs {
     '-l'             { Docs-ListTopics }
     'index'          { Docs-ListTopics }
     'skills'         {
-      $mode = if ($Rest.Count -gt 1 -and $Rest[1] -eq '--brief') { 'brief' } else { 'full' }
-      Docs-SkillsIndex -Mode $mode
+      $isBrief = ($Rest.Count -gt 1 -and $Rest[1] -eq '--brief')
+      if ($isBrief) {
+        Docs-SkillsIndex -Mode 'brief'
+      } else {
+        $skillsMd = Join-Path $RepoDir 'docs\skills.md'
+        if (Test-Path $skillsMd) { Docs-RenderMd -File $skillsMd }
+        else { Docs-SkillsIndex -Mode 'full' }
+      }
     }
     'agents'         {
-      $mode = if ($Rest.Count -gt 1 -and $Rest[1] -eq '--brief') { 'brief' } else { 'full' }
-      Docs-AgentsIndex -Mode $mode
+      $isBrief = ($Rest.Count -gt 1 -and $Rest[1] -eq '--brief')
+      if ($isBrief) {
+        Docs-AgentsIndex -Mode 'brief'
+      } else {
+        $agentsMd = Join-Path $RepoDir 'docs\agents.md'
+        if (Test-Path $agentsMd) { Docs-RenderMd -File $agentsMd }
+        else { Docs-AgentsIndex -Mode 'full' }
+      }
     }
     '--search'       {
       if ($Rest.Count -lt 2) { Write-Err 'Usage: ai-kit docs --search <term>'; exit 1 }
