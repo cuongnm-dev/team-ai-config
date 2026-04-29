@@ -179,6 +179,30 @@ add_to_shell_rc "$HOME/.bashrc"
 add_to_shell_rc "$HOME/.zshrc"
 add_to_shell_rc "$HOME/.profile"
 
+# ─── auto-install glow (optional pretty markdown renderer) ────────────
+if ! command -v glow >/dev/null 2>&1; then
+  info "Installing glow (markdown renderer for prettier docs)"
+  case "$OS" in
+    macos)
+      command -v brew >/dev/null 2>&1 && brew install glow >/dev/null 2>&1 && ok "glow installed" || \
+        warn "Skip glow (no brew). Manual: https://github.com/charmbracelet/glow#installation"
+      ;;
+    debian)
+      if command -v snap >/dev/null 2>&1; then
+        sudo snap install glow >/dev/null 2>&1 && ok "glow installed" || warn "Skip glow"
+      else
+        warn "Skip glow (no snap). Manual: https://github.com/charmbracelet/glow#installation"
+      fi
+      ;;
+    rhel|arch)
+      warn "Skip glow auto-install on $OS. Manual: https://github.com/charmbracelet/glow#installation"
+      ;;
+    *)
+      warn "Skip glow (unknown OS). Manual: https://github.com/charmbracelet/glow#installation"
+      ;;
+  esac
+fi
+
 # ─── run first-time deploy ─────────────────────────────────────────────
 info "Running first-time deploy"
 export PATH="$BIN_DIR:$PATH"

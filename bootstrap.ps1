@@ -149,6 +149,23 @@ if ($pathParts -notcontains $BinDir) {
 # Make AI_KIT_HOME persistent
 [Environment]::SetEnvironmentVariable('AI_KIT_HOME', $AiKitHome, 'User')
 
+# Auto-install glow (markdown renderer for pretty 'ai-kit doc' output)
+# Optional — failure is non-blocking, fallback is plain text.
+if (-not (Get-Command glow -ErrorAction SilentlyContinue)) {
+  Write-Info 'Installing glow (markdown renderer for prettier docs)'
+  if (Get-Command winget -ErrorAction SilentlyContinue) {
+    & winget install --id charmbracelet.glow -e --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
+    if (Get-Command glow -ErrorAction SilentlyContinue) {
+      Write-Ok 'glow installed (open NEW terminal to use)'
+    } else {
+      Write-Host '  ! glow install via winget failed — manual: winget install charmbracelet.glow'
+    }
+  } else {
+    Write-Host '  ! winget not available — install glow manually for prettier docs:'
+    Write-Host '    https://github.com/charmbracelet/glow#installation'
+  }
+}
+
 # Run first-time deploy + MCP via ai-kit (use repo path directly since PATH not yet refreshed)
 Write-Info "Running first-time deploy"
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoDir 'bin\ai-kit.ps1') update
