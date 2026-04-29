@@ -3,11 +3,22 @@
 
 #Requires -Version 5.1
 param(
-  [string] $Command = 'help',
+  [string] $Command = '',
   [Parameter(ValueFromRemainingArguments=$true)] $Rest
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Workaround: PowerShell's `-File` mode silently drops args starting with `-` that
+# don't match a declared parameter name. So `ai-kit -v` arrives with $Command = ''.
+# We catch via $args and the powershell.exe fallback raw-args buffer below.
+if (-not $Command -and $args -and $args.Count -gt 0) { $Command = [string]$args[0] }
+if (-not $Command) { $Command = 'help' }
+# Map flag-style synonyms back to subcommands.
+switch -Regex ($Command) {
+  '^(-v|--version|/v|/version)$' { $Command = 'version'; break }
+  '^(-h|--help|/h|/help|/\?)$'   { $Command = 'help';    break }
+}
 
 $AiKitHome = if ($env:AI_KIT_HOME) { $env:AI_KIT_HOME } else { Join-Path $env:USERPROFILE '.ai-kit' }
 $RepoDir   = Join-Path $AiKitHome 'team-ai-config'
