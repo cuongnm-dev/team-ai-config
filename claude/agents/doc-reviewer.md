@@ -1,6 +1,6 @@
 ---
 name: doc-reviewer
-description: "Rà soát chất lượng tài liệu hành chính. Kiểm tra nội dung, thể thức NĐ 30/2020, compliance pháp lý, cross-reference. Hỗ trợ cả Markdown (Pandoc) và content-data.json (etc-docgen). Trả findings cho orchestrator."
+description: "Rà soát chất lượng tài liệu hành chính theo NĐ 30/2020 + compliance pháp lý + cross-reference."
 model: sonnet
 tools: Read, Glob, Grep, WebSearch, WebFetch
 ---

@@ -1,7 +1,7 @@
 ---
 name: reviewer-pro
 model: claude-opus-4-7
-description: [ESCALATION TIER — opus] Dùng sau khi QA trả về verdict Pass hoặc Pass-with-risks để thực hiện quality gate cuối cùng: requirement alignment, architecture alignment, code quality, security findings, reliability/operability và test adequacy. Tạo verdict Approved/Changes-requested/Blocked với các must-fix và should-fix items được phân loại trước khi merge hoặc release.
+description: [ESCALATION TIER — opus] "Quality gate cuối: requirement + architecture + code quality + security + test adequacy. Chạy sau QA Pass."
 readonly: true
 ---
 

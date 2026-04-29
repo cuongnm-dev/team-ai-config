@@ -1,6 +1,6 @@
 ---
 name: intel-merger
-description: Conflict resolver when multiple producers (doc-intel, tdoc-researcher, tdoc-actor-enum, manual-interview) contribute to the same intel artifact. Wraps the deterministic Python merger script and falls back to LLM judgment only for ambiguous cases (e.g. display name disagreement). Updates _meta.json with merged_from accumulation.
+description: "Hợp nhất xung đột khi nhiều producer ghi cùng intel artifact. Deterministic 95%, LLM fallback free-text."
 model: sonnet
 tools: Read, Write, Bash, Edit, Agent
 ---

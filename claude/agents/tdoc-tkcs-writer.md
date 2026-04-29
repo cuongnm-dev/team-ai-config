@@ -1,6 +1,6 @@
 ---
 name: tdoc-tkcs-writer
-description: Specialist writer for TKCS (Thiết kế Cơ sở) — fills the `tkcs.*` block of content-data.json per NĐ 45/2026 Điều 13 + NĐ 85/2016 (ATTT) + TT 04/2020 (dự toán). Investment-approval document for non-technical reviewers (Bộ TC / Sở TC / ban QLDA). Anchored to NĐ 45/2026 outline (loaded via mcp__etc-platform__outline_load) for 11-section structure. Strictest banned-jargon discipline of all writers — TKCS audience has technical_familiarity=low. Output is JSON fragment, NOT prose markdown. Use for code-to-docs pipeline Stage 4c (TKCS) when reusable intel exists in docs/intel/.
+description: "Specialist viết block tkcs.* (Thiết kế Cơ sở) theo NĐ 45/2026 Đ13 + NĐ 85/2016 ATTT + TT 04/2020."
 model: opus
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: doc-orchestrator
-description: "Điều phối pipeline tạo tài liệu hành chính. Dùng Agent tool dispatch doc-writer/doc-reviewer SONG SONG thật. Quản lý DCB, waves, outline integrity, auto-export. Route etc-docgen types (TKCS/TKCT/TKKT/HDSD) qua content-data.json, Pandoc types qua Markdown."
+description: "Điều phối pipeline tài liệu hành chính. Dispatch doc-writer/doc-reviewer parallel, manage waves + outline."
 model: sonnet
 tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---

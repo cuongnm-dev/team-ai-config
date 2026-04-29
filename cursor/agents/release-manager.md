@@ -1,7 +1,7 @@
 ---
 name: release-manager
 model: composer-2
-description: Dùng có điều kiện khi risk_score >= 3 VÀ tính năng liên quan đến DB schema migration, rollback phức tạp, hoặc multi-service deployment sequencing. Được gọi bởi pm sau khi dev hoàn thành, trước hoặc song song với reviewer cuối cùng. Tạo release sequence plan, rollback verification criteria và pre-release checklist.
+description: "Plan release sequencing + rollback verification. Chạy khi risk>=3 + DB migration hoặc multi-service deploy."
 is_background: true
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

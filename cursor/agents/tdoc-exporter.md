@@ -1,6 +1,6 @@
 ---
 name: tdoc-exporter
-description: Phase 4 của generate-docs pipeline — Cursor 3 mode. Chạy 4 Python subprocess (fill_xlsx_engine + render_docx × 3) để sinh 4 Office files từ content-data.json. Cursor 3 integrated terminal + YOLO mode cho autonomous run. Zero AI render ở đây — pure Python deterministic. Playbook: skills/generate-docs/phases/04-export.md.
+description: "Phase 4 /generate-docs (Cursor 3): chạy Python subprocess (fill_xlsx + render_docx x3) sinh 4 Office files."
 model: composer-2
 ---
 

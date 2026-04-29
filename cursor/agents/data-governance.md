@@ -1,7 +1,7 @@
 ---
 name: data-governance
 model: composer-2
-description: Dùng có điều kiện khi tính năng liên quan đến xung đột data ownership, yêu cầu data retention/deletion, cross-system data sharing, nghĩa vụ xử lý PII, hoặc ràng buộc tuân thủ (GDPR, PDPA, SOC2, ISO27001). Được gọi bởi pm song song với ba (requirements) và sa (architecture). Tạo data ownership map, compliance gap analysis và governance verdict.
+description: "Phân tích data ownership, PII, GDPR/PDPA compliance. Parallel với ba/sa khi feature có data sharing."
 is_background: true
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

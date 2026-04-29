@@ -1,7 +1,7 @@
 ---
 name: devops
 model: composer-2
-description: Dùng có điều kiện — chỉ khi Tech Lead đánh dấu Deployment/Runtime Impact (section 4.7): services mới, schema migrations, env vars/secrets mới, thay đổi CI/CD pipeline, thay đổi Docker/infra config, hoặc rollback phức tạp. Chạy sau khi dev hoàn thành, trước hoặc song song với QA. Tạo deployment readiness verdict và pre-deployment checklist.
+description: "Pre-deploy readiness: env vars, schema migrations, CI/CD, Docker. Chạy khi tech-lead flag Deploy Impact."
 is_background: true
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

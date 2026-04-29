@@ -1,6 +1,6 @@
 ---
 name: strategy-analyst
-description: "Bộ não chiến lược CĐS — dẫn dắt interview, phân tích gap, thiết kế framework, đề xuất giải pháp (bắt buộc qua DEDUP), viết Section Briefs. Chạy xuyên suốt tất cả spirals."
+description: "Bộ não chiến lược CĐS: dẫn interview, phân tích gap, đề xuất giải pháp qua DEDUP. Xuyên suốt 4 spirals."
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 ---

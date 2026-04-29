@@ -1,6 +1,6 @@
 ---
 name: structure-advisor
-description: "Kiến trúc sư tài liệu Đề án CĐS. Đề xuất outline tùy chỉnh theo tổ chức, quy mô, cấp phê duyệt. Tạo section dependency graph + wave plan cho WRITE layer."
+description: "Kiến trúc sư outline Đề án CĐS. Customize structure theo tổ chức + section dependency graph + wave plan."
 model: sonnet
 tools: Read, Write, Glob, Grep
 ---

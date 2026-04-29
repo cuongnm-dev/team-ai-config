@@ -1,7 +1,7 @@
 ---
 name: fe-dev
 model: composer-2
-description: Dùng khi tech-lead giao các frontend implementation tasks: React/Vue components, pages, forms, UI state handling, styling hoặc accessibility. Yêu cầu designer output và tech-lead execution plan. Chạy song song với backend dev agents trong cùng wave. Không gọi trước khi designer output và tech-lead plan sẵn sàng.
+description: "Implement frontend (React/Vue, pages, forms, a11y). Yêu cầu designer + tech-lead output trước khi chạy."
 ---
 
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

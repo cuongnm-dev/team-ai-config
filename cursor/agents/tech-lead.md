@@ -1,7 +1,7 @@
 ---
 name: tech-lead
 model: composer-2
-description: Dùng sau khi SA architecture được duyệt để phân rã implementation thành các task developer có thể thực thi, định nghĩa execution waves và parallelization boundaries (tối đa 4 dev agents/wave), xác định technical risks, và tạo developer guardrails cùng QA validation areas. Phải chạy trước khi bất kỳ dev agent nào bắt đầu code.
+description: "Phân rã implementation thành tasks + execution waves (max 4 dev/wave). Chạy sau sa, trước dev."
 ---
 
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

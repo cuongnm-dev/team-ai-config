@@ -1,7 +1,7 @@
 ---
 name: doc-exporter
 model: composer-2
-description: Phase 4 exporter. CURRENT STATE: Word MCP + Excel MCP unregistered — agent dùng Python fallback (`fill-manual.py` cho .docx, `fill-testcase.py` cho .xlsx). MCP-first routing logic dưới đây là FUTURE-PROOF: nếu user re-register, CHECK steps tự dùng PATH A. Đọc ref-template-mapping.md trước khi fill.
+description: "Phase 4 /generate-docs: render Office files (DOCX/XLSX). MCP-first, Python fallback nếu cần."
 ---
 
 # Doc Exporter

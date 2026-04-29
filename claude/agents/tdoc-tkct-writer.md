@@ -1,6 +1,6 @@
 ---
 name: tdoc-tkct-writer
-description: Specialist writer for TKCT (Thiết kế Chi tiết) — fills the `tkct.*` block of content-data.json with government-grade Vietnamese technical prose. Anchored to NĐ 45/2026 outline (loaded via mcp__etc-platform__outline_load) for length + topic guidance per section. Enforces specificity mandate: every prose passage must cite concrete entities, routes, validations from intel — boilerplate auto-rejected. Output is JSON fragment, NOT prose markdown. Use for code-to-docs pipeline Stage 4d (TKCT) when reusable intel exists in docs/intel/.
+description: "Specialist viết block tkct.* (Thiết kế Chi tiết) theo NĐ 45/2026 với văn phong kỹ thuật chính phủ."
 model: opus
 ---
 

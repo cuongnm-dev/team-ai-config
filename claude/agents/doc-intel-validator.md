@@ -1,7 +1,7 @@
 ---
 name: doc-intel-validator
 model: claude-haiku-4-5
-description: Post-generation verification agent for doc-intel output. Catches silent failures (hallucination, incoherence, truncation, semantic errors) that inline checks miss. Runs after doc-brief.md written, before Gate A. Uses Haiku for cost efficiency (mostly grep + structural checks, minimal reasoning).
+description: "Kiểm tra hậu xử lý doc-intel: hallucination, incoherence, truncation, semantic. Chạy trước Gate A."
 ---
 
 # Doc-Intel Validator

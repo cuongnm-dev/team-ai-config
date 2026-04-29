@@ -1,7 +1,7 @@
 ---
 name: doc-researcher
 model: composer-2
-description: Phase 1 của doc-generation pipeline. 4 phases tuần tự: SCAN (stack detection) → ARCH (routes/APIs/DB/diagrams) → FLOW (business flows/auth) → FE (selectors/credentials). Output (CD-10 canonical): docs/intel/system-inventory.json, code-facts.json, sitemap.json, code-brief.md, arch-brief.md.
+description: "Phase 1 /generate-docs: SCAN → ARCH → FLOW → FE. Output canonical intel (system-inventory, code-facts, sitemap)."
 ---
 
 # Doc Researcher

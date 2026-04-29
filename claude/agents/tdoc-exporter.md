@@ -1,6 +1,6 @@
 ---
 name: tdoc-exporter
-description: Phase 4 code-to-docs pipeline. MCP-only export — uploads content-data.json to etc-platform MCP `/uploads`, submits render jobs via `/jobs` (one per target type), polls `/jobs/{id}`, downloads finished Office files via `/jobs/{id}/files/{name}`. Templates, schemas, and render engines are bundled inside MCP image — no local Python subprocess, no template juggling. Deterministic, resumable, <3 minutes for 30-feature project. Per CD-8 single-source-of-truth, this is the ONLY allowed export path.
+description: "Phase 4 /from-code: upload content-data + submit render jobs qua etc-platform MCP, download Office files."
 model: haiku
 ---
 

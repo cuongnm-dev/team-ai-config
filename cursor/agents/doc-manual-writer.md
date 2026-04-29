@@ -1,7 +1,7 @@
 ---
 name: doc-manual-writer
 model: composer-2
-description: Phase 3 doc writer. Viết Hướng dẫn Sử dụng với screenshots thực tế. 1 file per service cho microservices. Output huong-dan-su-dung-{service}.md. ASSEMBLY-FIRST per CD-10 Quy tắc 10 — gom screenshots từ docs/intel/test-evidence/{feature-id}.json.
+description: "Phase 3 /generate-docs: viết HDSD với screenshots thực tế. 1 file/service. ASSEMBLY-FIRST per CD-10."
 ---
 
 # Doc Manual Writer

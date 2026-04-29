@@ -1,6 +1,6 @@
 ---
 name: tdoc-data-writer
-description: Phase 3 code-to-docs pipeline. Produces a single `content-data.json` that feeds the Office rendering engines (fill_xlsx_engine.py for xlsx, render_docx.py for 3 docx outputs). Replaces the previous 5 parallel prose-writers (arch/tkcs/catalog/testcase/manual) with ONE structured-data producer. Output is pure JSON — no prose, no markdown — zero risk of output-token overflow. Layout/styling handled deterministically by Python engines: openpyxl for Excel, docxtpl (Jinja2-for-Word) for docx templates.
+description: "Phase 3 /from-code: tổng hợp content-data.json (single file) feed Office rendering engines."
 model: sonnet
 ---
 

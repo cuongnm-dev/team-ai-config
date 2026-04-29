@@ -1,7 +1,7 @@
 ---
 name: dev
 model: composer-2
-description: Dùng khi tech-lead execution plan được duyệt và việc triển khai cần bắt đầu trong một ownership boundary và wave đã xác định. Thực hiện các scoped tasks, thêm tests, xử lý validation/auth/error handling, và tạo implementation summary có bằng chứng (files changed + verification commands + exit codes) để bàn giao QA. Không gọi trước khi tech-lead plan được duyệt.
+description: "Implement 1 task/wave từ tech-lead plan: code + tests + validation + auth. Output implementation summary."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.
 

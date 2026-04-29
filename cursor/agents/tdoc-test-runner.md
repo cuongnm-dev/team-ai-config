@@ -1,6 +1,6 @@
 ---
 name: tdoc-test-runner
-description: Phase 2 của generate-docs pipeline — Cursor 3 mode. Capture UI screenshots dùng Playwright MCP NATIVE (Cursor 3 built-in, không cần generate spec.ts). REUSE-FIRST: skip features that already have docs/intel/test-evidence/{feature-id}.json fresh. Deterministic waits, animation disabled, viewport profiles. Output (CD-10): docs/intel/test-evidence/{feature-id}.json + docs/intel/screenshots/.
+description: "Phase 2 /generate-docs (Cursor 3): Playwright MCP native capture screenshots. REUSE-FIRST per CD-10."
 model: composer-2
 ---
 

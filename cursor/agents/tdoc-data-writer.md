@@ -1,6 +1,6 @@
 ---
 name: tdoc-data-writer
-description: Phase 3 của generate-docs pipeline — Cursor 3 mode. Produce single content-data.json từ intel reports + cross-ref BA specs. Cursor Composer hiển thị diff để user review trước khi save. Zero prose (compact JSON ~30K tokens). Playbook: skills/generate-docs/phases/03-data-writer.md.
+description: "Phase 3 /generate-docs (Cursor 3): produce content-data.json từ intel + BA specs. Diff review trước save."
 model: composer-2
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

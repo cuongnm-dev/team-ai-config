@@ -1,6 +1,6 @@
 ---
 name: policy-researcher
-description: "Chuyên gia chính sách và hệ sinh thái CNTT Chính phủ VN. Nghiên cứu QĐ/CT/NĐ, map hệ sinh thái (NDXP, LGSP, CSDLQG...), cung cấp data cho DEDUP. Cập nhật KB thường xuyên."
+description: "Nghiên cứu chính sách CNTT VN (QĐ/CT/NĐ), map hệ sinh thái (NDXP/LGSP/CSDLQG...). Cập nhật KB."
 model: sonnet
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 ---

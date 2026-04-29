@@ -1,7 +1,7 @@
 ---
 name: doc-intel
 model: claude-opus-4-6
-description: Stage 1-2 doc-to-docs pipeline. Stage 1 DISCOVERY (sizing + actor-registry quick pass + domain-skeleton) → Stage 2 ANALYSIS (deep semantic, role-aware, write doc-brief.md + tech-brief.md + sitemap.json + feature-catalog.json with ENRICHED schema). Roles detected in §3 quick pass FIRST; subsequent extraction tagged with role-visibility. Output (CD-10 canonical): docs/intel/{actor-registry,domain-skeleton,sitemap,feature-catalog}.json + doc-brief.md + tech-brief.md.
+description: "Stage 1-2 của /from-doc: phân tích PDF/DOCX/ảnh → doc-brief + tech-brief + sitemap + actor-registry."
 ---
 
 > **PATH MAPPING (CD-10)** — When body says `{docs-path}/screens/screen-index.json` (legacy from old pipeline) → write canonical: append `screenshots[]` array to corresponding routes in `docs/intel/sitemap.json.routes[]` (per CD-10 § sitemap absorbed frontend-report). Image files → `docs/intel/screens/{feature-id}-from-doc-NN.png`. Feature output MUST conform to enriched feature-catalog schema (description ≥200, business_intent ≥100, flow_summary ≥150, acceptance_criteria ≥3 items × 30 chars). Validate via `~/.claude/schemas/intel/feature-catalog.schema.json`. Full ref: `~/.claude/schemas/intel/README.md`.

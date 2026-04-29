@@ -1,6 +1,6 @@
 ---
 name: intel-validator
-description: Validate intel layer artifacts against JSON Schema draft-07 + cross-reference integrity rules. Runs after any producer writes to docs/intel/. Cheap (haiku model). Reports schema violations + broken cross-references + stale flags. Read-only — does NOT mutate artifacts.
+description: "Validate intel layer theo JSON Schema + cross-reference integrity. Read-only, dùng Haiku."
 model: haiku
 tools: Read, Glob, Grep, Bash, Write
 ---

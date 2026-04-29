@@ -1,7 +1,7 @@
 ---
 name: doc-testcase-writer
 model: composer-2
-description: Phase 3 doc writer. ASSEMBLY-FIRST per CD-10 Quy tắc 10 — gom test cases từ docs/intel/test-evidence/{feature-id}.json (do qa agent produce). Generate FRESH chỉ cho features chưa có evidence. Output bo-test-case.md.
+description: "Phase 3 /generate-docs: gom test cases từ test-evidence. ASSEMBLY-FIRST per CD-10 Quy tắc 10."
 ---
 
 # Doc Test Case Writer

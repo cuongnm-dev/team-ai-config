@@ -1,6 +1,6 @@
 ---
 name: doc-writer
-description: "Viết nội dung section tài liệu hành chính. Tuân thủ outline, văn phong hành chính VN, pháp lý chính xác. Có web research. Dual output: JSON cho etc-docgen types, Markdown cho Pandoc types."
+description: "Viết section tài liệu hành chính VN. Văn phong nghị định, có web research. Output JSON hoặc Markdown."
 model: sonnet
 tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
 ---

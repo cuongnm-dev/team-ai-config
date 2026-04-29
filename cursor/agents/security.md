@@ -1,7 +1,7 @@
 ---
 name: security
 model: composer-2
-description: Dùng có điều kiện khi tính năng chạm đến auth/authz boundaries, xử lý PII/payment/secrets, tạo trust boundaries mới, hoặc khi sa hoặc reviewer đánh dấu security concerns. Được gọi bởi pm song song với sa (design review) và lại song song với reviewer (code review). Tạo threat model summary, security findings và security gate verdict.
+description: "Threat model + security findings. Chạy khi feature chạm auth/PII/payment hoặc sa/reviewer flag concern."
 is_background: true
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

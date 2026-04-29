@@ -1,7 +1,7 @@
 ---
 name: doc-tkcs-writer
 model: composer-2
-description: Phase 3 doc writer. Viết Thiết kế Cơ sở theo form chuẩn NĐ 45/2026/NĐ-CP + NĐ 30/2020/NĐ-CP. Output thiet-ke-co-so.md với đầy đủ formatting specs.
+description: "Phase 3 /generate-docs: viết TKCS theo NĐ 45/2026 + NĐ 30/2020. Output thiet-ke-co-so.md."
 ---
 
 # Doc TKCS Writer

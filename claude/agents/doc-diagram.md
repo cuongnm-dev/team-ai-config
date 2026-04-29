@@ -1,6 +1,6 @@
 ---
 name: doc-diagram
-description: "Tạo sơ đồ, mô hình cho tài liệu hành chính CNTT bằng Mermaid. Bám phong cách Khung Kiến trúc CPĐT 3.0/4.0 (QĐ 2568, QĐ 292)."
+description: "Sinh sơ đồ Mermaid (kiến trúc, ER, sequence) cho tài liệu CNTT theo Khung CPĐT 4.0."
 model: sonnet
 tools: Read, Write, Glob, Grep, Bash, WebSearch, WebFetch
 ---

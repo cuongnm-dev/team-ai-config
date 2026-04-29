@@ -1,7 +1,7 @@
 ---
 name: designer
 model: composer-2
-description: Dùng khi BA đánh dấu UI/UX impact trong feature spec, hoặc khi Tech Lead xác định UX states chưa được định nghĩa sẽ chặn dev. Phân tích user flows, form behavior, tính nhất quán của empty/error/loading states, và accessibility. Đầu ra (design findings, flow issues, suggested improvements) phải đến tay tech-lead trước khi bắt đầu lập kế hoạch thực thi. Khi có screen images từ doc-intel (from-doc pipeline), đọc ảnh trực tiếp bằng vision model để produce pixel-accurate component specs.
+description: "Phân tích UI/UX flow, form behavior, empty/error/loading states. Chạy khi BA đánh dấu UI impact."
 is_background: true
 ---
 

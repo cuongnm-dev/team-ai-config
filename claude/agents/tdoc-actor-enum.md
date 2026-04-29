@@ -1,6 +1,6 @@
 ---
 name: tdoc-actor-enum
-description: Phase P1.5 of from-code pipeline. Enumerates roles, RBAC mode, and draft permission matrix from code-facts.json (auth_rules + routes). Produces actor-registry.json + permission-matrix.json conformant to ~/.claude/schemas/intel/. Runs between P1 (Static Harvest) and P2 (Feature Synthesis) so that subsequent feature extraction is role-tagged from the start.
+description: "Phase 1.5 /from-code: enumerate roles + RBAC mode + draft permission-matrix từ code-facts."
 model: sonnet
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---

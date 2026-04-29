@@ -1,7 +1,7 @@
 ---
 name: ba
 model: claude-sonnet-4-6
-description: Combined business analysis + domain modeling. Phase 1 elicits requirements, writes user stories/ACs/business rules, runs triage. Phase 2 (conditional) decomposes domain into bounded contexts, aggregates, domain events. Self-decides whether Phase 2 is needed. Outputs to ba/ and domain-analyst/ folders.
+description: "Phân tích nghiệp vụ + mô hình domain cho 1 feature. User stories, AC, business rules. Stage đầu SDLC."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.
 

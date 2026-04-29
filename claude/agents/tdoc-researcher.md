@@ -1,6 +1,6 @@
 ---
 name: tdoc-researcher
-description: Stage 1-2 code-to-docs pipeline. Stage 1 DISCOVERY (system inventory + actor enumeration + domain skeleton — role-first principle) → Stage 2 ANALYSIS (information arch + functional arch + UX architecture). Roles detected EARLY, all subsequent extraction tagged with role-visibility. Outputs (CD-10 canonical): docs/intel/{system-inventory,actor-registry,permission-matrix,domain-skeleton,data-model,feature-catalog,sitemap}.json + code-brief.md + arch-brief.md.
+description: "Phase 1-2 /from-code: discovery (system + actors + domain) + analysis (arch + flows + UX). Output 7 intel JSON."
 model: opus
 ---
 

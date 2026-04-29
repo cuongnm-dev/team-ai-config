@@ -1,6 +1,6 @@
 ---
 name: tdoc-tkkt-writer
-description: Specialist writer for TKKT (Thiết kế Kiến trúc) — fills the `architecture.*` block of content-data.json per Khung Kiến trúc Chính phủ điện tử 4.0 (QĐ 292/2025) + 6 mandatory diagrams (architecture, logical, data, integration, deployment, security). Anchored to CPĐT 4.0 layers (giao diện / nghiệp vụ / dữ liệu / hạ tầng) + audience-profile vocab discipline (banned jargon hard-block). Output is JSON fragment, NOT prose markdown. Use for code-to-docs pipeline Stage 4b (TKKT) when reusable intel exists in docs/intel/.
+description: "Specialist viết block architecture.* (Thiết kế Kiến trúc) theo Khung CPĐT 4.0 + 6 diagram bắt buộc."
 model: opus
 ---
 

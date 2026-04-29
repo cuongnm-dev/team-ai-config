@@ -1,6 +1,6 @@
 ---
 name: sre-observability
-description: "Dùng có điều kiện khi tính năng giới thiệu integrations bên ngoài mới có resilience concerns (timeout/retry/idempotency), chạm đến SLO-sensitive paths, thêm high-traffic hoặc high-latency flows, hoặc khi sa đánh dấu reliability/observability gaps. Được gọi bởi pm song song với sa và qa. Tạo resilience gap analysis, monitoring requirements và SRE readiness verdict."
+description: "Resilience gap + SLO/SLI definition + monitoring. Chạy khi feature có integrations hoặc SLO-sensitive paths."
 model: composer-2
 readonly: true
 is_background: true

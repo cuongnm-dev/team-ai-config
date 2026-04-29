@@ -1,6 +1,6 @@
 ---
 name: tdoc-researcher
-description: Phase 1 của generate-docs pipeline — Cursor 3 mode. Scan codebase sinh canonical intel (CD-10): system-inventory.json, code-facts.json, sitemap.json (absorbs flow + frontend), code-brief.md, arch-brief.md. Dùng @Codebase semantic search + extended thinking cho FLOW.
+description: "Phase 1 /generate-docs (Cursor 3): scan codebase sinh canonical intel CD-10 (7 JSON + 2 brief)."
 model: composer-2
 ---
 

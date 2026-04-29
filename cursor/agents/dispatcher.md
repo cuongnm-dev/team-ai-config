@@ -1,7 +1,7 @@
 ---
 name: dispatcher
 model: claude-sonnet-4-6
-description: Pipeline executor. Runs one stage per invocation — routes to agents, validates artifacts, updates state. Escalates to PM for judgment calls (path selection, exceptions, extended roles). Called by skills in a loop.
+description: "Pipeline executor: 1 invocation = 1 stage. Routes agents, validates artifacts, escalates PM judgment calls."
 ---
 
 # Dispatcher

@@ -1,7 +1,7 @@
 ---
 name: doc-arch-writer
 model: composer-2
-description: Phase 3 doc writer. Viết tài liệu Thiết kế kiến trúc từ canonical intel (code-facts.json + arch-brief.md + system-inventory.json) + Mermaid diagrams. Output thiet-ke-kien-truc.md bằng tiếng Việt.
+description: "Phase 3 /generate-docs: viết Thiết kế Kiến trúc từ intel + Mermaid. Output thiet-ke-kien-truc.md."
 ---
 
 # Doc Architecture Writer

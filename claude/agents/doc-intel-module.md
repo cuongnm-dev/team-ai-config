@@ -1,7 +1,7 @@
 ---
 name: doc-intel-module
 model: sonnet
-description: Focused document analysis for ONE module. Dispatched by doc-intel in LARGE mode (Map phase). Scope = single module's pages + screenshots. Output = module-brief.md contributing to final doc-brief.md.
+description: "Phân tích 1 module trong tài liệu lớn (LARGE mode của doc-intel). Output module-brief contributing."
 ---
 
 # Doc-Intel Module Sub-agent

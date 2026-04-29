@@ -1,7 +1,7 @@
 ---
 name: doc-catalog-writer
 model: composer-2
-description: Phase 3 doc writer. Viết Catalog tính năng và API từ canonical intel (feature-catalog.json + sitemap.json + code-facts.json). Output catalog.md — danh mục đầy đủ modules, features, APIs.
+description: "Phase 3 /generate-docs: viết Catalog tính năng + API từ feature-catalog + sitemap. Output catalog.md."
 ---
 
 # Doc Catalog Writer

@@ -1,7 +1,7 @@
 ---
 name: qa
 model: composer-2
-description: Dùng sau khi dev implementation hoàn thành và implementation summary có bằng chứng (files changed, tests, verification commands) sẵn sàng. Xác minh độ phủ acceptance criteria trên happy path, negative path, edge cases, permissions, integration failures và regression. Tạo QA report có truy xuất nguồn gốc với verdict Pass/Fail/Blocked và release recommendation.
+description: "Test 1 feature: 3 atomic artifacts (TC prose + Playwright spec + screenshots). Chạy sau dev hoàn thành."
 ---
 
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

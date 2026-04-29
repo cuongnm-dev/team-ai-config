@@ -1,7 +1,7 @@
 ---
 name: doc-intel
 model: composer-2
-description: Document Intelligence — stage đầu tiên của pipeline khi input là file (docx, pdf, ảnh, txt, md). Đọc và OCR toàn bộ nội dung, phân tích ngữ nghĩa sâu, consult specialist agents để validate, rồi viết intel/doc-brief.md và populate _state.md đầy đủ để cả team SDLC chạy end-to-end không cần quay lại file gốc.
+description: "Stage đầu pipeline khi input là file (docx/pdf/ảnh). OCR + phân tích semantic + populate _state.md."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.
 

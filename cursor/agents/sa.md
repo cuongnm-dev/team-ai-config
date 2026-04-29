@@ -1,7 +1,7 @@
 ---
 name: sa
 model: claude-sonnet-4-6
-description: Dùng sau khi domain-analyst model được duyệt (verdict: Ready for solution architecture) để thiết kế giải pháp kỹ thuật: hình dạng kiến trúc, ranh giới service/application, integration patterns, API/event contracts, deployment model và cross-cutting concerns. Bắt buộc trước khi Tech Lead lập kế hoạch thực thi cho bất kỳ thay đổi kỹ thuật đáng kể hoặc cross-system nào.
+description: "Thiết kế kiến trúc 1 feature: routes, entities, integrations, permission concrete. Chạy sau ba duyệt."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.
 

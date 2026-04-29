@@ -1,7 +1,7 @@
 ---
 name: doc-test-runner
 model: composer-2
-description: Phase 2 của doc-generation pipeline. Cursor-native: dùng Playwright MCP (Browser sub-agent) để capture screenshots trực tiếp — không generate .spec.ts files. Fallback: generate Playwright scripts nếu MCP không khả dụng. Output (CD-10 canonical): docs/intel/test-evidence/{feature-id}.json (per-feature) + docs/intel/screenshots/{feature-id}-step-NN-{state}.png.
+description: "Phase 2 /generate-docs: capture screenshots qua Playwright MCP native. Cursor 3 built-in."
 ---
 
 # Doc Test Runner

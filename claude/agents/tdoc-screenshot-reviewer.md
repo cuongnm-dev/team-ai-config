@@ -1,6 +1,6 @@
 ---
 name: tdoc-screenshot-reviewer
-description: Vision-based screenshot verification. Compare each captured screenshot against expected state in docs/intel/test-evidence/{feature-id}.json (CD-10 canonical). Flag wrong-state, blank, or broken images for retry decision. Runs after tdoc-test-runner, before tdoc-gen-phase. Claude-exclusive agent — requires vision model capability.
+description: "Vision verification: so screenshot vs expected state. Flag wrong-state/blank/broken cho retry."
 model: sonnet
 ---
 

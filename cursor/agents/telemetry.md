@@ -1,7 +1,7 @@
 ---
 name: telemetry
 model: composer-2
-description: Background telemetry agent. Captures token usage + cache hit signals + stage timing per SDLC iteration. Writes append-only JSONL to .cursor/telemetry/{feature-id}.jsonl. Read-only on _state.md. Invoked by resume-feature dispatcher loop AFTER each stage advance — never blocks pipeline. Composer 2 chosen — Cursor's agentic-tuned model, fast iteration loop, capable enough for cache_signal heuristic + anomaly flagging. Escalate to claude-4-7-opus if anomaly detection expands to root-cause cross-correlation across multiple features.
+description: "Background recorder: token usage, cache hit, stage timing -> JSONL. Read-only _state.md, không block."
 ---
 
 # Telemetry Agent

@@ -1,7 +1,7 @@
 ---
 name: reviewer
 model: composer-2
-description: Dùng sau khi QA trả về verdict Pass hoặc Pass-with-risks để thực hiện quality gate cuối cùng: requirement alignment, architecture alignment, code quality, security findings, reliability/operability và test adequacy. Tạo verdict Approved/Changes-requested/Blocked với các must-fix và should-fix items được phân loại trước khi merge hoặc release.
+description: "Quality gate cuối: requirement + architecture + code quality + security + test adequacy. Chạy sau QA Pass."
 readonly: true
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

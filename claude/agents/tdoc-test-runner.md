@@ -1,6 +1,6 @@
 ---
 name: tdoc-test-runner
-description: Phase 2 code-to-docs pipeline. REUSE-FIRST per CD-10 Quy tắc 10 — skip features with fresh docs/intel/test-evidence/{feature-id}.json. Captures UI screenshots via Playwright with deterministic waits, disabled animations, and viewport profiles (desktop/mobile/tablet). Uses auth_runner.py for session setup — credentials from docs/intel/test-accounts.json (canonical) merged with interactive prompts. Falls back to non-headless recording mode if auto-login fails. Output (CD-10): docs/intel/test-evidence/{feature-id}.json (per-feature) + docs/intel/screenshots/{feature-id}-step-NN-{state}.png (CD-4 naming).
+description: "Phase 2 /from-code: capture Playwright screenshots cho feature. REUSE-FIRST nếu test-evidence đã có."
 model: sonnet
 ---
 
