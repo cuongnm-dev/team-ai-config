@@ -1,6 +1,6 @@
 ---
 name: incident
-description: Điều phối sự cố P0/P1 + viết postmortem. Modes: respond (active incident) / postmortem (blameless analysis sau khi ổn định).
+description: Điều phối xử lý sự cố mức P0/P1 và viết báo cáo postmortem sau đó. Có 2 chế độ: respond (sự cố đang xảy ra — cần xử lý gấp, communication, mitigation) và postmortem (phân tích không đổ lỗi sau khi đã ổn định, rút bài học cải tiến).
 ---
 
 # Incident

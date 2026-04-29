@@ -1,6 +1,6 @@
 ---
 name: new-strategic-document
-description: "Tạo Đề án CĐS/CNTT bằng Strategic Thinking Pipeline. Research-centric, KB + DEDUP, 4 spirals, real parallel agents. Invoke khi user cần tạo đề án chiến lược CĐS cho cơ quan nhà nước."
+description: Tạo Đề án Chuyển đổi số / Ứng dụng CNTT cho cơ quan nhà nước theo quy trình tư duy chiến lược 4 vòng: nghiên cứu thực trạng → kiểm tra trùng lặp với hệ thống dùng chung → đề xuất giải pháp khả thi → viết tài liệu cuối cùng. Tận dụng tri thức nội bộ và đối chiếu pháp lý.
 ---
 
 # Skill: New Strategic Document (Claude Code Native)

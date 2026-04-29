@@ -1,6 +1,6 @@
 ---
 name: zip-disk
-description: Đóng gói sản phẩm bàn giao khách hàng. Bundle docs/generated/<slug>/output/*.{docx,xlsx,pdf} (đổi tên tiếng Việt có dấu, để ở root ZIP, fallback docs/output/ hoặc output/ cho legacy) + src/ với Docker files (loại bỏ node_modules, dist, bin, obj, .git, etc.). Tên ZIP auto-detect từ git remote/package.json/folder name. Output: {repo-name}-ban-giao-{YYYYMMDD}.zip sẵn sàng ghi đĩa.
+description: Đóng gói toàn bộ sản phẩm bàn giao thành 1 file ZIP để giao khách hàng hoặc ghi ra đĩa. Tự đổi tên tiếng Việt có dấu, gom tài liệu Word/Excel + thư mục mã nguồn + Docker file, loại bỏ file build và cache không cần thiết. Tên file dạng: {tên-dự-án}-ban-giao-{ngày}.zip.
 ---
 
 # ZIP Disk — Customer delivery package

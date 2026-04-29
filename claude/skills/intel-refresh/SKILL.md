@@ -1,6 +1,6 @@
 ---
 name: intel-refresh
-description: Regenerate Tier 1+2 intel artifacts after code/doc changes. Triggered by `_state.md.intel-drift: true` flag set by Cursor SDLC agents (per CD-10 quy tắc 8 Cursor-side awareness + ref-canonical-intel.md drift events). Selectively re-runs from-code Phase 1-2 + from-doc Step 3 + intel-merger + intel-validator + intel-snapshot. SKIPS Tier 3 entirely (doc-only — BA manual edit). Per OUTLINE_COVERAGE.md § 8.6 Step 9.
+description: Cập nhật lại các bản phân tích kiến trúc và tính năng sau khi code hoặc tài liệu thay đổi. Chỉ chạy lại đúng phần cần thiết (theo cờ drift do agent SDLC đặt) thay vì toàn bộ pipeline, tiết kiệm thời gian và token.
 ---
 
 # Intel Refresh

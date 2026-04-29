@@ -1,6 +1,6 @@
 ---
 name: strategic-critique
-description: Adversarial reviewer cho Đề án CĐS / Ứng dụng CNTT. Role-play thẩm định (Bộ/Tỉnh/Sở) tìm lỗi: vague language, missing specificity, invalid legal refs, internal contradictions, DEDUP misses, feasibility issues. Input = draft Đề án (docx/md/pdf). Output = findings YAML + side-by-side critique comments.
+description: Đóng vai cán bộ thẩm định (Bộ/Tỉnh/Sở) phản biện ngược lại Đề án Chuyển đổi số bạn vừa viết — bắt các lỗi thường gặp: câu chữ mơ hồ, thiếu số liệu cụ thể, viện dẫn pháp lý sai, mâu thuẫn nội bộ, bỏ sót dùng chung hệ thống có sẵn, đề xuất bất khả thi. Dùng để rà chất lượng trước khi nộp.
 ---
 
 # Strategic Critique — Adversarial Reviewer

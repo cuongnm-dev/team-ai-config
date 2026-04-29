@@ -1,6 +1,6 @@
 ---
 name: close-feature
-description: Đóng pipeline feature/hotfix đã hoàn thành. Xác minh approval, chạy retrospective, seal _state.md, cập nhật feature-map.yaml.
+description: Đóng pipeline phát triển 1 tính năng đã hoàn thành. Kiểm tra đã có người duyệt cuối, chạy phiên rút kinh nghiệm (retrospective), niêm phong file _state.md, cập nhật bản đồ tính năng feature-map.yaml. Là bước cuối trước khi merge code.
 ---
 
 # Close Pipeline

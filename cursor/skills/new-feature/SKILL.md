@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: Khởi tạo feature pipeline mới, tiếp tục pipeline đang dở, hoặc update feature đã hoàn thành. Đọc AGENTS.md, tạo _state.md + feature-map.yaml theo contract.
+description: Khởi tạo pipeline cho 1 tính năng mới, tiếp tục pipeline đang dở, hoặc cập nhật tính năng đã hoàn thành. Tự động đọc AGENTS.md để xác định loại workspace, tạo _state.md và feature-map.yaml theo đúng contract chuẩn.
 ---
 
 # Pipeline Entry Point

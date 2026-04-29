@@ -1,6 +1,6 @@
 ---
 name: from-doc
-description: End-to-end pipeline from description files (PDF/DOCX/images/testcases) → deep analysis → workspace scaffold → feature _state.md files in Cursor SDLC format. Runs in Claude Code. Output handoff to Cursor /resume-feature.
+description: Đọc tài liệu mô tả nghiệp vụ (PDF, Word, ảnh, file test case) để phân tích sâu, dựng cấu trúc dự án và sinh hồ sơ từng tính năng theo chuẩn Cursor SDLC. Dùng khi đã có tài liệu yêu cầu nhưng chưa có code.
 ---
 
 # From Document to Code — Claude Code Pipeline

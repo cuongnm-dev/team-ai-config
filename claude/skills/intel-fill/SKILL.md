@@ -1,6 +1,6 @@
 ---
 name: intel-fill
-description: Interactive interview wizard để fill 35% human-knowledge fields (T3 doc-only schemas). DAG-based question ordering (Docassemble pattern P1) — đọc intel state, identify missing required fields, hỏi theo dependency order, skip fields đã có. Phase 1 simple DAG (no auto-derive yet). Per WORKFLOW_DESIGN.md § 0 D2.
+description: Trợ lý phỏng vấn tương tác — hỏi user lần lượt các thông tin nghiệp vụ mà máy không tự đọc được từ code (mục đích kinh doanh, ngân sách, quy trình thẩm định, đối tác liên quan…). Hỏi theo thứ tự thông minh, tự bỏ qua câu đã có sẵn câu trả lời.
 ---
 
 # Intel Fill — Interactive Interview Wizard

@@ -1,6 +1,6 @@
 ---
 name: new-workspace
-description: Smart workspace scaffold — mini-repo or monorepo. Preset system, feature flags, prerequisite checks, working starter code, post-install verification, conditional summary card.
+description: Tạo workspace mới cho dự án — chọn giữa mini-repo (1 service đơn lẻ) hoặc monorepo (nhiều service). Có sẵn các preset công nghệ phổ biến, kiểm tra điều kiện trước khi cài, sinh starter code chạy được ngay sau khi cài đặt.
 ---
 
 # Skill: New Project Setup

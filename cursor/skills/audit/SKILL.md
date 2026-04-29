@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Kiểm toán bảo mật, tuân thủ, dependencies. Modes: security / compliance / dependencies.
+description: Kiểm toán dự án về 3 mặt khác nhau, chọn 1 chế độ khi chạy: security (lỗ hổng bảo mật), compliance (tuân thủ tiêu chuẩn pháp lý/quy định), dependencies (các thư viện ngoài có an toàn không, có vulnerability nào không).
 ---
 
 # Audit

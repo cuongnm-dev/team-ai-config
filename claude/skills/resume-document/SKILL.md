@@ -1,6 +1,6 @@
 ---
 name: resume-document
-description: "Tiếp tục pipeline tài liệu dang dở. Đọc _doc_state.md hoặc _strategy_state.md, xác định stage, handoff cho đúng agent. Dùng khi quay lại sau khi đóng session, mất context, hoặc tạm dừng."
+description: Tiếp tục soạn tài liệu đang dở dang. Tự đọc trạng thái lưu trong _doc_state.md hoặc _strategy_state.md, biết cần làm bước tiếp theo nào và giao việc cho đúng agent phụ trách. Dùng khi quay lại sau vài ngày, đóng session rồi mở lại, hoặc tạm dừng giữa chừng.
 ---
 
 # Resume Document Pipeline

@@ -1,6 +1,6 @@
 ---
 name: from-doc
-description: Phân tích tài liệu nghiệp vụ → tạo feature _state.md cho SDLC. Cursor chạy trực tiếp cho task đơn giản, Claude Code cho task phức tạp. Cả hai output cùng contract.
+description: Đọc tài liệu mô tả nghiệp vụ (PDF, Word, ảnh, file test case) để phân tích sâu, dựng cấu trúc dự án và sinh hồ sơ từng tính năng theo chuẩn Cursor SDLC. Dùng khi đã có tài liệu yêu cầu nhưng chưa có code.
 ---
 
 # From Document to Code — Contract & Dual-Producer

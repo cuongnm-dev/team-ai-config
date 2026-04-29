@@ -1,6 +1,6 @@
 ---
 name: feature-status
-description: "Trạng thái pipeline + project health. Modes: standup (all pipelines) / detail (1 pipeline) / health (KPI trends) / overview (workspace summary)."
+description: Xem trạng thái pipeline đang chạy và sức khỏe tổng thể dự án. 4 chế độ: standup (xem nhanh tất cả pipeline để báo cáo daily), detail (chi tiết 1 pipeline cụ thể), health (xu hướng các chỉ số KPI theo thời gian), overview (tóm tắt cả workspace).
 ---
 
 # Pipeline Status

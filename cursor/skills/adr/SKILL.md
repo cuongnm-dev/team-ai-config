@@ -1,6 +1,6 @@
 ---
 name: adr
-description: "Ghi lại Architecture Decision Record. Hai mode: full (SA + tech-lead validate, cho quyết định quan trọng) hoặc quick (SA only, cho convention nhỏ). Dùng /adr cho mọi quyết định kiến trúc — skill tự chọn mode phù hợp hoặc hỏi user."
+description: Ghi chép lại một quyết định kiến trúc quan trọng (Architecture Decision Record). Có 2 mức độ: full (kiến trúc sư cùng tech-lead xác nhận, dùng cho quyết định lớn) và quick (kiến trúc sư tự ghi, dùng cho quy ước nhỏ). Skill tự chọn mức phù hợp hoặc hỏi user nếu chưa rõ.
 ---
 
 # Architecture Decision Record

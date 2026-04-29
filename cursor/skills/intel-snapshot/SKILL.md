@@ -1,6 +1,6 @@
 ---
 name: intel-snapshot
-description: Generate compressed Markdown snapshot of canonical intel JSON files (~3-5K tokens vs 50K+ for full JSON). Consumed by SDLC agents (dev, qa, reviewer base tier) for fast intel orientation. Pro-tier agents + sa still read full JSON for deep decisions. Producers (from-doc, from-code, intel-merger) MUST call this script after writing intel artifacts to keep snapshot fresh.
+description: Sinh bản tóm tắt nén (Markdown ~3-5K token) từ các file intel JSON gốc (50K+ token mỗi file). Các agent SDLC cấp cơ bản (dev, qa, reviewer) đọc bản tóm tắt này để hiểu nhanh ngữ cảnh; chỉ agent cấp Pro và SA mới đọc full JSON khi cần quyết định sâu. Producer phải gọi script này sau mỗi lần ghi intel để bản tóm tắt luôn mới.
 ---
 
 # Intel Snapshot

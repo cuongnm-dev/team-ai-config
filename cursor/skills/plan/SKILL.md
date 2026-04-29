@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Khảo sát scope, ước tính effort, lập kế hoạch triển khai. 3 modes: estimate / plan / breakdown.
+description: Khảo sát phạm vi công việc, ước lượng effort, lập kế hoạch triển khai. 3 chế độ: estimate (chỉ ước lượng thời gian/effort), plan (lập kế hoạch chi tiết các bước), breakdown (chia nhỏ tính năng thành các task có thể giao cho dev).
 ---
 
 # Plan

@@ -1,6 +1,6 @@
 ---
 name: new-document-workspace
-description: "Scaffold workspace + tạo tài liệu hành chính VN — 8 doc types (TKCS, TKCT, dự toán, HSMT, HSDT, NCKT, thuyết minh, báo cáo CT). Immutable outlines, doc-type-specific interview, parallel writing. etc-docgen export for TKCS/TKCT/TKKT/HDSD, Pandoc export for others."
+description: Tạo workspace mới để soạn tài liệu hành chính tiếng Việt theo 8 loại chuẩn của Nhà nước: Thiết kế Cơ sở, Thiết kế Chi tiết, Dự toán, Hồ sơ Mời thầu, Hồ sơ Dự thầu, Nghiên cứu Khả thi, Thuyết minh, Báo cáo Công trình. Mỗi loại có outline cố định, phỏng vấn riêng và viết song song nhiều agent.
 ---
 
 # Skill: New Document Workspace (Claude Code Native)

@@ -1,6 +1,6 @@
 ---
 name: hotfix
-description: Fast-path pipeline cho lỗi nghiêm trọng đã xác định rõ. Bỏ qua ba + SA, chạy thẳng tech-lead → dev → qa → reviewer.
+description: Pipeline rút gọn dành riêng cho lỗi nghiêm trọng đã xác định rõ nguyên nhân. Bỏ qua bước phân tích nghiệp vụ (BA) và kiến trúc (SA), chạy thẳng tech-lead → dev → QA → reviewer để vá nhanh, đẩy lên production.
 ---
 
 # Hotfix Pipeline

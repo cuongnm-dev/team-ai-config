@@ -1,6 +1,6 @@
 ---
 name: arch-review
-description: Khảo sát kiến trúc + đăng ký nợ kỹ thuật. Modes: review (architecture analysis) / tech-debt (audit + prioritize debt).
+description: Khảo sát toàn bộ kiến trúc dự án và đăng ký nợ kỹ thuật. Có 2 chế độ: review (phân tích kiến trúc hiện tại để đánh giá điểm mạnh/yếu) và tech-debt (kiểm kê và xếp ưu tiên các vấn đề tồn đọng cần xử lý).
 ---
 
 # Architecture Review

@@ -1,6 +1,6 @@
 ---
 name: new-project
-description: Thêm app, service hoặc package mới vào workspace monorepo hiện có. Đọc .cursor/AGENTS.md để xác nhận loại workspace, scaffold member mới, cập nhật cấu hình workspace và AGENTS.md. Chỉ dành cho monorepo — để tạo workspace mới dùng /new-workspace.
+description: Thêm 1 app, service hoặc package mới vào workspace monorepo hiện tại. Đọc .cursor/AGENTS.md để xác nhận loại workspace, scaffold member mới, cập nhật cấu hình workspace và AGENTS.md. Chỉ dùng cho monorepo — muốn tạo workspace mới hoàn toàn thì dùng /new-workspace.
 ---
 
 # Skill: New Project (Add to Monorepo)

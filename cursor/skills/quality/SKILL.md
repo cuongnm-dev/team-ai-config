@@ -1,6 +1,6 @@
 ---
 name: quality
-description: Code review hoặc sinh test. Modes: review (PR/diff) / gen-tests (sinh unit + integration tests).
+description: Review code hoặc sinh test tự động. 2 chế độ: review (xem PR/diff để góp ý chất lượng, bảo mật, hiệu năng) và gen-tests (sinh test unit + integration cho code mới hoặc code đã có nhưng thiếu test).
 ---
 
 # Quality

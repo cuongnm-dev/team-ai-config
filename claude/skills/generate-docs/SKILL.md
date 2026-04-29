@@ -1,6 +1,6 @@
 ---
 name: generate-docs
-description: Sinh tài liệu ETC (TKKT, TKCS, TKCT, HDSD, Test Case) — Claude Code Edition. 6-stage pipeline (Preflight → Discovery → Analysis → Capture → Synthesis → Quality → Delivery) tối ưu cho parallel sub-agent dispatch. SEPARATION OF CONCERNS — Agent dùng Agent tool (run_in_background) để dispatch researchers/writers concurrent; MCP etc-docgen làm rendering. Stage 4 dispatches Group A (4b/4c/4d) PARALLEL trong 1 message. CẤM Python subprocess; MCP down → BLOCK.
+description: Sinh trọn bộ tài liệu kỹ thuật ETC từ mã nguồn dự án — gồm Thiết kế Kỹ thuật, Thiết kế Cơ sở, Thiết kế Chi tiết, Hướng dẫn sử dụng, Test Case. Tự động dispatch nhiều agent chạy song song và render ra file Word/Excel hoàn chỉnh thông qua MCP server etc-platform.
 ---
 
 # 🛑 STOP — READ THIS FIRST

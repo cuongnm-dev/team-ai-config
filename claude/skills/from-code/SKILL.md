@@ -1,6 +1,6 @@
 ---
 name: from-code
-description: End-to-end pipeline from codebase (stack-agnostic) → feature extraction with status detection → architecture reconstruction → feature _state.md + architecture docs. Runs in Claude Code. Output is bridge-compatible with generate-docs (Route A, 5/5 coverage). Supports monorepo (per-service docs). Uses per-phase micro-checkpoints for token-efficient course correction.
+description: Đọc mã nguồn của dự án (bất kỳ ngôn ngữ nào) để tự động trích xuất danh sách tính năng, dựng lại sơ đồ kiến trúc và sinh hồ sơ trạng thái cho từng tính năng. Kết quả ghép nối được với /generate-docs để sinh tài liệu kỹ thuật. Dùng khi đã có code nhưng chưa có tài liệu.
 ---
 
 # From Code to Features + Docs — Claude Code Pipeline

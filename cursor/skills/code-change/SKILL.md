@@ -1,6 +1,6 @@
 ---
 name: code-change
-description: Fix bug hoặc refactor an toàn. Modes: fix (investigate → fix → verify) / refactor (scoped + validated).
+description: Sửa lỗi hoặc tái cấu trúc code một cách an toàn. Có 2 chế độ: fix (điều tra nguyên nhân → sửa lỗi → kiểm thử lại) và refactor (tái cấu trúc trong phạm vi hẹp, có kiểm chứng trước-sau).
 ---
 
 # Code Change

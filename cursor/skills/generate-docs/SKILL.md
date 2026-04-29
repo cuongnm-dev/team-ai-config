@@ -1,6 +1,6 @@
 ---
 name: generate-docs
-description: Sinh tài liệu ETC (TKKT, TKCS, TKCT, HDSD, Test Case) — Cursor 3 Edition. 6-stage pipeline với Composer-driven gates, Custom Modes, @Codebase semantic, Cursor Rules auto-attach, MEMORIES.md persistence, Design Mode visual review. CẤM agent tự render file — etc-docgen MCP làm rendering. Composer = primary user-review gate, KHÔNG bypass.
+description: Sinh trọn bộ tài liệu kỹ thuật ETC từ mã nguồn dự án — gồm Thiết kế Kỹ thuật, Thiết kế Cơ sở, Thiết kế Chi tiết, Hướng dẫn sử dụng, Test Case. Tự động dispatch nhiều agent chạy song song và render ra file Word/Excel hoàn chỉnh thông qua MCP server etc-platform.
 ---
 
 # 🛑 STOP — READ THIS FIRST

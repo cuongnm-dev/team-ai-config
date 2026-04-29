@@ -1,6 +1,6 @@
 ---
 name: resume-feature
-description: Tiếp tục pipeline đang dở dang từ checkpoint cuối. Hỗ trợ sdlc + doc-generation. Đọc _state.md → dispatcher loop (với PM escalation) → hoàn thành.
+description: Tiếp tục pipeline đang dở từ checkpoint cuối cùng. Hỗ trợ cả pipeline phát triển tính năng (SDLC) và pipeline sinh tài liệu. Đọc _state.md để biết đang ở đâu → chạy dispatcher loop tự động giao việc cho đúng agent → có cơ chế PM escalation khi gặp blocker → hoàn thành tới checkpoint tiếp theo.
 ---
 
 # Resume Pipeline

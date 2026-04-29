@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Triển khai code theo plan đã duyệt (từ /plan-feature hoặc tech-lead plan). Dev thực thi từng task trong plan, cập nhật tests, cập nhật docs liên quan. Dùng cho implementation ad-hoc ngoài pipeline hoặc khi plan đã có sẵn và chỉ cần execution. Không gọi khi đang trong active pipeline — dùng /pm thay thế.
+description: Triển khai code theo đúng kế hoạch đã được duyệt (từ /plan-feature hoặc tech-lead). Dev chạy từng task trong plan, cập nhật test và tài liệu liên quan. Dùng cho task ad-hoc nằm ngoài pipeline; nếu đang trong pipeline đang chạy thì dùng /pm thay thế.
 ---
 
 # Implement Feature

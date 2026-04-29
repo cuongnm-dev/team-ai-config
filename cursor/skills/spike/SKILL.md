@@ -1,6 +1,6 @@
 ---
 name: spike
-description: Tiến hành điều tra kỹ thuật đối với các vấn đề chưa rõ ràng trước khi đưa ra giải pháp. Chuyên gia phân tích hệ thống (SA) đánh giá các yếu tố chưa biết về kiến ​​trúc, trưởng nhóm kỹ thuật đánh giá các yếu tố chưa biết về triển khai, nhà phát triển (tùy chọn) xác thực bằng một bản thử nghiệm chứng minh tính khả thi. Kết quả đầu ra là một tài liệu nghiên cứu sơ bộ với khuyến nghị rõ ràng. Không mở ra một quy trình triển khai chính thức.
+description: Điều tra kỹ thuật khi chưa rõ giải pháp — chạy trước khi mở pipeline triển khai chính thức. Kiến trúc sư (SA) đánh giá điểm chưa rõ về kiến trúc, tech-lead đánh giá điểm chưa rõ về triển khai, dev (tùy chọn) làm thử proof-of-concept để chứng minh khả thi. Output là tài liệu khảo sát có khuyến nghị rõ ràng.
 ---
 
 # Spike

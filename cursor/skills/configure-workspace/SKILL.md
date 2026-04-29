@@ -1,6 +1,6 @@
 ---
 name: configure-workspace
-description: Trang bị .cursor/ pipeline config cho repo hiện có + sync từ master config. Absorbs sync-master.
+description: Trang bị cấu hình pipeline `.cursor/` cho repo có sẵn, đồng thời đồng bộ phiên bản mới nhất từ master config về máy. Đã gộp luôn skill sync-master cũ.
 ---
 
 # Skill: Configure Workspace
