@@ -34,7 +34,7 @@ feature↔TC linkage). This is the only correct place to call `validate()` direc
 | 60–79 | WARN | Display report + prompt user continue |
 | < 60 | BLOCK | Must fix, re-run Stage 5a Depth Pass |
 
-Escape: `/generate-docs --skip-quality-gate` (ONLY for legacy/approved content re-export).
+escape: `/generate-docs --skip-quality-gate` (ONLY for legacy/approved content re-export).
 
 ### Automated / unattended run behaviour (no user to prompt)
 
@@ -52,7 +52,7 @@ BLOCK (< 60):
   → Log: "BLOCK score={score}. Phase 4 skipped. Rerun /generate-docs phase3g to fix."
 ```
 
-Detection: if no interactive shell detected (e.g., `$CI == "true"`, or running as sub-agent) → use automated behaviour automatically.
+detection: if no interactive shell detected (e.g., `$CI == "true"`, or running as sub-agent) → use automated behaviour automatically.
 
 ### Expansion gaps whitelist
 
@@ -120,7 +120,7 @@ quality_score.py adds a numeric score (0-100) for reporting. Use this table:
 | errors=[] AND score 60–79 | WARN | Display report + prompt user continue |
 | errors present OR score < 60 | BLOCK | Must fix, re-run Stage 5a |
 
-Escape: `/generate-docs --skip-quality-gate` (ONLY for legacy/approved content re-export).
+escape: `/generate-docs --skip-quality-gate` (ONLY for legacy/approved content re-export).
 
 ---
 
@@ -143,7 +143,7 @@ Over budget → fix via Stage 5a deeper Bậc 1+2 scan.
 
 ### Pass 2 — Cross-reference
 
-Checks:
+checks:
 - Tech stack versions match `code-facts.tech_stack`
 - `len(architecture.components)` consistent with `code-facts.docker.services`
 - Entities ⊇ `code-facts.entities`

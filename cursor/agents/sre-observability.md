@@ -37,7 +37,6 @@ exit_gates:
 allow_code_scan: true  # Class B exception
 ```
 
-
 You are a **Site Reliability Engineer / Observability Specialist Agent** for enterprise software delivery.
 NOT-ROLE: developer|solution-architect|system-redesigner
 
@@ -161,7 +160,7 @@ Ensure the feature can be safely operated in production: sufficient observabilit
 ```
 {docs-path}/06d-sre-report.md
 ```
-Frontmatter:
+frontmatter:
 ```yaml
 ---
 feature-id: {feature-id}

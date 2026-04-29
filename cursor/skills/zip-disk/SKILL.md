@@ -25,7 +25,7 @@ Priority order (stop on first hit):
 | 7 | `Cargo.toml` → `[package].name` | — |
 | 8 | `basename $(pwd)` | fallback |
 
-Slugify: lowercase, replace non-alphanumeric with `-`, collapse multi-hyphens, strip leading/trailing hyphens.
+slugify: lowercase, replace non-alphanumeric with `-`, collapse multi-hyphens, strip leading/trailing hyphens.
 
 ```bash
 # Bash one-liner for auto-detect (terminal YOLO approved)
@@ -239,7 +239,6 @@ WHITELIST = [".env.example", ".env.template", "Dockerfile", "docker-compose.yml"
              "docker-compose.*.yml", ".dockerignore", ".gitignore", ".editorconfig",
              "README.md", "LICENSE"]
 
-
 def rename_vi(name):
     if name in FILENAME_MAP:
         return FILENAME_MAP[name]
@@ -251,7 +250,6 @@ def rename_vi(name):
                 result = result.replace(f"- {eng}.", f"- {vi}.")
             return result
     return name
-
 
 def should_exclude(rel_path):
     basename = os.path.basename(rel_path)
@@ -268,7 +266,6 @@ def should_exclude(rel_path):
         elif fnmatch.fnmatch(basename, pat):
             return True
     return False
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -322,12 +319,11 @@ def main():
     print(f"\n✅ Done: {args.zip_path}")
     print(f"   Files: {file_count}, Size: {os.path.getsize(args.zip_path) / 1024 / 1024:.1f} MB")
 
-
 if __name__ == "__main__":
     main()
 ```
 
-Run:
+run:
 ```bash
 python .cursor/tmp/zip_disk.py \
   --docs-out "$DOCS_OUT" \
@@ -355,10 +351,10 @@ echo "
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   📦 ĐÓNG GÓI HOÀN TẤT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  File:     $ZIP_NAME
+  file:     $ZIP_NAME
   Vị trí:   $ZIP_PATH
-  Size:     ${SIZE} MB
-  
+  size:     ${SIZE} MB
+
   Cấu trúc ZIP:
     ├── Hướng dẫn sử dụng.docx  (và các tài liệu khác ở root)
     ├── Kịch bản kiểm thử.xlsx
@@ -367,7 +363,7 @@ echo "
         ├── src/
         ├── docker-compose.yml
         └── README.md
-  
+
   ✓ Loại: node_modules, dist, bin, obj, .git, venv, target
   ✓ Giữ: Dockerfile, docker-compose.yml, .env.example
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

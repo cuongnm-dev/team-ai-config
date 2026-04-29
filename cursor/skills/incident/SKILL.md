@@ -70,9 +70,9 @@ Task(
   prompt='## Active Incident — Impact Assessment
 
   incident-id: {incident-id}
-  Severity: {severity}
-  Description: {description}
-  Services: {services}
+  severity: {severity}
+  description: {description}
+  services: {services}
   Start time: {start time}
 
   Produce immediately:
@@ -92,12 +92,12 @@ Task(
   prompt='## Active Incident — Infrastructure Response
 
   incident-id: {incident-id}
-  Severity: {severity}
+  severity: {severity}
   Services affected: {services}
   SRE hypotheses: {SRE root cause hypotheses}
   SRE mitigations: {SRE immediate mitigations}
 
-  Produce:
+  produce:
   1. Infrastructure checks to run immediately
   2. Actions to implement SRE mitigations (exact commands/steps)
   3. Infra-level changes that could have caused this (recent deployments, config changes, resource limits)
@@ -111,10 +111,10 @@ Task(
   prompt='## Active Incident — Security Assessment
 
   incident-id: {incident-id}
-  Description: {description}
+  description: {description}
   Suspected breach: yes
 
-  Produce:
+  produce:
   1. Immediate containment actions (isolate affected systems, revoke tokens, etc.)
   2. Evidence preservation steps (do not destroy logs)
   3. Data exposure assessment — what data may have been accessed or leaked?
@@ -159,7 +159,7 @@ commander: pm
 {who to page and when}
 
 ### Step 5 — Respond to user (in Vietnamese)
-Format:
+format:
 ## Incident Response Activated: {incident-id}
 
 **Severity:** {P0/P1/P2}

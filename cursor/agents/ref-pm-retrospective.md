@@ -16,9 +16,9 @@ feature-id: { feature-id }
 stage: retrospective
 agent: pm
 created: { YYYY-MM-DD }
-total_waves: { N }
-cycle_time_days: { N }
-tokens_total: { N }
+total-waves: { N }
+cycle-time-days: { N }
+tokens-total: { N }
 ---
 
 # Retrospective: {Feature Name}
@@ -87,7 +87,7 @@ tokens_total: { N }
 | DevOps Pattern | | | Yes / No |
 
 **After retrospective:** PM adds "Yes" rows to `.cursor/rules/40-project-knowledge.mdc` in the relevant section.
-Format: `[{feature-id}] {item description}`
+format: `[{feature-id}] {item description}`
 ```
 
 ---

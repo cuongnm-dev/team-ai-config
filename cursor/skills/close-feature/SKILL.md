@@ -81,7 +81,7 @@ Resolution order (same as resume-feature):
 3. `docs/hotfixes/{id}/_state.md`
 4. Glob `**/docs/features/{id}/_state.md` (last resort)
 
-Extract: `docs-path`, `feature-name`, `pipeline-type`, `status`, `current-stage`, reviewer verdict from completed-stages.
+extract: `docs-path`, `feature-name`, `pipeline-type`, `status`, `current-stage`, reviewer verdict from completed-stages.
 
 Not found → stop: "No pipeline found for `{id}`."
 
@@ -144,7 +144,7 @@ Before sealing, verify QA stage produced complete evidence trio. This is a HARD-
    IF all 3 groups present AND coverage 100% AND all TCs passed:
      → PROCEED (display green checkmark with stats)
 
-   ELSE:
+   else:
      → HARD-STOP with itemized verdict:
 
      ❌ Cannot close feature {id} — QA evidence incomplete
@@ -157,14 +157,14 @@ Before sealing, verify QA stage produced complete evidence trio. This is a HARD-
      [ ] AC coverage:         {pct}% (need 100%)
      [ ] Role coverage:       {pct}% (need 100%)
 
-     Action:
+     action:
        1. Re-run /resume-feature {id} → drives QA stage
        2. QA agent will co-produce missing artifacts
        3. Then re-run /close-feature {id}
 
      Override (NOT recommended; for legacy/pre-MVP only):
        /close-feature {id} --skip-qa-gate
-       This persists `intel-warning: qa-gate-bypassed` and 
+       This persists `intel-warning: qa-gate-bypassed` and
        `qa_status: incomplete-bypass` in feature-catalog.
 ```
 
@@ -202,7 +202,7 @@ After 5+ stages a `_state.md` accumulates 500+ lines; every `dispatcher`, `pm`, 
 2. **Wave History**: keep summary line per wave (`W{N}: {N tasks} | {qa-verdict} | {YYYY-MM-DD}`). Move detailed dev/qa/reviewer per-wave rows to `{docs-path}/.archive/state-wave-history.md`.
 3. **Inline change-digest blocks** (`05-change-digest-w{N}.md` references) → keep title + 1-line summary, archive full block.
 
-Result: `_state.md` shrinks ~60% on average; archive files preserve full audit trail (read on demand by retrospective tooling, not by routine pipeline ops).
+result: `_state.md` shrinks ~60% on average; archive files preserve full audit trail (read on demand by retrospective tooling, not by routine pipeline ops).
 
 Skip compression IF:
 - `_state.md` already < 200 lines
@@ -231,11 +231,11 @@ features:
    - status: "implemented"
    - implementation_evidence:
        commits: [list git commit shas in feature branch — `git log main..HEAD --pretty=%H`]
-       test_files: [paths globbed under tests/, __tests__/, *.spec.* relevant to feature]
-       coverage_pct: {parsed from latest coverage report if present, else null}
+       test-files: [paths globbed under tests/, __tests__/, *.spec.* relevant to feature]
+       coverage-pct: {parsed from latest coverage report if present, else null}
        adrs: [paths to docs/adr/* created/modified during this feature]
-       manual_qa_passed: {ask user yes/no, default yes if reviewer verdict=Approved}
-       closed_at: {ISO timestamp}
+       manual-qa-passed: {ask user yes/no, default yes if reviewer verdict=Approved}
+       closed-at: {ISO timestamp}
 4. If test-evidence file exists at docs/intel/test-evidence/{feature-id}.json:
    - Set features[].test_evidence_ref = "docs/intel/test-evidence/{feature-id}.json"
    - Validate the file against test-evidence.schema.json — warn if invalid
@@ -280,7 +280,7 @@ python ~/.cursor/skills/intel-snapshot/generate.py --intel-path docs/intel
 python ~/.cursor/skills/intel-snapshot/generate.py --intel-path docs/intel --check
 ```
 
-Expected: `[OK] Snapshot fresh`. If `--check` returns 1 → snapshot regen failed; investigate before sealing.
+expected: `[OK] Snapshot fresh`. If `--check` returns 1 → snapshot regen failed; investigate before sealing.
 
 **Why mandatory at close-feature**: Next pipeline run on a different feature will read this snapshot. If stale, base-tier agents either:
 1. Fall back to canonical JSON (lose 95% token saving), OR

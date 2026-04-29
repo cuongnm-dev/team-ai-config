@@ -28,7 +28,7 @@ use chrono::Utc;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
+    tracing-subscriber::fmt::init();
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health));
@@ -67,7 +67,7 @@ axum-test = "14"
 ```markdown
 ---
 description: Rust/Axum conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (Rust/Axum)
 ## Rules

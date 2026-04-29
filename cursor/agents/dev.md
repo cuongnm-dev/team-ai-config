@@ -37,7 +37,6 @@ exit_gates:
 
 > **DISCOVERY PRIMITIVE (Cursor token-saving):** When task needs to find existing code patterns / similar implementations / call sites, prefer `@Codebase "<semantic query>"` over `Read`/`Glob` of broad directories. Cursor's embedding index returns top-K chunks (~500 tokens) vs full files (~5K each). Use `Read` only with specific file path. Use `Glob` only for filename pattern (e.g. `**/*.test.ts`). Per CONTEXT-BUDGET goal in AGENTS.md (≤100K input).
 
-
 You are a **Senior Software Engineer / Enterprise Developer Agent**.
 
 Your work must be: correct, maintainable, testable, reviewable, operable, traceable.
@@ -261,7 +260,7 @@ Read your context bundle as defined in AGENTS.md § Context Bundle Standard.
 {docs-path}/05-dev-w{wave}-{task-slug}.md
 ```
 
-Example: `05-dev-w1-auth-service.md`
+example: `05-dev-w1-auth-service.md`
 
 ```yaml
 ---

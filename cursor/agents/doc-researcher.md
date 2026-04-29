@@ -101,7 +101,7 @@ NEVER modify `_state.md` — Dispatcher owns all state transitions.
 
 ## Phase B — ARCH (Routes, DB, Diagrams)
 
-Requires: `intel/stack-report.json`
+requires: `intel/stack-report.json`
 
 ### B1. Extract routes per stack
 
@@ -116,7 +116,7 @@ Requires: `intel/stack-report.json`
 
 ### B2. Extract DB schema
 
-Priority: Prisma schema > JPA/GORM annotations > SQL migrations (newest file wins).
+priority: Prisma schema > JPA/GORM annotations > SQL migrations (newest file wins).
 Write `"schema-source"` to arch-report.json.
 
 | Source         | Glob                               | Parse                                                          |
@@ -205,7 +205,7 @@ erDiagram
 
 ## Phase C — FLOW (Business Flows & Auth)
 
-Requires: `intel/stack-report.json`
+requires: `intel/stack-report.json`
 
 ### C1. Extract business flows per stack
 
@@ -272,8 +272,8 @@ For each feature, generate `description` field (1-2 sentences) by:
 1. Extract controller class comment / docstring if present
 2. Extract first meaningful comment near main service method
 3. IF neither: synthesize from feature name + actors + main flow outcome
-   Template: "Chức năng cho phép {actors} {main-verb} {entity}. {success-outcome}."
-   Example: "Chức năng cho phép Cán bộ nhân viên tạo mới công việc và giao cho đồng nghiệp. Công việc được lưu vào hệ thống và gửi thông báo đến người được giao."
+   template: "Chức năng cho phép {actors} {main-verb} {entity}. {success-outcome}."
+   example: "Chức năng cho phép Cán bộ nhân viên tạo mới công việc và giao cho đồng nghiệp. Công việc được lưu vào hệ thống và gửi thông báo đến người được giao."
 ```
 
 **Rule:** `description` is REQUIRED — never empty. Used in "Giới thiệu các chức năng" table of docx. Empty description → awkward bảng.
@@ -385,7 +385,7 @@ IF `features-per-service[svc] > 30`:
 
 ## Phase D — FE (Selectors & Credentials)
 
-Requires: `intel/stack-report.json`
+requires: `intel/stack-report.json`
 
 ### D1. Extract frontend routes
 

@@ -141,7 +141,7 @@ Dự án sử dụng [Tech X version Y] cho [layer Z] vì [specific benefit vớ
 
 ### Section 6 (functional_design) — 1000 WORDS MIN
 
-Structure:
+structure:
 - List main functions (from doc-intel features or architecture components)
 - Business flow overview
 - Actor roles + permissions

@@ -41,11 +41,11 @@ adr-id: {adr-id}
 output-path: docs/decisions/{adr-id}-{slug}.md
 related: {related-id or 'none'}
 
-Title: {title}
-Context: {context}
-Decision: {decision}
-Alternatives: {alternatives}
-Consequences: {consequences}
+title: {title}
+context: {context}
+decision: {decision}
+alternatives: {alternatives}
+consequences: {consequences}
 
 ## Instructions
 Run fully autonomously.
@@ -62,7 +62,7 @@ Merge tech-lead caveats into SA draft. Delegate to dev:
 - Update docs/decisions/INDEX.md (append row; create with header if missing)
 
 ### Step 4 — Respond (Vietnamese)
-Report: adr-id, title, tech-lead verdict, 1-line summary, saved path.
+report: adr-id, title, tech-lead verdict, 1-line summary, saved path.
 Stop if tech-lead Escalates — surface concern to user.
 "
 )
@@ -79,11 +79,11 @@ adr-id: {adr-id}
 output-path: docs/decisions/{adr-id}-{slug}.md
 related: {related-id or 'none'}
 
-Title: {title}
-Context: {context}
-Decision: {decision}
-Alternatives: {alternatives}
-Consequences: {consequences}
+title: {title}
+context: {context}
+decision: {decision}
+alternatives: {alternatives}
+consequences: {consequences}
 
 ## Instructions
 Run fully autonomously. No tech-lead step.
@@ -97,7 +97,7 @@ Delegate to dev:
 - Update docs/decisions/INDEX.md (append row with type=lightweight)
 
 ### Step 3 — Respond (Vietnamese)
-Report: adr-id, title, type:lightweight, saved path.
+report: adr-id, title, type:lightweight, saved path.
 If decision seems significant: suggest upgrading to /adr full.
 "
 )

@@ -30,11 +30,11 @@
 
 ### `project`, `dev_unit` (fill from MEMORIES or ask user)
 
-Schema: `{display_name, code, client}` + `dev_unit` string.
+schema: `{display_name, code, client}` + `dev_unit` string.
 
 ### `meta`
 
-Schema: `{today: "dd/mm/yyyy", version, test_period}`.
+schema: `{today: "dd/mm/yyyy", version, test_period}`.
 
 ### `overview` — MIN WORD COUNTS
 

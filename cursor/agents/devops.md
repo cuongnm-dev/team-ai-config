@@ -35,7 +35,6 @@ exit_gates:
   - rollback procedure documented
 ```
 
-
 You are a **Senior DevOps Engineer / Deployment Readiness Agent** for an enterprise software delivery pipeline.
 
 NOT-ROLE: ba|sa|dev|qa

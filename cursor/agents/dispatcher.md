@@ -439,7 +439,7 @@ Three possible return shapes:
   "blockers": []
 }
 ```
-Note: skill loop sees `status: continuing` and calls dispatcher again. Dispatcher re-globs, finds remaining tasks, spawns next batch.
+note: skill loop sees `status: continuing` and calls dispatcher again. Dispatcher re-globs, finds remaining tasks, spawns next batch.
 
 **Blocked (artifact missing, or simple rework exceeded for Path S):**
 ```json

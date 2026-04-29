@@ -62,7 +62,7 @@ Per LIFECYCLE.md P5 (stale-block), check intel freshness BEFORE trusting any rea
        STOP with message:
          "⚠ Intel artifact `{file}` is stale (last fresh: {produced_at}).
           Run /intel-refresh before /new-feature to avoid propagating bad data.
-          Override: re-run with --force-stale (NOT recommended)."
+          override: re-run with --force-stale (NOT recommended)."
 
 2. Once freshness confirmed, load:
    Read docs/intel/actor-registry.json   → roles[] (for role_visibility selection)
@@ -132,12 +132,12 @@ Business goal:      (problem to solve — maps to business_intent, ≥100 chars)
 Scope in:           (what is included)
 Scope out:          (what is excluded)
 Flow summary:       (3-7 main steps, trigger → outcome — maps to flow_summary, ≥150 chars)
-Constraints:        (tech, deadline, team size — or "none")
-Priority:           (critical | high | medium | low)
+constraints:        (tech, deadline, team size — or "none")
+priority:           (critical | high | medium | low)
 Module/domain:      (suggested from sitemap.modules[] if intel loaded; or "new")
 Role visibility:    (pick from actor-registry.roles[] loaded in Step 2.5)
-                    Format: <role-slug>:<level>, e.g. "hqdk:full, lanh-dao:readonly"
-Dependencies:       (existing feature-catalog feature-ids — or "none")
+                    format: <role-slug>:<level>, e.g. "hqdk:full, lanh-dao:readonly"
+dependencies:       (existing feature-catalog feature-ids — or "none")
 ```
 
 > Note: `description`, `acceptance_criteria`, `business_rules` are BA agent's job at stage `ba`. Here we only seed `business_intent` + `flow_summary` (BA enriches later). Schema validation runs at `from-code` next rescan or when `close-feature` syncs.
@@ -148,7 +148,7 @@ Dependencies:       (existing feature-catalog feature-ids — or "none")
 mini-repo:   F-NNN              e.g. F-001, F-042
 monorepo:    {service}-F-NNN    e.g. api-F-001, web-F-014
 
-Rules:
+rules:
   - NNN: 3-digit zero-padded, sequential per service (or per workspace in mini)
   - Forbidden in ID: date, source-prefix (BOTP/SRS/BRD), module name
   - Immutable after first commit
@@ -332,7 +332,7 @@ features:
   {feature-id}:
     name: "{feature name}"
     project: "{project name}"
-    docs_path: "{features-root}/{feature-id}"
+    docs-path: "{features-root}/{feature-id}"
     status: "in-progress"
     current-stage: "ba"
     created: "{YYYY-MM-DD}"
@@ -493,7 +493,7 @@ Read full `_state.md`. Extract:
 - Glob `{docs-path}/05-dev-w{N}-*.md` (or `05-fe-dev-w{N}-*.md`) → done tasks
 - Calculate: done = tasks with files, remaining = tasks without files
 
-Report:
+report:
 ```
 ## Tiếp tục: {feature-name}
 Feature ID:      {feature-id}
@@ -501,7 +501,7 @@ Stage hiện tại:  {current-stage}
   ↳ {done}/{total} tasks xong — tiếp tục từ {next-task-id}: {task-scope}
 Đã hoàn thành:   {completed-stages list}
 Còn lại:         {stages-queue}
-Blockers:        {blockers or "Không có"}
+blockers:        {blockers or "Không có"}
 ```
 
 If `current-stage` is a single-agent stage → standard report, no file-level detail.
@@ -528,7 +528,7 @@ If `_state.md` lacks `stages-queue` (legacy pipeline):
 ## Step 6 — Dispatcher Loop (with PM escalation)
 
 ```
-Loop:
+loop:
   # Cache-aware prompt: same prefix across every iteration of same feature
   # Static Feature Context section → cache hit across all dispatcher calls in this pipeline
   result = Task(
@@ -618,7 +618,7 @@ stages-queue: [{stages after starting-stage through reviewer}]
 5. **Update `feature-map.yaml`**: status → in-progress, current-stage → {starting-stage}
 6. → **Step 6 — Dispatcher Loop**
 
-Guardrails: same feature-id (no new ID), agents overwrite artifacts in place, do not skip stages in re-run path.
+guardrails: same feature-id (no new ID), agents overwrite artifacts in place, do not skip stages in re-run path.
 
 ---
 

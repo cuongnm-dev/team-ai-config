@@ -126,14 +126,14 @@ feature-id:        {id}
 docs-path:         {path}
 pipeline-path:     {S | M | L | unknown}
 current-stage:     {stage}
-risk_score:        {1-5}
+risk-score:        {1-5}
 
 ## Inputs
 pm-trigger:        {Post-BA path selection | Extended role flag | QA Fail | Reviewer Changes Requested | Agent Blocked | High-risk every-stage}
 pm-context:        {trigger-specific payload — verdict JSON, blocker details, must-fix list, ...}
 ```
 
-Rules:
+rules:
 - All 4 headers ALWAYS present (use `(none)` if a block is genuinely empty).
 - NEVER reorder; NEVER inject dynamic data above `## Feature Context`.
 - `pm-trigger` and `pm-context` ALWAYS go in `## Inputs` block — never sprinkled into earlier blocks.
@@ -204,7 +204,7 @@ Add to `stages-queue` only on:
 - **sre-observability** — new vendor/protocol integration / SLO path
 - **data-governance** — new PII obligation / compliance rule / cross-system ownership
 
-Budget: Path S = 0, Path M = max 1, Path L = justified per role.
+budget: Path S = 0, Path M = max 1, Path L = justified per role.
 
 ---
 

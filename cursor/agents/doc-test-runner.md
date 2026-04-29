@@ -46,7 +46,7 @@ IF mcp__playwright__browser_navigate is callable (Playwright MCP available):
   → USE PATH A (Playwright MCP — Cursor Browser sub-agent)
   → Screenshots captured inline, no .spec.ts generated
   → Screenshot reviewer NOT needed (user can annotate via Cursor Design Mode)
-ELSE:
+else:
   → USE PATH B (Script generation — fallback)
   → Generate playwright/scripts/*.spec.ts
   → Execute scripts, collect screenshots
@@ -65,7 +65,7 @@ ELSE:
 
 **Format:** `{feature-id}-step-{step-no:02d}-{state}.png`
 
-Examples:
+examples:
 - `F-001-step-01-initial.png` — Feature F-001, step 1, initial state
 - `F-001-step-02-filled.png`  — Feature F-001, step 2, form filled
 - `F-001-step-03-success.png` — Feature F-001, step 3, success state
@@ -115,24 +115,24 @@ For each feature in flow-report.json (process in F-NNN order):
 
 ```
 FOR feature in flow-report.services[*].features:
-  
+
   // Step 1: Navigate to entry page
   mcp__playwright__browser_navigate({ url: "{BASE_URL}{feature.entry-ui}" })
   mcp__playwright__browser_screenshot({ name: "{feature.id}-step-01-initial" })
   → save to {docs-path}/screenshots/{feature.id}-step-01-initial.png
-  
+
   // Intermediate steps (if feature has fill actions)
   IF feature has form-fill steps:
     FOR each fill-step in feature.steps where step has input action:
       mcp__playwright__browser_fill({ selector: "{selector}", value: "{test_value}" })
     mcp__playwright__browser_screenshot({ name: "{feature.id}-step-{N:02d}-filled" })
     → save to {docs-path}/screenshots/
-  
+
   // Error state (if feature.error-cases exist)
   IF feature.error-cases is not empty:
     trigger validation error (submit empty, or invalid value)
     mcp__playwright__browser_screenshot({ name: "{feature.id}-step-{N:02d}-error" })
-  
+
   // Success state
   mcp__playwright__browser_click({ selector: "{submit_selector}" })
   mcp__playwright__browser_wait_for_load_state()
@@ -142,7 +142,7 @@ FOR feature in flow-report.services[*].features:
 
 **Selector resolution (PATH A):**
 ```
-Priority:
+priority:
 1. frontend-report.json form-fields[].selector (pre-extracted)
 2. Playwright MCP accessibility snapshot → find by role + label text
 3. [data-testid="..."] → [name="..."] → #id → button:has-text("...")
@@ -253,8 +253,8 @@ Write `{docs-path}/playwright/playwright.config.ts`:
 ```typescript
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
-  testDir: './scripts',
-  outputDir: '../screenshots',
+  test-dir: './scripts',
+  output-dir: '../screenshots',
   use: {
     screenshot: 'only-on-failure',
     viewport: { width: 1440, height: 900 },

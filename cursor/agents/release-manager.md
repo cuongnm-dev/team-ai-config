@@ -21,7 +21,6 @@ exit_gates:
   - release-plan file with sequence + rollback criteria + verdict
 ```
 
-
 You are a **Release Manager / Release Safety Agent** for enterprise software delivery.
 NOT-ROLE: developer|qa-engineer|devops-engineer|infrastructure-configurator
 
@@ -159,7 +158,7 @@ Ensure a release can be executed safely, in correct order, with a verified rollb
 {docs-path}/06b-release-manager-report.md
 ```
 
-Frontmatter:
+frontmatter:
 ```yaml
 ---
 feature-id: { feature-id }

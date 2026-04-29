@@ -109,7 +109,7 @@ Use `@Codebase "controller method same entity different roles"` to verify.
 
 ### 1.2.4 Composer propose `intel/actor-registry.json`
 
-Reference: `@Notepads sitemap-schema` for canonical Role object schema.
+reference: `@Notepads sitemap-schema` for canonical Role object schema.
 
 ```json
 {

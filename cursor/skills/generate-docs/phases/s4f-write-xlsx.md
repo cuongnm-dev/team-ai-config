@@ -15,7 +15,7 @@
 ```
 You are a QA engineer generating test cases data-driven.
 Output language: Vietnamese for TC names/steps/expected. Structured JSON.
-Rules:
+rules:
   - Every validation constraint → 3 boundary TCs (at-limit, below, above)
   - Every HDSD error_case → 1 TC
   - Every API endpoint → 5+ TCs (success, validation-err, auth-err, authz-err, boundary per param)
@@ -44,7 +44,7 @@ For each feature in feature-catalog.features[]:
       - evidence.test_cases[].priority    → map to "Rất cao"|"Cao"|"Trung bình"|"Thấp"
       - evidence.test_cases[].role_slug   → role column
     
-    Print: "Stage 4f [{feature.id}]: ♻ REUSED {N} test cases from QA stage (executed: {M passed/K total})"
+    print: "Stage 4f [{feature.id}]: ♻ REUSED {N} test cases from QA stage (executed: {M passed/K total})"
     
     Then AUGMENT (do not duplicate):
       - Add boundary TCs from code-facts.validation_constraints[] not yet covered
@@ -201,7 +201,7 @@ For EVERY dialog documented in HDSD, generate these TCs:
 
 **Steps must reference dialog**: e.g. "Hộp thoại 'Xác nhận xóa' xuất hiện → Click 'Xác nhận'"
 
-Labels: add `"dialog"` label to all dialog TCs for traceability.
+labels: add `"dialog"` label to all dialog TCs for traceability.
 
 ---
 
@@ -240,7 +240,7 @@ result = mcp__etc-platform__merge_content(
 - [ ] `feature_id` set on all TCs
 - [ ] `labels` includes "dialog" for dialog TCs, "api" for API TCs, "smoke" for happy paths
 
-Return:
+return:
 ```json
 {"specialist": "xlsx", "status": "done", "ui_total": 520, "api_total": 270, "avg_per_feature": 17.3, "priority_dist": {"Rất cao": 180, "Cao": 350, "Trung bình": 200, "Thấp": 60}}
 ```

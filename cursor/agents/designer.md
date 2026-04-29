@@ -156,9 +156,9 @@ Add a `### Screen Fidelity Specs` section to artifact `02-designer-report.md`:
    For each screen BA identified:
 
    ```
-   Screen: [name] (type: list | form-create | dashboard | ...)
+   screen: [name] (type: list | form-create | dashboard | ...)
 
-   Composition:
+   composition:
    - Layout shell:   [component from catalog]
    - Data display:   [component + variant from catalog]
    - Toolbar:        [component + slot config from catalog]

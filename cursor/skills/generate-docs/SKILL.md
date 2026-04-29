@@ -413,7 +413,7 @@ Trước Stage 6 export, tạo Checkpoint:
 
 ```
 Cmd/Ctrl+Shift+P → "Cursor: Create Checkpoint"
-Name: "pre-export-{timestamp}"
+name: "pre-export-{timestamp}"
 ```
 
 Nếu Stage 6 sai (residual `{{ }}`, file size bất thường) → `Cursor: Restore Checkpoint` rollback `output/`.
@@ -428,7 +428,7 @@ KHÔNG cần LKG backup manual — Cursor làm sẵn.
 
 ```
 Cursor palette → "Cursor: Run in Background"
-Task: "Execute phases/s3a-capture.md for features F-001..F-030"
+task: "Execute phases/s3a-capture.md for features F-001..F-030"
 ```
 
 Main chat tiếp tục Stage 4 research trong khi capture async. Notification khi xong.

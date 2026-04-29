@@ -46,7 +46,7 @@
   │
   └→ 03f (xlsx) — AFTER 03e (reads services.features)
 
-Final: 03g (depth-pass) → 03.5 (quality-gate) → Phase 4
+final: 03g (depth-pass) → 03.5 (quality-gate) → Phase 4
 ```
 
 ---
@@ -165,7 +165,7 @@ if specialist_return["status"] == "blocked":
         f"Action: provide more intel or accept placeholders\n\n")
     PROMPT user:
         "Specialist {specialist_id} is blocked on: {remaining_warnings}
-         Options:
+         options:
            A) Provide more source intel → re-dispatch
            B) Accept placeholders → add to whitelist, continue
            C) Abort Phase 3"

@@ -30,39 +30,39 @@ User-facing output: Vietnamese.
 
 BA light-scope + tech-lead effort. No code, no implementation plan.
 
-Steps:
+steps:
 1. Task(ba) → scope: modules, features, actors, business rules count
 2. Task(tech-lead) → effort: complexity factors, t-shirt size (S/M/L/XL), day ranges, risk
 
-Output: `{project-path}/docs/plans/{slug}-estimate.md`
+output: `{project-path}/docs/plans/{slug}-estimate.md`
 
-Sections: Scope summary | Complexity factors | Effort estimate | Risk factors | Recommended path (S/M/L)
+sections: Scope summary | Complexity factors | Effort estimate | Risk factors | Recommended path (S/M/L)
 
 ## Mode: plan
 
 SA architecture survey + tech-lead implementation plan.
 
-Steps:
+steps:
 1. Task(sa) → identify impacted modules, boundaries, contracts, integration points
 2. Task(tech-lead) → implementation plan: task sequence, dependencies, wave structure
 
-Output: `{project-path}/docs/plans/{slug}.md`
+output: `{project-path}/docs/plans/{slug}.md`
 
-Sections: Architecture context | Impacted modules | Task list with dependencies | Wave plan | Risk mitigations
+sections: Architecture context | Impacted modules | Task list with dependencies | Wave plan | Risk mitigations
 
 ## Mode: breakdown
 
 Extract ACs from spec/doc → create actionable task backlog.
 
-Input: URD, BA spec, PRD, or requirements document (file path or inline)
+input: URD, BA spec, PRD, or requirements document (file path or inline)
 
-Steps:
+steps:
 1. Task(ba) → extract user stories, ACs (`AC-NNN`), business rules (`BR-NNN`), NFRs
 2. Task(tech-lead) → map ACs to tasks (`W{N}-T{N}`), estimate per task, sequence waves
 
-Output: `{project-path}/docs/plans/{slug}-tasks.md`
+output: `{project-path}/docs/plans/{slug}-tasks.md`
 
-Sections: User stories + ACs | Business rules | Task breakdown by wave | Effort summary
+sections: User stories + ACs | Business rules | Task breakdown by wave | Effort summary
 
 ---
 

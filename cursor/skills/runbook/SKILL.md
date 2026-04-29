@@ -55,11 +55,11 @@ Task(
   prompt='## Runbook — Monitoring and Failure Scenarios
 
   runbook-id: {runbook-id}
-  Feature: {feature name}
+  feature: {feature name}
   Critical paths: {critical paths}
   Known failure modes: {failure modes}
 
-  Produce:
+  produce:
   1. Key metrics to monitor (with healthy thresholds where known)
   2. Alerts that should be configured (alert name, condition, severity)
   3. Failure scenario playbook — for each known failure mode:
@@ -78,10 +78,10 @@ Task(
   prompt='## Runbook — Infrastructure and Deployment Operations
 
   runbook-id: {runbook-id}
-  Feature: {feature name}
-  Environment: {environment}
+  feature: {feature name}
+  environment: {environment}
 
-  Produce:
+  produce:
   1. Service dependencies map (what this feature depends on)
   2. Configuration management — env vars, secrets, config files to know
   3. Scaling operations — how to scale up/down if needed
@@ -137,7 +137,7 @@ last-updated: {date}
 )
 
 ### Step 4 — Respond to user (in Vietnamese)
-Format:
+format:
 ## Runbook Created: {feature name}
 
 **Runbook ID:** {runbook-id}

@@ -37,7 +37,7 @@ Stage 5b catches **structural** issues (placeholders, banned phrases, word count
 /strategic-critique {DOCS_PATH}/output/content-data.json --severity blocker,major
 ```
 
-Output: `{DOCS_PATH}/output/critique-findings.yaml`
+output: `{DOCS_PATH}/output/critique-findings.yaml`
 
 ### Pass 2 — Classify findings
 
@@ -84,7 +84,7 @@ Display ambiguous findings:
 Section 5.3 proposes building auth service.
 NDXP already provides VNeID + auth service.
 
-Options:
+options:
   A) Apply dedup redirect (replace with "integrate NDXP auth") — RECOMMENDED
   B) Justify custom build (add rationale to section 5.3)
   C) Ignore (document why, accept thẩm định risk)
@@ -169,4 +169,4 @@ No rubric duplication.
 4. Max 2 passes (cost control). After that → user manual review required.
 5. +30K tokens per pass (not cheap).
 
-Disable: `--no-multi-pass`.
+disable: `--no-multi-pass`.

@@ -56,11 +56,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
-    ENVIRONMENT: str = 'development'
-    DATABASE_URL: str = 'sqlite+aiosqlite:///./dev.db'
-    SECRET_KEY: str = 'change-me'
-    ALGORITHM: str = 'HS256'
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    environment: str = 'development'
+    database-url: str = 'sqlite+aiosqlite:///./dev.db'
+    secret-key: str = 'change-me'
+    algorithm: str = 'HS256'
+    access-token-expire-minutes: int = 15
 
 settings = Settings()
 ```
@@ -69,7 +69,7 @@ settings = Settings()
 ```markdown
 ---
 description: FastAPI conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (FastAPI)
 ## Layer Rules

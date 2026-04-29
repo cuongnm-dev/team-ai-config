@@ -23,9 +23,9 @@ User-facing output: Vietnamese.
 
 OWASP-based security audit for module or feature.
 
-Input: module path, feature area, or "full scan"
+input: module path, feature area, or "full scan"
 
-Steps:
+steps:
 1. Task(security) → OWASP Top 10 scan:
    - Injection (SQL, command, XSS)
    - Auth/authz flaws
@@ -35,15 +35,15 @@ Steps:
 2. Classify: Critical / High / Medium / Low
 3. For each finding: affected file, line, remediation
 
-Output: `{project-path}/docs/security/audit-{date}.md`
+output: `{project-path}/docs/security/audit-{date}.md`
 
 ## Mode: compliance
 
 Regulatory compliance check for PII/financial/regulated features.
 
-Input: feature-id or module + applicable regulations
+input: feature-id or module + applicable regulations
 
-Steps:
+steps:
 1. Task(data-governance) → data handling:
    - PII inventory, storage locations, retention policy
    - Consent tracking, cross-border transfer
@@ -53,13 +53,13 @@ Steps:
    - Audit logging completeness
    - Encryption (rest + transit)
 
-Output: `{project-path}/docs/compliance/check-{date}.md`
+output: `{project-path}/docs/compliance/check-{date}.md`
 
 ## Mode: dependencies
 
 Dependency health — outdated packages, CVEs, license issues.
 
-Steps:
+steps:
 1. Task(devops) → scan package manifests:
    - Outdated: major / minor / patch
    - CVEs: `npm audit`, `pip audit`, or equivalent
@@ -67,7 +67,7 @@ Steps:
    - Unused dependencies
 2. Prioritize: Critical CVE > license violation > major outdated > minor
 
-Output: `{project-path}/docs/audits/dependency-{date}.md`
+output: `{project-path}/docs/audits/dependency-{date}.md`
 
 ---
 

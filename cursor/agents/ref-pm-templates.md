@@ -90,8 +90,8 @@ pipeline-type: sdlc                  # or: doc-intel | doc-generation | hotfix
 pipeline-path: { S | M | L }
 repo-type: { mini | mono }
 project: { name | cross-cutting }
-project_path: { resolved path — "." for mini/cross-cutting }
-docs_path: { exact resolved path — e.g. "docs/features/FEAT-20260101-001" or "services/auth/docs/features/FEAT-20260101-001" }
+project-path: { resolved path — "." for mini/cross-cutting }
+docs-path: { exact resolved path — e.g. "docs/features/FEAT-20260101-001" or "services/auth/docs/features/FEAT-20260101-001" }
 stages-queue: []                     # filled by PM or skill at intake
 completed-stages: {}                 # populated by Dispatcher
 ---
@@ -144,21 +144,21 @@ none
 
 ```yaml
 kpi:
-  pipeline_opened: ""         # ISO-8601 date when feature was created
-  pipeline_closed: ""         # ISO-8601 date when reviewer approved
-  cycle_time_days: 0          # calculated at close: pipeline_closed - pipeline_opened
-  rework_count: 0             # incremented each time a stage returns "Changes requested"
-  retry_count: 0              # incremented each time PM re-invokes a blocked agent
-  blocked_count: 0            # incremented each time any agent returns "Blocked"
-  escalation_count: 0         # incremented each time dispatcher escalates base→pro tier (see dispatcher.md § Tiered Routing — auto-decided by path + signals)
-  routing_override: ""        # rare user override: "all-base" (force cheap) | "all-pro" (force capable) | "" (default: auto)
-  tokens_total: 0             # cumulative pipeline token usage — updated after each stage
-  token_budget: 200000        # hard cap for entire pipeline — set at intake by PM based on path (S=80K, M=200K, L=500K)
-  budget_thresholds:
-    soft_warn_pct: 60         # informational note in completion report
-    fast_switch_pct: 80       # auto-swap models to *-fast variants for remaining stages
-    block_pct: 95             # hard-block; require user approval to continue
-  tokens_by_stage:            # breakdown per agent invocation
+  pipeline-opened: ""         # ISO-8601 date when feature was created
+  pipeline-closed: ""         # ISO-8601 date when reviewer approved
+  cycle-time-days: 0          # calculated at close: pipeline_closed - pipeline_opened
+  rework-count: 0             # incremented each time a stage returns "Changes requested"
+  retry-count: 0              # incremented each time PM re-invokes a blocked agent
+  blocked-count: 0            # incremented each time any agent returns "Blocked"
+  escalation-count: 0         # incremented each time dispatcher escalates base→pro tier (see dispatcher.md § Tiered Routing — auto-decided by path + signals)
+  routing-override: ""        # rare user override: "all-base" (force cheap) | "all-pro" (force capable) | "" (default: auto)
+  tokens-total: 0             # cumulative pipeline token usage — updated after each stage
+  token-budget: 200000        # hard cap for entire pipeline — set at intake by PM based on path (S=80K, M=200K, L=500K)
+  budget-thresholds:
+    soft-warn-pct: 60         # informational note in completion report
+    fast-switch-pct: 80       # auto-swap models to *-fast variants for remaining stages
+    block-pct: 95             # hard-block; require user approval to continue
+  tokens-by-stage:            # breakdown per agent invocation
     ba: 0
     sa: 0
     designer: 0
@@ -196,11 +196,11 @@ completed-stages:
     completed-at: {today YYYY-MM-DD}
 severity: { Critical | High | Medium }
 feature-req: |
-  Bug: {description}
+  bug: {description}
   Root cause: {specific file/function/behavior}
-  Reproduction: {steps}
-  Scope: {files/modules affected}
-  Constraints: fix scoped to root cause only, rollback must be possible
+  reproduction: {steps}
+  scope: {files/modules affected}
+  constraints: fix scoped to root cause only, rollback must be possible
 ```
 
 ---
@@ -215,7 +215,7 @@ current-stage: doc-intel              # or: research
 stages-queue: [research, test-runner, doc-gen-phase, doc-export]
 input-files: [path1, path2]           # absolute paths to source files
 repo-path: { path to codebase being documented }
-docs_path: { where to write intel/ and output/ — typically {repo-path}/docs/ }
+docs-path: { where to write intel/ and output/ — typically {repo-path}/docs/ }
 vision-model: opus-4.7         # for doc-intel phase
 multi-file-mode: true                 # if multiple source files provided
 project-display-name: "{Display name for output templates}"

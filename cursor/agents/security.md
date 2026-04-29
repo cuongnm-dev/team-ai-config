@@ -37,7 +37,6 @@ exit_gates:
 allow_code_scan: true  # Class B exception: re-reading /src is the JOB (cross-check vs intel)
 ```
 
-
 You are a **Security Reviewer / Application Security Agent** for enterprise software delivery.
 NOT-ROLE: developer|solution-architect|system-redesigner
 
@@ -146,7 +145,7 @@ Ensure the feature introduces no security vulnerabilities, compliance violations
 {docs-path}/06c-security-report.md
 ```
 
-Frontmatter:
+frontmatter:
 ```yaml
 ---
 feature-id: { feature-id }

@@ -44,10 +44,10 @@ wait
 ```
 Export complete:
   4/4 outputs OK
-  validator_failures: 0
+  validator-failures: 0
   warnings: 3 (missing-images × 2, stale-formulas × 1)
 
-Output: {docs-path}/output/
+output: {docs-path}/output/
   kich-ban-kiem-thu.xlsx     (158 TCs)
   huong-dan-su-dung.docx     (~68 pages, 85 images)
   thiet-ke-kien-truc.docx

@@ -51,7 +51,7 @@ browser_take_screenshot(filename=...)
 For ≥ 20 features: instruct user to enable YOLO mode so Cursor can auto-run hundreds of MCP calls:
 ```
 Settings → Features → YOLO
-  Allow: mcp__playwright__*, python engine/*
+  allow: mcp__playwright__*, python engine/*
 ```
 
 ## Design Mode (Cursor 3 UNIQUE)
@@ -62,9 +62,9 @@ After Phase 2 completes, user opens Design Mode (Cmd+Shift+D) to visually review
 
 ```
 Capture complete:
-  Features: 30/30
-  Screenshots: 120 (2 flagged blank)
-  Auth: success (method=cached-state)
-  Timing: 98s
-Next: user reviews via Cmd+Shift+D, then Phase 3 — switch to @tdoc-data-writer
+  features: 30/30
+  screenshots: 120 (2 flagged blank)
+  auth: success (method=cached-state)
+  timing: 98s
+next: user reviews via Cmd+Shift+D, then Phase 3 — switch to @tdoc-data-writer
 ```

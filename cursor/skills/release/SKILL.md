@@ -24,13 +24,13 @@ User-facing output: Vietnamese.
 
 Collect closed features, create release package.
 
-Steps:
+steps:
 1. Read `docs/feature-map.yaml` → filter `status: done` since last release
 2. Task(pm) → collect feature summaries from `_state.md` + retrospectives
 3. Task(release-manager) → release checklist, migration plan, breaking changes
 4. Task(devops) → verify deployment config, env vars, infra readiness
 
-Output: `docs/releases/{version}/release-package.md`
+output: `docs/releases/{version}/release-package.md`
 
 ## Mode: go-nogo
 
@@ -49,29 +49,29 @@ Manual checks (report, user decides):
 - [ ] Load test results reviewed
 - [ ] Security scan clear
 
-Output: `GO` or `NO-GO` verdict with failing items list
+output: `GO` or `NO-GO` verdict with failing items list
 
 ## Mode: rollback
 
 Emergency rollback planning.
 
-Steps:
+steps:
 1. Task(release-manager) → feasibility: migration reversibility, breaking changes, downstream
 2. Task(devops) → step-by-step rollback runbook
 3. Task(sre) → post-rollback monitoring + verification
 
-Output: `docs/releases/{version}/rollback-plan.md`
+output: `docs/releases/{version}/rollback-plan.md`
 
 ## Mode: changelog
 
 Generate changelog from closed pipelines in date range.
 
-Steps:
+steps:
 1. Read `docs/feature-map.yaml` → filter `status: done` in range
 2. For each: read `_state.md` → feature-name, verdict
 3. Group: Features | Hotfixes | Breaking changes | Known issues
 
-Output: `CHANGELOG.md` entry (keep-a-changelog format)
+output: `CHANGELOG.md` entry (keep-a-changelog format)
 
 ---
 

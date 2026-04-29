@@ -62,12 +62,12 @@ Task(
   prompt='## Architecture Analysis
 
   arch-id: {arch-id}
-  Scope: {scope}
-  Depth: {depth}
-  Focus: {focus areas}
-  Context: {context}
-  available_mcps: {available_mcps}
-  nx_project_graph: {full nx graph JSON if available}
+  scope: {scope}
+  depth: {depth}
+  focus: {focus areas}
+  context: {context}
+  available-mcps: {available_mcps}
+  nx-project-graph: {full nx graph JSON if available}
 
   MCP instruction: NX project graph is your PRIMARY source — use it before reading files. If DB MCP available, query schema for data architecture. If Context7 available, use for any framework/library patterns being evaluated.
 
@@ -112,7 +112,7 @@ Task(
   - Scalability: {score} — {justification}
   - Security boundary clarity: {score} — {justification}
 
-  Overall: {average}/5
+  overall: {average}/5
   '
 )
 
@@ -159,7 +159,7 @@ anti-pattern-count: {N}
 )
 
 ### Step 3 — Respond to user (in Vietnamese)
-Format:
+format:
 ## Architecture Analysis Complete: {arch-id}
 
 **Scope:** {scope}
@@ -175,7 +175,7 @@ Format:
 {If fitness < 3: '⚠️ Điểm kiến trúc thấp — xem xét /spike để lập kế hoạch cải thiện trước khi thêm tính năng lớn.'}
 {If depth=overview: 'Chạy /arch-review với depth=deep để có roadmap cải thiện đầy đủ.'}
 
-Report: docs/architecture/{arch-id}.md
+report: docs/architecture/{arch-id}.md
 
 ## Stop condition
 Run to completion. If NX MCP is not available and codebase is very large, limit analysis to the specified scope only.
@@ -192,23 +192,23 @@ if anti_patterns_high_severity > 0 AND fitness_score <= 2:
     Review at {project_path}/docs/architecture/{arch-id}.md passed as context.
   After /adr completes:
   → Suggested: /spike "{top anti-pattern topic}"
-    Reason: low fitness score — investigate improvement approach before next feature.
+    reason: low fitness score — investigate improvement approach before next feature.
     Run now? (yes / skip)
 
 elif anti_patterns_high_severity > 0 AND fitness_score in [3, 4]:
   → Suggested: /adr
-    Reason: high-severity findings should be recorded as architectural decisions.
+    reason: high-severity findings should be recorded as architectural decisions.
     Run now? (yes / skip)
   → Also suggested: /arch-review tech-debt
-    Reason: anti-patterns found — register as tech debt for prioritization.
+    reason: anti-patterns found — register as tech debt for prioritization.
     Run now? (yes / skip)
 
 elif anti_patterns_high_severity == 0 AND fitness_score == 5:
   → No action required. Architecture is healthy.
-    Suggested: /new-feature — safe to continue feature development.
+    suggested: /new-feature — safe to continue feature development.
 
 elif depth == "overview":
   → Suggested: /arch-review depth=deep
-    Reason: overview scan only — run deep analysis for full improvement roadmap.
+    reason: overview scan only — run deep analysis for full improvement roadmap.
     Run now? (yes / skip)
 ```

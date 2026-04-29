@@ -49,7 +49,7 @@ createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictM
 ```markdown
 ---
 description: React SPA conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (React SPA)
 ## Rules

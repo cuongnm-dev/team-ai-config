@@ -52,7 +52,7 @@ app.mount('#app')
 ```markdown
 ---
 description: Vue/Nuxt conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (Vue)
 ## Rules

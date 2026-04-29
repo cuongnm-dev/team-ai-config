@@ -114,14 +114,14 @@ Budget phần mềm = **man-months × unit cost × complexity coefficient**
   section: "7.1"
   claim: "Triển khai HRIS cho 1000 cán bộ trong 3 tháng (Q1/2026)"
   benchmark: "Industry practice: 9-12 tháng cho scope tương tự"
-  gap_analysis: |
+  gap-analysis: |
     Proposed timeline 3 tháng vs realistic 9-12 tháng = shortfall 3-4x.
     Không có pilot phase, không có change management, không có training buffer.
-  risks_if_unadjusted:
+  risks-if-unadjusted:
     - Quality issues (rushed testing)
     - User adoption low (thiếu training)
     - Scope cut để meet deadline
-  fix_recommendation: |
+  fix-recommendation: |
     Mở rộng timeline:
     - M1-M3: Setup + data migration + pilot 50 users
     - M4-M7: Rollout 50% đơn vị + training

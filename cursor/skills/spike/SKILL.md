@@ -65,10 +65,10 @@ Task(
   prompt='## Spike — Architectural Investigation
 
   spike-id: {spike-id}
-  Question: {spike question}
+  question: {spike question}
   Affected area: {affected area}
-  Timebox: {N days}
-  available_mcps: {available_mcps}
+  timebox: {N days}
+  available-mcps: {available_mcps}
 
   MCP instruction: If Context7 MCP is in available_mcps, call it to get current library docs for any technology being evaluated. If DB MCP is available, query schema before proposing data architecture options.
 
@@ -90,10 +90,10 @@ Task(
   prompt='## Spike — Implementation Investigation
 
   spike-id: {spike-id}
-  Question: {spike question}
+  question: {spike question}
   SA recommended approach: {SA recommendation}
   SA remaining unknowns: {SA unknowns}
-  available_mcps: {available_mcps}
+  available-mcps: {available_mcps}
 
   MCP instruction: If NX MCP is in available_mcps, call get_project_graph to understand actual module boundaries before estimating complexity. If Context7 MCP is available, use it to evaluate libraries/frameworks mentioned in the spike.
 
@@ -117,7 +117,7 @@ Task(
   PoC scope: {tech-lead PoC scope}
   Question to answer: {spike question}
   Success criteria: {success criteria}
-  available_mcps: {available_mcps}
+  available-mcps: {available_mcps}
 
   MCP instruction: If Context7 MCP is in available_mcps, use it for library API docs before writing PoC code. If NX MCP is available, use get_project_graph to find the correct project to write the PoC into.
 
@@ -168,7 +168,7 @@ created: {date}
 )
 
 ### Step 5 — Respond to user (in Vietnamese)
-Format:
+format:
 ## Spike Complete: {spike-id}
 
 **Question:** {spike question}
@@ -199,21 +199,21 @@ if recommendation == "proceed" AND architectural_decision_found == true:
     Spike doc at {project_path}/docs/spikes/{spike-id}.md passed as context.
   After /adr completes:
   → Suggested: /plan-feature
-    Reason: spike answered the question — plan the implementation now.
+    reason: spike answered the question — plan the implementation now.
     Run now? (yes / skip)
 
 elif recommendation == "proceed" AND architectural_decision_found == false:
   → Suggested: /plan-feature
-    Reason: spike answered the question — implementation approach is clear.
+    reason: spike answered the question — implementation approach is clear.
     Run now? (yes / skip)
 
 elif recommendation == "do not proceed":
   → Stopped. Spike recommends against this approach.
-    Findings: {summary of why}
-    Alternative: {suggestion from spike doc if any}
+    findings: {summary of why}
+    alternative: {suggestion from spike doc if any}
 
 elif recommendation == "investigate further":
   → Stopped. Additional investigation needed.
-    Gap: {what specific information is missing}
+    gap: {what specific information is missing}
     Suggested action: {contact vendor / get environment access / run PoC phase 2}
 ```

@@ -103,7 +103,7 @@ packages:
 ```markdown
 ---
 description: Monorepo conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (Monorepo)
 ## Import Rules

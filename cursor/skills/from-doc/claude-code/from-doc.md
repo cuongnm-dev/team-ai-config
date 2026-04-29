@@ -125,7 +125,7 @@ Cursor runs analysis directly (no doc-intel agent). Same phases, executed inline
 Parallel Read calls for multi-file (max 8 parallel).
 WebSearch for legal/standards references (max 5).
 
-Write: `{docs-path}/intel/raw-extract.md`
+write: `{docs-path}/intel/raw-extract.md`
 
 ### 3b. Deep analysis (multi-pass for docs with >3 modules)
 
@@ -149,7 +149,7 @@ Write: `{docs-path}/intel/raw-extract.md`
 Produce 12-section analysis:
 1-12. {same as before}
 
-Write: `{docs-path}/intel/doc-brief.md`
+write: `{docs-path}/intel/doc-brief.md`
 
 **Decomposition self-check before finalize:**
 - `features ≥ modules × 4` | `rules ≥ features × 2` | `screens ≥ features × 1.2`
@@ -162,7 +162,7 @@ Write: `{docs-path}/intel/doc-brief.md`
 Repo type, services, stacks, shared infra, auth model.
 Context7 validation for recommended stacks (max 3 queries).
 
-Write: `{docs-path}/intel/tech-brief.md`
+write: `{docs-path}/intel/tech-brief.md`
 
 ### 3d. Gap handling (bounded, max 2 iterations)
 
@@ -173,7 +173,7 @@ LOOP (max 2):
   Write gap-answers.md → re-analyze affected sections
   
 After 2 iters + gaps > 3:
-  AskUserQuestion: "Tiếp tục (gắn [CẦN BỔ SUNG])" / "Hủy"
+  ask-user-question: "Tiếp tục (gắn [CẦN BỔ SUNG])" / "Hủy"
 ```
 
 **Artifacts**: `raw-extract.md`, `doc-brief.md`, `tech-brief.md`
@@ -186,7 +186,7 @@ After 2 iters + gaps > 3:
 Same LOOP pattern as Claude Code:
 
 ```
-LOOP:
+loop:
   iter = state.steps["gate-a"].iterations
   IF iter >= 3 → force: ["Xác nhận" / "Hủy"]
   
@@ -235,7 +235,7 @@ path = S (1-2) | M (3) | L (4-5)
 ```
 
 ```
-LOOP:
+loop:
   iter = state.steps["gate-b"].iterations
   IF iter >= 3 → force: ["Xác nhận" / "Hủy"]
   
@@ -318,9 +318,9 @@ Same schema as Claude Code.
 ```
 ✅ from-doc hoàn tất
 Feature ID:   {id}
-System:       {name}
-Path:         {S|M|L}
-Stages:       ba → {stages-queue}
+system:       {name}
+path:         {S|M|L}
+stages:       ba → {stages-queue}
 
 ▶ Tiếp tục: /resume-feature {feature-id}
 ```

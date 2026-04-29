@@ -65,7 +65,7 @@ export default function RootNavigator() {
 ```markdown
 ---
 description: React Native conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (React Native)
 ## Rules

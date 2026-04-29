@@ -85,10 +85,10 @@ Mid-wave enrichment (sdlc + `current-stage` is `dev-wave-{N}` or `fe-dev-wave-{N
 ```
 ## Pipeline: {feature-name}
 Feature ID: {id}
-Stage: {current-stage}  [{done}/{total} tasks if mid-wave]
+stage: {current-stage}  [{done}/{total} tasks if mid-wave]
 Đã xong: {completed}
 Còn: {queue}
-Blockers: {or "không có"}
+blockers: {or "không có"}
 ```
 
 ### 4b. Clarification answer check
@@ -96,7 +96,7 @@ Blockers: {or "không có"}
 If `clarification-notes` non-empty AND no `User answer:` line:
 ```
 ⚠️ PM đã hỏi: {question}
-Options:
+options:
   A) Trả lời
   B) Dừng (/resume sau)
   C) Rollback stage
@@ -181,11 +181,11 @@ WHILE iter < 50:
   prompt = FROZEN_HEADER + "\n\n" + DYNAMIC_SUFFIX
 
   result = Task(dispatcher, prompt)  # retry 1× on crash, else STOP
-  
+
   # Intel gate (sdlc, stages that touch code: implement, dev-wave-*, fe-dev-wave-*)
   # Pre-stage: if current-stage starts implementing AND intel-path missing required artifacts → STOP with "intel-missing: {file}". User must run /from-code (or /from-doc + /from-code) before /resume-feature.
   # Post-stage: if result.verdict carries `intel-drift: true` → persist to _state.md.intel-drift; suggest /intel-refresh after pipeline done.
-  
+
   status=continuing: last_verdict = result.verdict; print "[{stage}] ✓ {verdict}" (dots after iter>10), append_telemetry_inline(stage-complete), checkpoint_if_wave_boundary(), loop
   status=done: append_telemetry_inline(done), report, release lock, exit
   status=blocked: surface blockers, release lock, stop
@@ -199,7 +199,7 @@ WHILE iter < 50:
     pm_result = Task(pm, PM_FROZEN + "\n\n" + pm_dynamic)  # retry 1× on crash, else STOP
     IF invalid JSON or no `resume`: STOP
     IF resume=true: last_hash = curr_hash; last_verdict = "pm-resolved"; loop
-    ELSE: surface message, STOP
+    else: surface message, STOP
   status=other: STOP
 ```
 
@@ -211,8 +211,8 @@ After each stage advance, append a checkpoint marker to `{docs-path}/_checkpoint
 ```
 ## CKP-{NN}  {stage}  {YYYY-MM-DD HH:MM}
 verdict: {verdict}
-tokens_stage: {N}
-tokens_total: {N}
+tokens-stage: {N}
+tokens-total: {N}
 artifacts: [list of new file paths produced this stage]
 intel-drift: {true|false}
 ```
@@ -221,7 +221,7 @@ Wave-boundary checkpoints (after `dev-wave-{N}` or `qa-wave-{N}` completes) ALSO
 - `_state.md` → `_state.md.ckp-{NN}.bak` (rollback target)
 - Resolved feature-map.yaml entry hash
 
-Reasoning: `_checkpoints.md` is human-readable timeline; `.bak` files give rollback target without git noise. Equivalent to doc pipeline's checkpoint discipline (Strategic Pipeline Spirals 1-4) but per-stage instead of per-spiral.
+reasoning: `_checkpoints.md` is human-readable timeline; `.bak` files give rollback target without git noise. Equivalent to doc pipeline's checkpoint discipline (Strategic Pipeline Spirals 1-4) but per-stage instead of per-spiral.
 
 Rollback path: `/resume-feature {id} --rollback CKP-{NN}` (skill restores `_state.md` from `.bak`, prunes later checkpoint markers).
 
@@ -338,7 +338,7 @@ printf '{"ts":"%s","feature_id":"%s","event":"%s","stage":"%s","agent":"%s","tie
 **sdlc done:**
 ```
 ✅ Pipeline hoàn tất — {feature-name}
-Reviewer: {verdict}
+reviewer: {verdict}
 ▶ /close-feature
 ```
 

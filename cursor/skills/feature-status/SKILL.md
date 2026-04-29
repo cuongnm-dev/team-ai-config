@@ -42,7 +42,7 @@ For each pipeline, classify:
 - **Blocked** — `status: blocked` or has active blockers
 - **Complete** — `status: done`
 
-Output:
+output:
 ```
 ## Daily Standup — {YYYY-MM-DD}
 
@@ -85,7 +85,7 @@ Not found → stop with VN message.
 
 Read full `_state.md`. List artifacts under `docs-path`.
 
-Output:
+output:
 ```
 ## Pipeline Status: {feature-name}
 
@@ -119,7 +119,7 @@ Output:
 
 Read `docs/feature-map.yaml` → filter all entries. For `status: done`: read `_state.md` → extract `kpi`, `rework-count`, cycle time (`created` → `closed-at`).
 
-Output:
+output:
 ```
 ## Project Health — {YYYY-MM-DD}
 

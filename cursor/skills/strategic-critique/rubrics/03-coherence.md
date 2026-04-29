@@ -85,12 +85,12 @@ Scan numbers mentioned multiple times, flag inconsistency:
 - id: F-NNN
   severity: blocker | major
   check: coherence
-  affected_sections: ["S3", "S6"]
+  affected-sections: ["S3", "S6"]
   issue: |
     Section 3 nêu vấn đề "hệ thống không mobile-responsive"
     nhưng Section 5 và 6 không có giải pháp / budget cho mobile.
-  chain_broken: "problem → solution"
-  fix_recommendation: |
-    Either: (A) bỏ vấn đề này khỏi S3 nếu scope không cover
+  chain-broken: "problem → solution"
+  fix-recommendation: |
+    either: (A) bỏ vấn đề này khỏi S3 nếu scope không cover
             (B) thêm solution + budget cho mobile trong S5+S6
 ```

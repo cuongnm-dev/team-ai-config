@@ -132,8 +132,8 @@ Không flag các case sau:
   check: dedup
   section: "5.3"
   excerpt: "Xây dựng Hệ thống xác thực tập trung..."
-  detected_keyword: "hệ thống xác thực"
-  dedup_candidate:
+  detected-keyword: "hệ thống xác thực"
+  dedup-candidate:
     platform: "NDXP"
     service: "ndxp.auth + VNeID"
     authority: "Bộ KHCN + C06"
@@ -141,15 +141,15 @@ Không flag các case sau:
   issue: |
     Proposed solution trùng với dịch vụ xác thực quốc gia NDXP/VNeID.
     CT 34/CT-TTg nguyên tắc 6 yêu cầu reuse nền tảng dùng chung.
-  why_major: |
+  why-major: |
     Build auth riêng = vi phạm nguyên tắc dùng chung,
     thẩm định có thẩm quyền downgrade budget section này.
     Ngoài ra tạo redundancy maintain dài hạn.
-  fix_recommendation: |
+  fix-recommendation: |
     Đổi "Xây dựng hệ thống xác thực" → "Tích hợp với Dịch vụ xác thực quốc gia
     NDXP và VNeID theo CT 34/CT-TTg nguyên tắc 6. Liên hệ Trung tâm
     Dữ liệu quốc gia để đăng ký kết nối (thời gian dự kiến [X tuần])."
-    Budget: giảm [Y triệu] cho auth module.
+    budget: giảm [Y triệu] cho auth module.
 ```
 
 ---
@@ -159,24 +159,24 @@ Không flag các case sau:
 Ngoài findings individual, emit summary:
 
 ```yaml
-dedup_summary:
-  total_solutions_proposed: 12
-  dedup_misses: 4
+dedup-summary:
+  total-solutions-proposed: 12
+  dedup-misses: 4
   misses:
     - solution: "Xây dựng hệ thống xác thực"
-      should_use: "VNeID + NDXP auth"
-      budget_impact: "-500M VND"
+      should-use: "VNeID + NDXP auth"
+      budget-impact: "-500M VND"
     - solution: "Build payment gateway"
-      should_use: "NDXP payment"
-      budget_impact: "-300M VND"
+      should-use: "NDXP payment"
+      budget-impact: "-300M VND"
     - solution: "Build file storage"
-      should_use: "LGSP DMS"
-      budget_impact: "-200M VND"
+      should-use: "LGSP DMS"
+      budget-impact: "-200M VND"
     - solution: "Datacenter on-premise"
-      should_use: "VNPT Gov Cloud"
-      budget_impact: "-1.5B VND (5-year TCO)"
-  total_budget_impact_if_dedup: "-2.5B VND"
-  ct34_principle_6_violations: 4
+      should-use: "VNPT Gov Cloud"
+      budget-impact: "-1.5B VND (5-year TCO)"
+  total-budget-impact-if-dedup: "-2.5B VND"
+  ct34-principle-6-violations: 4
 ```
 
 Budget impact give leadership concrete number → motivate fix.

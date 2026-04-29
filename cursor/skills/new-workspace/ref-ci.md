@@ -5,7 +5,7 @@
 name: CI
 on:
   push: { branches: [main, develop] }
-  pull_request: { branches: [main, develop] }
+  pull-request: { branches: [main, develop] }
 
 jobs:
   ci:
@@ -35,7 +35,7 @@ jobs:
 name: CI
 on:
   push: { branches: [main, develop] }
-  pull_request: { branches: [main, develop] }
+  pull-request: { branches: [main, develop] }
 
 jobs:
   ci:
@@ -56,7 +56,7 @@ jobs:
 name: CI
 on:
   push: { branches: [main, develop] }
-  pull_request: { branches: [main, develop] }
+  pull-request: { branches: [main, develop] }
 
 jobs:
   ci:
@@ -76,7 +76,7 @@ jobs:
 stages: [lint, test, build]
 default:
   image: node:22-alpine
-  before_script: [corepack enable, pnpm install --frozen-lockfile]
+  before-script: [corepack enable, pnpm install --frozen-lockfile]
 
 lint:
   stage: lint
@@ -89,7 +89,7 @@ test:
   script: [pnpm test --coverage]
   artifacts:
     reports:
-      coverage_report: { coverage_format: cobertura, path: coverage/cobertura-coverage.xml }
+      coverage-report: { coverage_format: cobertura, path: coverage/cobertura-coverage.xml }
 
 build:
   stage: build

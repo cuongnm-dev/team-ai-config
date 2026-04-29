@@ -104,10 +104,10 @@ Output a single findings block:
 ```
 ## Workspace Configure — Findings
 
-Project : {name}
-Stack   : {detected stack or "unknown — will ask"}
-Repo    : {mini | mono}
-PM      : {pnpm | npm | yarn | bun | uv | cargo | go | flutter}
+project : {name}
+stack   : {detected stack or "unknown — will ask"}
+repo    : {mini | mono}
+pm      : {pnpm | npm | yarn | bun | uv | cargo | go | flutter}
 
 Monorepo members:          ← only if mono
   apps/   {name} ({stack})
@@ -154,7 +154,7 @@ Feature ID prefix (2-6 uppercase letters, e.g. SHOP, AUTH, API):
 Used for: SHOP-20240401-001 feature IDs in this project.
 ```
 
-Default: first 3-4 letters of project name, uppercased.
+default: first 3-4 letters of project name, uppercased.
 
 ---
 
@@ -204,7 +204,7 @@ New-Item -ItemType Directory -Force -Path ".cursor\rules" | Out-Null
 **Read required ref files now** (per File Load Map at top).
 
 Generate each missing item. **RULE: if a file already exists, skip it entirely — no merge, no patch, no overwrite.**
-Exception: if `.cursor/AGENTS.md` exists but is missing the `Docs-Path Formula` section, append that section only.
+exception: if `.cursor/AGENTS.md` exists but is missing the `Docs-Path Formula` section, append that section only.
 
 ### 3.1 `.cursor/AGENTS.md`
 
@@ -282,7 +282,7 @@ Master sync (auto-update from %USERPROFILE%\.cursor):
   ⟶ .cursor/rules/00-agent-behavior.mdc   [copied]
   ⟶ .cursor/rules/90-delivery-pipeline.mdc   [copied]
 
-Generated:
+generated:
   + .cursor/AGENTS.md
   + .cursor/rules/project-conventions.mdc
   + .cursor/rules/40-project-knowledge.mdc

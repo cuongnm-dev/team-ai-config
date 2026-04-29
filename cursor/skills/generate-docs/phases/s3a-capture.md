@@ -40,16 +40,16 @@ For each feature in feature-catalog.features[]:
       - if mismatch → mark STALE
     
     IF FRESH:
-      Reuse:
+      reuse:
         - Copy/symlink screenshots from evidence.screenshots[].path → {DOCS_PATH}/screenshots/
         - Skip Playwright for this feature
         - Print: "Stage 3a [{feature.id}]: ♻ REUSED — {N} screenshots, {M} test cases from QA stage"
       continue
     ELSE (stale):
-      Print: "Stage 3a [{feature.id}]: STALE evidence — re-capturing"
+      print: "Stage 3a [{feature.id}]: STALE evidence — re-capturing"
   
-  ELSE:
-    Print: "Stage 3a [{feature.id}]: NO evidence — capturing fresh"
+  else:
+    print: "Stage 3a [{feature.id}]: NO evidence — capturing fresh"
   
   → Run Playwright capture protocol below (Step A onwards) for this feature only
   → After capture, write fresh evidence to docs/intel/test-evidence/{feature.id}.json

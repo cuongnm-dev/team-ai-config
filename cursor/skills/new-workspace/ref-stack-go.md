@@ -71,7 +71,7 @@ lint:  golangci-lint run
 ```markdown
 ---
 description: Go conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (Go)
 ## Layer Rules

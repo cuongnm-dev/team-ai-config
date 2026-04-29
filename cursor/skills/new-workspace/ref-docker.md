@@ -85,7 +85,7 @@ services:
   app:
     build: .
     ports: ["${PORT:-3000}:${PORT:-3000}"]   # adjust port per stack
-    env_file: .env
+    env-file: .env
     restart: unless-stopped
     develop:
       watch:
@@ -102,14 +102,14 @@ services:
 
 **`depends_on` block — add to `app` service when db is selected:**
 ```yaml
-    depends_on:
+    depends-on:
       db:
         condition: service_healthy
 ```
 
 **Add `cache` to depends_on when Redis selected:**
 ```yaml
-    depends_on:
+    depends-on:
       db:
         condition: service_healthy
       cache:
@@ -121,9 +121,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${DB_NAME:-appdb}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      postgres-db: ${DB_NAME:-appdb}
+      postgres-user: ${DB_USER:-postgres}
+      postgres-password: ${DB_PASSWORD:-postgres}
     ports: ["5432:5432"]
     volumes: [db_data:/var/lib/postgresql/data]
     healthcheck:
@@ -133,7 +133,7 @@ services:
       retries: 5
 
 volumes:
-  db_data:
+  db-data:
 ```
 
 **MySQL service block — add when database = MySQL:**
@@ -141,10 +141,10 @@ volumes:
   db:
     image: mysql:8-alpine
     environment:
-      MYSQL_DATABASE: ${DB_NAME:-appdb}
-      MYSQL_USER: ${DB_USER:-appuser}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-apppass}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
+      mysql-database: ${DB_NAME:-appdb}
+      mysql-user: ${DB_USER:-appuser}
+      mysql-password: ${DB_PASSWORD:-apppass}
+      mysql-root-password: ${DB_ROOT_PASSWORD:-rootpass}
     ports: ["3306:3306"]
     volumes: [db_data:/var/lib/mysql]
     healthcheck:
@@ -154,7 +154,7 @@ volumes:
       retries: 5
 
 volumes:
-  db_data:
+  db-data:
 ```
 
 **MongoDB service block — add when database = MongoDB:**
@@ -162,9 +162,9 @@ volumes:
   db:
     image: mongo:7
     environment:
-      MONGO_INITDB_DATABASE: ${DB_NAME:-appdb}
-      MONGO_INITDB_ROOT_USERNAME: ${DB_USER:-mongo}
-      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD:-mongo}
+      mongo-initdb-database: ${DB_NAME:-appdb}
+      mongo-initdb-root-username: ${DB_USER:-mongo}
+      mongo-initdb-root-password: ${DB_PASSWORD:-mongo}
     ports: ["27017:27017"]
     volumes: [db_data:/data/db]
     healthcheck:
@@ -174,7 +174,7 @@ volumes:
       retries: 5
 
 volumes:
-  db_data:
+  db-data:
 ```
 
 **Redis service block — add when cache = Redis:**
@@ -186,7 +186,7 @@ volumes:
     volumes: [cache_data:/data]
 
 volumes:
-  cache_data:
+  cache-data:
 ```
 
 *(If both db and cache volumes exist, merge `volumes:` into one block at end of file.)*
@@ -204,9 +204,9 @@ Use the actual path based on type: `src/services/<name>` for backend services, `
       context: .
       dockerfile: src/services/<name>/Dockerfile    # or src/apps/<name>/Dockerfile
     ports: ["${PORT:-3000}:${PORT:-3000}"]          # use next available port
-    env_file: .env
+    env-file: .env
     restart: unless-stopped
-    depends_on:                                     # only if db/cache already in compose
+    depends-on:                                     # only if db/cache already in compose
       db:
         condition: service_healthy
     develop:

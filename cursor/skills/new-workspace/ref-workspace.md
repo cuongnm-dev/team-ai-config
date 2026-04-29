@@ -62,7 +62,7 @@
 ---
 description: Project knowledge for {project-name}. PM reads once per pipeline, injects per agent. Not alwaysApply.
 globs: []
-alwaysApply: false
+always-apply: false
 ---
 # Project Knowledge: {project-name}
 

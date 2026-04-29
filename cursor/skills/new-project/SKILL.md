@@ -41,7 +41,7 @@ If found → **Intel-driven mode**:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Intel-driven project setup
-  Source: intel/tech-brief.md
+  source: intel/tech-brief.md
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Already scaffolded:
     ✓ {service-name} ({stack})     ← from AGENTS.md
@@ -52,7 +52,7 @@ If found → **Intel-driven mode**:
     [ ] {service-name-4} — {type}: {stack} (port: {suggested})
 
   Recommended next: {first in scaffold-order not yet done}
-  Reason: {rationale from tech-brief scaffold-order}
+  reason: {rationale from tech-brief scaffold-order}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Which service to scaffold? (enter name or number, or 'all' to scaffold all remaining in order)
 ```
@@ -105,7 +105,7 @@ Ask all at once in one block:
    app = frontend deployable  |  service = backend deployable  |  package = shared lib
 
 2. Name:  {name}
-   Convention: kebab-case. Will be created at src/apps/{name}/ or src/services/{name}/ or packages/{name}/
+   convention: kebab-case. Will be created at src/apps/{name}/ or src/services/{name}/ or packages/{name}/
 
 3. Stack: (list only stacks compatible with workspace tooling)
    [ ] React SPA (Vite)    [ ] Next.js       [ ] Vue / Nuxt
@@ -136,7 +136,7 @@ Show one confirmation block before writing anything:
     package.json | tsconfig.json | .env.example
     Dockerfile
 
-  Updates:
+  updates:
     docker-compose.yml      ← add {name} service (port: {next-available-port})
     .env                    ← add {NAME}_PORT + service-specific vars
     .env.example            ← same vars with placeholder values
@@ -149,14 +149,14 @@ Show one confirmation block before writing anything:
 ## Intel layer skeleton (CD-10) — created at workspace root only:
   docs/intel/_meta.json              ← provenance registry (initial empty)
   docs/intel/.gitkeep                ← ensure dir tracked
-  
+
   Stub artifacts (created empty/minimal so consumer skills find them):
   docs/intel/actor-registry.json     ← { "schema_version": "1.0", "rbac_mode": "none", "roles": [] }
   docs/intel/feature-catalog.json    ← { "schema_version": "1.0", "multi_role": false, "roles": [], "features": [] }
   docs/intel/permission-matrix.json  ← { "schema_version": "1.0", "permissions": [] }
   docs/intel/sitemap.json            ← { "schema_version": "1.0", "routes": [], "modules": [] }
-  
-  Note: stubs are PLACEHOLDERS only. Run /from-doc (if customer docs available) or /from-code (after first scaffold) to populate. Until populated, /new-feature works in legacy mode (feature-map.yaml only).
+
+  note: stubs are PLACEHOLDERS only. Run /from-doc (if customer docs available) or /from-code (after first scaffold) to populate. Until populated, /new-feature works in legacy mode (feature-map.yaml only).
 
 Proceed? (yes / no)
 ```
@@ -294,9 +294,9 @@ Read existing `docker-compose.yml` at workspace root. Append new service block f
       context: .
       dockerfile: {services|apps}/{name}/Dockerfile
     ports: ["{next-available-port}:{port}"]
-    env_file: .env
+    env-file: .env
     restart: unless-stopped
-    depends_on:               # only if db/cache already exist in compose
+    depends-on:               # only if db/cache already exist in compose
       db: { condition: service_healthy }
     develop:
       watch:
@@ -391,10 +391,10 @@ If any step fails: diagnose and fix before reporting done.
 ```
 ## New Project Added
 
-  Name   : @{workspace}/{name}
-  Type   : {app | service | package}
-  Stack  : {stack}
-  Path   : {path}/
+  name   : @{workspace}/{name}
+  type   : {app | service | package}
+  stack  : {stack}
+  path   : {path}/
 
   Workspace updated:
     ✓ docker-compose.yml — {name} service added (port {port})
@@ -402,7 +402,7 @@ If any step fails: diagnose and fix before reporting done.
     ✓ .cursor/AGENTS.md — Active Apps/Services + Docs-Path Formula
     ✓ pnpm-workspace.yaml — glob verified
 
-  Start:
+  start:
     docker compose up -d {name}   ← or `docker compose up -d` for all services
     pnpm --filter {name} dev      ← hot-reload on local code
 

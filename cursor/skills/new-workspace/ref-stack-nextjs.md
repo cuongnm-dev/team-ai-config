@@ -47,7 +47,7 @@ export function GET() {
 ```markdown
 ---
 description: Next.js coding conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (Next.js)
 ## Stack

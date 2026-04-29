@@ -62,7 +62,7 @@ export class AppModule {}
 ```markdown
 ---
 description: NestJS conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (NestJS)
 ## Layer Rules

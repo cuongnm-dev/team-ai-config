@@ -70,23 +70,23 @@ Roadmap đến 2030: "Việt Nam thuộc nhóm 50 nước dẫn đầu UN E-Gov 
 
 Output table:
 ```yaml
-alignment_matrix:
+alignment-matrix:
   "QĐ 749":
-    cited_in_sections: [1.2, 4.1]
-    kpi_contribution_claimed: true
-    kpi_contribution_verifiable: false  # no data support
+    cited-in-sections: [1.2, 4.1]
+    kpi-contribution-claimed: true
+    kpi-contribution-verifiable: false  # no data support
     severity: major
   "CT 34":
-    principles_addressed: [1, 3, 4]
-    principles_missed: [2, 5, 6, 7, 8, 9]
+    principles-addressed: [1, 3, 4]
+    principles-missed: [2, 5, 6, 7, 8, 9]
     severity: major   # only 3/9 addressed
   "QĐ 292":
     cited: false
-    required_for_scope: true  # cấp Bộ
+    required-for-scope: true  # cấp Bộ
     severity: major
   "QĐ 06":
     applicable: true  # DVC scope
-    integration_planned: true
+    integration-planned: true
     severity: info
   "QĐ 942":
     cited: false
@@ -106,7 +106,7 @@ alignment_matrix:
   issue: |
     Đề án chỉ address 3/9 nguyên tắc CT 34.
     Thiếu: NT6 (DEDUP), NT7 (pilot→nhân rộng), NT9 (data governance).
-  fix_recommendation: |
+  fix-recommendation: |
     Bổ sung trong Section 1.2 (cơ sở chính trị):
     - NT6: show DEDUP với NDXP/LGSP (xem findings DEDUP)
     - NT7: roadmap chia pilot phase (3-6 tháng) trước rollout

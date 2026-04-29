@@ -53,7 +53,7 @@ if "hdsd" in targets:
         screenshots_dict[img.name] = base64.b64encode(img.read_bytes()).decode("ascii")
 ```
 
-Cursor: chạy qua integrated terminal, paste base64 dict vào Composer.
+cursor: chạy qua integrated terminal, paste base64 dict vào Composer.
 
 ### Step 3 — Call export
 

@@ -21,18 +21,18 @@ Read `.cursor/rules/30-ui-template.mdc` (or workspace equivalent like `ui-metron
 ## Step 1 — Discover Template Structure
 
 ```
-Glob: {base_path}/**/components/**/*.{tsx,jsx,vue,ts,js}
-Glob: {base_path}/**/pages/**/*.{tsx,jsx,vue}
-Glob: {base_path}/**/layouts/**/*.{tsx,jsx,vue}
-Glob: {base_path}/**/_variables.scss, **/tokens.{ts,js,json}, **/theme.{ts,js}
-Glob: {base_path}/**/index.{ts,js,tsx}  (barrel exports)
+glob: {base_path}/**/components/**/*.{tsx,jsx,vue,ts,js}
+glob: {base_path}/**/pages/**/*.{tsx,jsx,vue}
+glob: {base_path}/**/layouts/**/*.{tsx,jsx,vue}
+glob: {base_path}/**/_variables.scss, **/tokens.{ts,js,json}, **/theme.{ts,js}
+glob: {base_path}/**/index.{ts,js,tsx}  (barrel exports)
 ```
 
 ## Step 2 — Enumerate Components
 
 For each component, extract: Name, Category, Import Path, Variants/Props, UI states (loading/error/empty/disabled), Description (JSDoc).
 
-Categories: Layout, Navigation, Forms, Data Display, Feedback, Overlay, Charts, Buttons & Actions, Badges & Tags, Page Templates.
+categories: Layout, Navigation, Forms, Data Display, Feedback, Overlay, Charts, Buttons & Actions, Badges & Tags, Page Templates.
 
 ## Step 3 — Extract Design Tokens
 
@@ -47,14 +47,14 @@ Write to `docs/ui-library/component-catalog.md` using the template from `ref-cat
 ```
 ## /ui-catalog Complete
 
-Template: {name} ({framework})
-Catalog: docs/ui-library/component-catalog.md
+template: {name} ({framework})
+catalog: docs/ui-library/component-catalog.md
 
-Components: {N} across {N} categories
+components: {N} across {N} categories
 Page templates: {N}
 Design token categories: {N}
 
-Next: /new-feature — BA, designer, fe-dev will use template-first development.
+next: /new-feature — BA, designer, fe-dev will use template-first development.
 ```
 
 ### Rules for extension vs creation

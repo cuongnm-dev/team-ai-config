@@ -28,7 +28,7 @@
    → log to intel/expansion-gaps.md
    → reviewer/BA điền sau
 
-NEVER:
+never:
    ❌ Pad với formulaic prose để hit word target
    ❌ Lặp ý đã viết với synonyms
    ❌ Thêm câu chuyển tiếp dài để câu giờ
@@ -43,7 +43,7 @@ Mỗi section được audit qua 3 metric, KHÔNG dùng word count làm gate:
 ### M1 — Specificity density
 
 ```python
-per_500_words:
+per-500-words:
   numbers     >= 5    # versions, counts, sizes, percentages, dates
   named_entities >= 3 # specific tech, NĐ refs, system names, role names
   citations   >= 1    # source: "intel/<file>#<section>" or "doc-brief.md#§N"
@@ -56,7 +56,7 @@ Section có word count đủ NHƯNG specificity thấp → **flagged as padding 
 Detected via regex:
 
 ```yaml
-banned_patterns:
+banned-patterns:
   - "đảm bảo tính linh hoạt"
   - "phù hợp xu hướng (công nghệ|hiện đại)"
   - "đáp ứng nhu cầu thực tiễn"
@@ -230,6 +230,6 @@ Stage 6 — Delivery
 
   Honest placeholders:       2 entries in intel/expansion-gaps.md
 
-  Next: Stage 5b Quality Gate
+  next: Stage 5b Quality Gate
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

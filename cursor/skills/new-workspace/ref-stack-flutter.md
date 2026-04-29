@@ -49,7 +49,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('{project-name}')),
+      app-bar: AppBar(title: const Text('{project-name}')),
       body: const Center(child: Text('Hello from {project-name}', style: TextStyle(fontSize: 24))),
     );
   }
@@ -70,7 +70,7 @@ linter:
 ```markdown
 ---
 description: Flutter conventions for {project-name}. Supplements global rules.
-alwaysApply: false
+always-apply: false
 ---
 # Conventions: {project-name} (Flutter)
 ## Rules

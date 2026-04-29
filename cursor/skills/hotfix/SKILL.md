@@ -61,12 +61,12 @@ Capture top 3-5 candidate files into `_state.md`:
 ```yaml
 hotfix-investigation:
   symptom: "<from Step 3 bug description>"
-  candidate_locations:
+  candidate-locations:
     - file: "src/path/to/file.ts"
       reason: "@Codebase top match — contains <symbol>"
     - file: "..."
       reason: "..."
-  searched_at: "{YYYY-MM-DD HH:MM}"
+  searched-at: "{YYYY-MM-DD HH:MM}"
 ```
 
 `tech-lead` then narrows to actual root-cause line, proposes minimal diff, and Path S (Simple) skips heavy SA/QA cycles.
@@ -89,7 +89,7 @@ created: {YYYY-MM-DD}
 last-updated: {YYYY-MM-DD}
 current-stage: tech-lead
 output-mode: lean
-risk_score: 2
+risk-score: 2
 pipeline-path: S
 repo-type: {mini | mono}
 repo-path: "."
@@ -105,12 +105,12 @@ completed-stages:
     verdict: "Skipped — no new boundaries"
     completed-at: "{YYYY-MM-DD}"
 feature-req: |
-  Bug: {description}
+  bug: {description}
   Root cause: {specific file/function/behavior}
-  Reproduction: {steps}
-  Scope: {files/modules affected}
-  Severity: {Critical|High|Medium}
-  Constraints: fix scoped to root cause only, rollback must be possible
+  reproduction: {steps}
+  scope: {files/modules affected}
+  severity: {Critical|High|Medium}
+  constraints: fix scoped to root cause only, rollback must be possible
 kpi:
   tokens-total: 0
   cycle-time-start: {YYYY-MM-DD}
@@ -129,13 +129,13 @@ features:
   {hotfix-id}:
     name: "Hotfix — {short description}"
     project: "{project}"
-    docs_path: "docs/hotfixes/{hotfix-id}"
+    docs-path: "docs/hotfixes/{hotfix-id}"
     status: "in-progress"
     current-stage: "tech-lead"
     created: "{YYYY-MM-DD}"
     updated: "{YYYY-MM-DD}"
-    catalog_id: "{F-NNN if hotfix targets existing feature, else null}"
-    is_hotfix: true
+    catalog-id: "{F-NNN if hotfix targets existing feature, else null}"
+    is-hotfix: true
 ```
 
 **5b — Canonical intel: link or create entry in `docs/intel/feature-catalog.json`** (only when intel layer exists)
@@ -154,7 +154,7 @@ If intel layer absent: skip — hotfix uses `feature-map.yaml` only (legacy).
 ## Step 6 — Dispatcher loop (with PM escalation)
 
 ```
-Loop:
+loop:
   # Cache-aware prompt (see new-feature/SKILL.md for rationale)
   result = Task(
     subagent_type="dispatcher",

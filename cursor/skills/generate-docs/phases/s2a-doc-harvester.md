@@ -42,7 +42,7 @@ When upstream `/from-doc` (or `/from-code`) intel exists and is FRESH per `_meta
 Print to user (REQUIRED):
 ```
 Stage 2a (Doc Harvest): ♻ REUSED feature-catalog ({N} features), domain-skeleton ({M} modules)
-                        ENRICH: data-model.entities (3 missing fields)
+                        enrich: data-model.entities (3 missing fields)
 ```
 
 ```bash
@@ -86,7 +86,7 @@ If found, load them:
 
 If Step 1.5 loaded from-doc intel → skip overlapping queries below (marked with ★).
 
-Pattern: 1 block = 1-2 `@Codebase` queries + targeted `@Files` read.
+pattern: 1 block = 1-2 `@Codebase` queries + targeted `@Files` read.
 
 | content-data block | Query pattern | ★ Skip if from-doc |
 |---|---|---|
@@ -113,7 +113,7 @@ Pattern: 1 block = 1-2 `@Codebase` queries + targeted `@Files` read.
 | `tkcs.timeline / milestones` | `@Files docs/roadmap.md docs/schedule.md` | |
 | `tkcs.total_investment / opex` | `@Files docs/budget.md` | |
 
-Legend: ★ = skip if `docs/intel/doc-brief.md` already provided this block (Step 1.5).
+legend: ★ = skip if `docs/intel/doc-brief.md` already provided this block (Step 1.5).
 
 Read section-only via `@Files path.md#heading` when possible.
 

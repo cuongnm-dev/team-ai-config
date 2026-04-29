@@ -23,7 +23,7 @@ User-facing output: Vietnamese.
 Investigate unknown root cause → diagnose → fix → verify.
 Different from `/hotfix` — hotfix is for KNOWN root cause + clear scope.
 
-Steps:
+steps:
 1. **Reproduce**: collect error details, reproduction steps, affected version
 2. **Investigate**: Task(dev) → search codebase for root cause
    - Read error logs, stack traces
@@ -36,13 +36,13 @@ Steps:
 4. **Fix**: Task(dev) → implement fix
 5. **Verify**: run tests, confirm bug no longer reproducible
 
-Output: `{project-path}/docs/fixes/{slug}.md` — root cause analysis + fix summary
+output: `{project-path}/docs/fixes/{slug}.md` — root cause analysis + fix summary
 
 ## Mode: refactor
 
 Scoped refactor within defined boundaries. No behavior change.
 
-Steps:
+steps:
 1. **Scope**: what to refactor, why, boundaries
 2. **Contract**: Task(tech-lead) → define behavior contracts:
    - Public APIs / exported functions that must not change
@@ -52,7 +52,7 @@ Steps:
    - Run tests after each significant change
 4. **Validate**: full test suite, all contracts hold
 
-Output: `{project-path}/docs/refactors/{slug}.md` — scope + validation results
+output: `{project-path}/docs/refactors/{slug}.md` — scope + validation results
 
 ---
 

@@ -109,19 +109,19 @@ Read your context bundle as defined in AGENTS.md § Context Bundle Standard.
 After verdict reached AND Playwright executed, write `docs/intel/test-evidence/{feature-id}.json` per `~/.claude/schemas/intel/test-evidence.schema.json`:
 
 ```yaml
-schema_version: "1.0"
-feature_id: F-NNN # FK feature-catalog
-captured_at: <ISO8601>
-captured_by: "resume-feature/qa"
-playwright_config:
-  base_url: <from test-accounts.json>
+schema-version: "1.0"
+feature-id: F-NNN # FK feature-catalog
+captured-at: <ISO8601>
+captured-by: "resume-feature/qa"
+playwright-config:
+  base-url: <from test-accounts.json>
   viewport: { width: 1280, height: 800 }
   browser: chromium
-  auth_state_files: { "<role_slug>": "<path>" }
-test_cases:
+  auth-state-files: { "<role_slug>": "<path>" }
+test-cases:
   - id: TC-F-NNN-01 # format: TC-{feature-id}-NN
     title: "<VN>"
-    role_slug: <FK actor-registry>
+    role-slug: <FK actor-registry>
     priority: critical|high|medium|low
     type: functional|negative|boundary|integration|security|ux
     preconditions: [...]
@@ -129,32 +129,32 @@ test_cases:
       - order: 1
         action: "<VN imperative>"
         expected: "<optional per-step>"
-        screenshot_id: F-NNN-step-01-initial # FK screenshots[]
-        playwright_locator: "data-testid=..."
-    expected_result: "<VN end-state>"
+        screenshot-id: F-NNN-step-01-initial # FK screenshots[]
+        playwright-locator: "data-testid=..."
+    expected-result: "<VN end-state>"
     execution:
       status: passed|failed|skipped|flaky
-      duration_ms: <int>
-      executed_at: <ISO8601>
-      playwright_report: <path>
-      failure_reason: null
-    linked_acceptance_criteria_idx: [0, 2] # indices into feature-catalog AC[]
+      duration-ms: <int>
+      executed-at: <ISO8601>
+      playwright-report: <path>
+      failure-reason: null
+    linked-acceptance-criteria-idx: [0, 2] # indices into feature-catalog AC[]
 screenshots:
   - id: F-NNN-step-01-initial # canonical naming CD-4
     path: docs/intel/screenshots/F-NNN-step-01-initial.png
     state: initial|filled|success|error|loading|modal|list|detail|placeholder
     viewport: desktop|mobile|tablet
-    role_slug: <FK>
-    test_case_id: TC-F-NNN-01
-    step_order: 1
+    role-slug: <FK>
+    test-case-id: TC-F-NNN-01
+    step-order: 1
 coverage:
-  ac_covered: <int>
-  ac_total: <int>
-  ac_coverage_pct: <float>
-  code_coverage_pct: <float|null>
+  ac-covered: <int>
+  ac-total: <int>
+  ac-coverage-pct: <float>
+  code-coverage-pct: <float|null>
 freshness:
-  feature_catalog_hash_at_capture: <sha256 of feature entry>
-  code_hash_at_capture: <sha256 of related src files>
+  feature-catalog-hash-at-capture: <sha256 of feature entry>
+  code-hash-at-capture: <sha256 of related src files>
 ```
 
 After write: `python ~/.claude/scripts/intel/meta_helper.py update docs/intel/ test-evidence/{feature-id}.json --producer resume-feature/qa`

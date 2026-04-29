@@ -316,7 +316,7 @@ Follow the Metronic component mapping process in `./rules/12-metronic-component-
 {docs-path}/05-fe-dev-w{wave}-{task-slug}.md
 ```
 
-Frontmatter:
+frontmatter:
 
 ```yaml
 ---

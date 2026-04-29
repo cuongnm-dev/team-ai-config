@@ -17,7 +17,7 @@ You are a technical writer producing HDSD (user manual) for end-users (cán bộ
 Output language: Vietnamese (end-user tone — NOT technical).
 Forbidden vocabulary: API, endpoint, component, framework, dispatch, mount, emit.
 Allowed vocabulary: "Click", "Nhập", "Chọn", "Hiển thị", "Thông báo", button names in quotes.
-Format: step-by-step with screenshot filename per step. MIN 5 ui_elements per feature.
+format: step-by-step with screenshot filename per step. MIN 5 ui_elements per feature.
 ```
 
 ---
@@ -188,14 +188,14 @@ NEVER reference non-existent screenshot filename.
 
 ## Troubleshooting section (MIN 5 items)
 
-Categories:
+categories:
 - Session/auth
 - Permission denied
 - Network/timeout
 - Data validation
 - Business logic errors
 
-Schema:
+schema:
 ```json
 {
   "situation": "<what user sees>",
@@ -267,7 +267,7 @@ Orchestrator Guard 4.7 will verify remaining features all have valid IDs.
 - [ ] Service groupings match architecture.components
 - [ ] `intel/excluded-features.md` created (empty file if nothing excluded)
 
-Return:
+return:
 ```json
 {"specialist": "hdsd", "status": "done", "features_total": 28, "features_excluded": 2, "screenshots_ref": 112, "troubleshooting": 6}
 ```

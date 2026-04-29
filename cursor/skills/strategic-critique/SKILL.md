@@ -51,13 +51,13 @@ description: Đóng vai cán bộ thẩm định (Bộ/Tỉnh/Sở) phản biệ
 Normalize into structure:
 ```yaml
 document:
-  total_pages: 45
+  total-pages: 45
   sections:
     - number: "1"
       title: "Sự cần thiết và cơ sở xây dựng Đề án"
-      start_line: 120
-      end_line: 840
-      word_count: 3200
+      start-line: 120
+      end-line: 840
+      word-count: 3200
       subsections: [...]
 ```
 
@@ -80,15 +80,15 @@ Rubric details in `rubrics/*.md`.
 ```yaml
 critique:
   document: "De-an-CDS-So-X-v0.3.docx"
-  total_findings: 47
-  severity_distribution:
+  total-findings: 47
+  severity-distribution:
     blocker: 3
     major: 12
     minor: 24
     info: 8
   coverage:
-    sections_reviewed: [1, 2, 3, 4, 5, 6, 7]
-    checks_applied: [formal, substantive, coherence, alignment, dedup, feasibility, legal]
+    sections-reviewed: [1, 2, 3, 4, 5, 6, 7]
+    checks-applied: [formal, substantive, coherence, alignment, dedup, feasibility, legal]
 
 findings:
   - id: F-001
@@ -100,10 +100,10 @@ findings:
       Vague — "tương đối lạc hậu" không phải đánh giá có số liệu.
       Thẩm định sẽ hỏi: lạc hậu ở điểm nào? bao nhiêu năm tuổi?
       performance metric cụ thể?
-    why_blocker: |
+    why-blocker: |
       Section 3 (Hiện trạng) phải có số liệu deterministic để justify
       necessity. "Tương đối" không defensible khi challenge.
-    fix_recommendation: |
+    fix-recommendation: |
       Thay bằng số liệu cụ thể:
       - "Hệ thống A triển khai từ 2014, xuống cấp X% uptime năm 2025"
       - "Chức năng B không support mobile (50% requests hiện tại)"
@@ -118,13 +118,13 @@ findings:
       Đề án đề xuất build authentication service.
       Trong khi đó NDXP đã có Dịch vụ xác thực điện tử quốc gia
       (VNeID/VNID + SSO), bắt buộc tích hợp theo CT 34 NT6.
-    why_major: |
+    why-major: |
       Build lại = vi phạm nguyên tắc "dùng nền tảng dùng chung" (CT 34).
       Thẩm định sẽ yêu cầu reuse, có thể downgrade budget section này.
-    fix_recommendation: |
+    fix-recommendation: |
       Đổi "xây dựng" → "tích hợp với Dịch vụ xác thực NDXP".
-      Cite: CT 34/CT-TTg NT6, QĐ 749 về hạ tầng dùng chung.
-      Reference: https://ndxp.gov.vn
+      cite: CT 34/CT-TTg NT6, QĐ 749 về hạ tầng dùng chung.
+      reference: https://ndxp.gov.vn
 
   - id: F-003
     severity: major
@@ -133,10 +133,10 @@ findings:
     excerpt: "Căn cứ Nghị định 73/2019/NĐ-CP..."
     issue: |
       NĐ 73/2019 ĐÃ BỊ THAY THẾ bởi NĐ 45/2026/NĐ-CP.
-    why_major: |
+    why-major: |
       Legal ref invalid = Đề án base trên văn bản hết hiệu lực.
       Thẩm định reject automatically.
-    fix_recommendation: |
+    fix-recommendation: |
       Thay bằng: "Căn cứ Nghị định số 45/2026/NĐ-CP ngày... của Chính phủ
       về quản lý đầu tư ứng dụng CNTT sử dụng NSNN".
 
@@ -148,13 +148,13 @@ findings:
     issue: |
       "Từng bước" + "thời gian tới" = hai vague phrase cạnh nhau.
       Không commit timeline cụ thể.
-    fix_recommendation: |
+    fix-recommendation: |
       "Triển khai theo 3 giai đoạn: Q1/2026 (pilot), Q2-Q3/2026 (rollout 50% đơn vị), Q4/2026 (100%)"
 
 summary:
-  strongest_sections: [6, 7]  # budget + roadmap có số liệu tốt
-  weakest_sections: [3, 5]    # hiện trạng + giải pháp vague nhiều
-  overall_verdict: |
+  strongest-sections: [6, 7]  # budget + roadmap có số liệu tốt
+  weakest-sections: [3, 5]    # hiện trạng + giải pháp vague nhiều
+  overall-verdict: |
     Đề án có structure đúng (outline NĐ 30 OK), legal framework cũ cần cập nhật
     (3 văn bản đã bị thay), phần substance còn nhiều "tương đối" - cần data thật.
     DEDUP missed 2 chỗ quan trọng (auth + report engine).
@@ -199,22 +199,22 @@ summary:
 
 ### 1. Formal check
 
-Rubric: `rubrics/01-formal.md`
+rubric: `rubrics/01-formal.md`
 
-Check:
+check:
 - Outline section numbering đúng NĐ 30 (1, 1.1, 1.1.1, a), -)
 - Bảng/Hình `Bảng X.Y: Title` / `Hình X.Y: Title`, reset sequence per chapter
 - Font / spacing / margin (nếu có metadata)
 - Header structure (bìa, mục lục, nội dung, phụ lục)
 - Font legal citations format
 
-Severity: mostly minor, đôi khi major (thiếu mục lục = major)
+severity: mostly minor, đôi khi major (thiếu mục lục = major)
 
 ### 2. Substantive check
 
-Rubric: `rubrics/02-substantive.md`
+rubric: `rubrics/02-substantive.md`
 
-Check: mỗi claim có **số liệu / tên đơn vị / ngày tháng / nguồn** support không.
+check: mỗi claim có **số liệu / tên đơn vị / ngày tháng / nguồn** support không.
 
 Patterns flag:
 - "tương đối", "khá", "đa số", "một số", "một phần"
@@ -223,11 +223,11 @@ Patterns flag:
 - "thời gian tới", "giai đoạn trước" (không năm cụ thể)
 - Adjective without data: "mạnh mẽ", "đồng bộ", "toàn diện"
 
-Severity: **blocker** ở Section 3 (Hiện trạng) + Section 6 (Kinh phí). **Major** chỗ khác.
+severity: **blocker** ở Section 3 (Hiện trạng) + Section 6 (Kinh phí). **Major** chỗ khác.
 
 ### 3. Coherence check
 
-Rubric: `rubrics/03-coherence.md`
+rubric: `rubrics/03-coherence.md`
 
 Cross-section logic:
 - Mỗi **problem** (S3) → có ít nhất 1 **objective** (S4) address
@@ -235,11 +235,11 @@ Cross-section logic:
 - Mỗi **solution** (S5) → có **budget line** (S6) + **timeline** (S7)
 - Numbers cited consistently (total budget S6 = sum of components)
 
-Severity: blocker nếu contradiction, major nếu orphan (objective không được address).
+severity: blocker nếu contradiction, major nếu orphan (objective không được address).
 
 ### 4. Alignment check
 
-Rubric: `rubrics/04-alignment.md`
+rubric: `rubrics/04-alignment.md`
 
 Check fit với:
 - **QĐ 749/QĐ-TTg** — 3 trụ cột (Chính phủ số, Kinh tế số, Xã hội số)
@@ -247,11 +247,11 @@ Check fit với:
 - **QĐ 06/QĐ-TTg** — nếu liên quan dân cư
 - **QĐ 292/QĐ-BKHCN (2025)** — Khung Kiến trúc CPĐT 4.0 (nếu dự án cấp Bộ)
 
-Severity: major nếu claim alignment nhưng không có evidence.
+severity: major nếu claim alignment nhưng không có evidence.
 
 ### 5. DEDUP check (unique differentiator)
 
-Rubric: `rubrics/05-dedup.md`
+rubric: `rubrics/05-dedup.md`
 
 Catalog ecosystem có sẵn:
 - **NDXP** (Nền tảng tích hợp chia sẻ dữ liệu quốc gia): 44 dịch vụ
@@ -262,23 +262,23 @@ Catalog ecosystem có sẵn:
 
 Pattern flag: nếu proposed solution có từ khóa trùng catalog → dedup miss.
 
-Severity: major (vi phạm CT 34 NT6).
+severity: major (vi phạm CT 34 NT6).
 
 ### 6. Feasibility check
 
-Rubric: `rubrics/06-feasibility.md`
+rubric: `rubrics/06-feasibility.md`
 
-Check:
+check:
 - Timeline có realistic không (vd. implement HRIS cho 1000 cán bộ trong 3 tháng → unrealistic)
 - Budget vs TT 04/2020 formula (man-hours × rate)
 - Capacity: đơn vị có team IT đủ không (N cán bộ CNTT làm X modules?)
 - Dependencies: phụ thuộc bên ngoài nào không control được (vd. phải chờ NDXP update API)
 
-Severity: major khi timeline/budget off > 50% baseline.
+severity: major khi timeline/budget off > 50% baseline.
 
 ### 7. Legal ref validity
 
-Rubric: `rubrics/07-legal.md`
+rubric: `rubrics/07-legal.md`
 
 Check mỗi văn bản cited:
 - Còn hiệu lực không (vd. NĐ 73/2019 đã bị NĐ 45/2026 thay)
@@ -287,7 +287,7 @@ Check mỗi văn bản cited:
 
 Reference list văn bản 2026 hiện hành trong `rubrics/07-legal.md`.
 
-Severity: **blocker** nếu cite văn bản đã bị thay.
+severity: **blocker** nếu cite văn bản đã bị thay.
 
 ---
 

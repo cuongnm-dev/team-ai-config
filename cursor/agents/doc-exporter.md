@@ -63,19 +63,19 @@ This file contains EXACT cell addresses, formula cells (NEVER WRITE), merged ran
 
 ```
 DOCX ROUTING:
-  CHECK: does tools list include "mcp__word_document_server__copy_document"?
+  check: does tools list include "mcp__word_document_server__copy_document"?
     ├── YES → DOCX PATH A: Word MCP
     └── NO  → DOCX PATH B: fill-manual.py
 
 XLSX ROUTING:
-  CHECK: does tools list include "mcp__excel_mcp__file"?
+  check: does tools list include "mcp__excel_mcp__file"?
     ├── YES + Windows + Excel installed → XLSX PATH A: Excel MCP
     │   Verify: reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Office" | grep -i Excel
     │   Verify: close all Excel files before running (exclusive COM access required)
     └── NO  → XLSX PATH B: fill-testcase.py
 
 ⚠️ MCP tool limit: Word MCP (~25 tools) + Excel MCP (~25 tools) = ~50 → exceeds Cursor's 40-tool limit
-   Workaround: use 2 separate sub-agents (each loads only 1 MCP)
+   workaround: use 2 separate sub-agents (each loads only 1 MCP)
    Task(docx-export-agent) → loads only Word MCP
    Task(xlsx-export-agent) → loads only Excel MCP
 ```
@@ -123,7 +123,7 @@ FOR EACH (old, new) in replacements:
 ### A3. Fill Section I — replace instruction text, keep headings
 
 Template Section I: P[019]-P[043] contains instruction text like `[...]` and `<Vi du:...>`.
-Strategy: delete paragraphs containing instruction text, insert real content.
+strategy: delete paragraphs containing instruction text, insert real content.
 
 ```
 outline = mcp__word_document_server__get_document_outline(filename=output_path)
@@ -176,7 +176,7 @@ add_heading("Gioi thieu cac chuc nang", level=2, font_name="Times New Roman")
 
 FOR EACH service in flow-report.services:
   add_heading("Cac chuc nang " + service.display_name, level=3, font_name="Times New Roman")
-  
+
   # Feature catalog table
   table_data = [["STT","Chuc nang","Mo ta","Doi tuong su dung"]]
   FOR i, feat in enumerate(service.features):
@@ -189,17 +189,17 @@ add_heading("Huong dan su dung cac chuc nang he thong", level=2, font_name="Time
 
 FOR EACH service in flow-report.services:
   add_heading(service.display_name, level=3, font_name="Times New Roman")
-  
+
   FOR EACH feat in service.features:
     add_heading(feat.name, level=4, font_name="Times New Roman", font_size=13)
     add_paragraph(feat.description, font_name="Times New Roman", font_size=13)
-    
+
     IF feat.preconditions:
       add_paragraph("Dieu kien tien quyet: " + feat.preconditions, italic=True)
-    
+
     FOR EACH step in feat.steps:
       add_paragraph(f"Buoc {step.no}: {step.action}", bold=True, font_name="Times New Roman")
-      
+
       # Screenshot
       sc = find_screenshot(screenshot_map, feat.id, step.no)
       IF sc AND file_exists("{docs-path}/screenshots/{sc.file}"):
@@ -207,10 +207,10 @@ FOR EACH service in flow-report.services:
         add_paragraph(sc.description, italic=True, font_size=10, alignment="center")
       ELIF sc AND sc.state == "placeholder":
         add_paragraph("[CAN BO SUNG: Screenshot — " + sc.failure_reason + "]", italic=True)
-      
+
       IF step.expected:
         add_paragraph("→ Ket qua: " + step.expected, font_name="Times New Roman")
-    
+
     IF feat.error_cases:
       add_paragraph("Cac truong hop loi:", bold=True)
       FOR err in feat.error_cases:
@@ -345,18 +345,18 @@ FOR EACH ui_feature in test_cases.features WHERE is_api == false:
   mcp__excel_mcp__range(operation="set-values", sheetName="Ten chuc nang",
     rangeAddress=f"A{row}", values=[[ui_feature.name]])  # feature group header
   row += 1
-  
+
   tc_batch = []
   FOR EACH tc in ui_feature.test_cases:
     steps_text = "\n".join(f"Buoc {s.no}: {s.action}" for s in tc.steps)
     expected_text = "\n".join(f"Buoc {s.no}: {s.expected}" for s in tc.steps if s.expected)
-    
+
     # PRIORITY_MAP: "Rat cao"→Critical, "Cao"→Major, "Trung binh"→Normal, "Thap"→Minor
     # ⚠️ Use Vietnamese WITH DIACRITICS: "Rất cao", "Trung bình", "Thấp"
     priority_mapped = {"Rất cao":"Critical","Cao":"Major","Trung bình":"Normal","Thấp":"Minor"}.get(tc.priority,"Normal")
-    
+
     tc_batch.append([tc.name, steps_text, expected_text, tc.checklog or "", tc.redirect or "", "", priority_mapped])
-  
+
   IF tc_batch:
     mcp__excel_mcp__range(operation="set-values", sheetName="Ten chuc nang",
       rangeAddress=f"B{row}:H{row+len(tc_batch)-1}", values=tc_batch)

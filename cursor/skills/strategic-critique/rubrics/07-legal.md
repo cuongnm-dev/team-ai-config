@@ -183,12 +183,12 @@ FOR each legal citation in document:
     type: "Nghị định"
     number: "73/2019/NĐ-CP"
     status: "deprecated"
-    replaced_by: "NĐ 45/2026/NĐ-CP"
-    effective_until: "2026-03-14"
+    replaced-by: "NĐ 45/2026/NĐ-CP"
+    effective-until: "2026-03-14"
   issue: |
     NĐ 73/2019 đã bị NĐ 45/2026 thay thế (hiệu lực từ 15/3/2026).
     Đề án base trên văn bản hết hiệu lực = thẩm định reject.
-  fix_recommendation: |
-    Thay: "Nghị định số 45/2026/NĐ-CP ngày 15 tháng 3 năm 2026 của Chính phủ
+  fix-recommendation: |
+    thay: "Nghị định số 45/2026/NĐ-CP ngày 15 tháng 3 năm 2026 của Chính phủ
     về quản lý đầu tư ứng dụng công nghệ thông tin sử dụng ngân sách nhà nước"
 ```

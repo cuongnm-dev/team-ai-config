@@ -78,10 +78,10 @@ Task(
   prompt='## Ad-hoc Implementation
 
   impl-id: {impl-id}
-  Task: {task name and description from plan}
+  task: {task name and description from plan}
   Files to change: {file list from plan}
   Dev guidance: {dev guidance from plan}
-  available_mcps: {available_mcps}
+  available-mcps: {available_mcps}
 
   MCP instruction: If NX MCP available, use get_project_graph to verify module ownership before editing. If Context7 available, use it for any library APIs you need.
 
@@ -92,7 +92,7 @@ Task(
   4. Run lint/typecheck after every meaningful change
   5. Capture: files changed, commands run, exit codes
 
-  Output:
+  output:
   - Files changed (list)
   - Key implementation decisions made
   - Verification: command → exit code for each check run
@@ -107,7 +107,7 @@ Task(
   impl-id: {impl-id}
   Implementation summary: {dev output from Step 1}
   Test requirement: {test-update value}
-  available_mcps: {available_mcps}
+  available-mcps: {available_mcps}
 
   MCP instruction: If NX MCP available, run nx affected --target=test --base=main to identify which test suites are affected.
 
@@ -155,7 +155,7 @@ status: complete
 )
 
 ### Step 4 — Respond to user (in Vietnamese)
-Format:
+format:
 ## Implementation Complete: {impl-id}
 
 **Tasks completed:** {N}/{total}
@@ -165,7 +165,7 @@ Format:
 
 **Deviations from plan:** {list or 'None'}
 
-Report: docs/implementations/{impl-id}.md
+report: docs/implementations/{impl-id}.md
 
 {If any ❌ in DoD checklist: 'Cảnh báo: {N} tiêu chí DoD chưa đạt. Xem report để biết chi tiết.'}
 

@@ -14,20 +14,20 @@ Consumer (`/resume-feature` → `dispatcher`) is producer-agnostic.
 ## Decision tree — When to use which producer
 
 ```
-Q1: Is this a PoC, MVP, or internal tool?
+q1: Is this a PoC, MVP, or internal tool?
   YES → Cursor `/from-doc` (save Claude quota, Composer 2 sufficient for ≤75% quality)
   NO → Q2
 
-Q2: Is this production-critical OR regulated (banking, compliance, healthcare)?
+q2: Is this production-critical OR regulated (banking, compliance, healthcare)?
   YES → Claude `/from-doc` (Opus insights, §13 domain reasoning required)
   NO → Q3
 
-Q3: Document characteristics?
+q3: Document characteristics?
   - ≤2 files, ≤30 pages, ≤20 screenshots, clear structure → Cursor `/from-doc`
   - Multi-file, >50 pages, >50 screenshots, Figma needed, >5 modules → Claude `/from-doc`
   - Between → Claude `/from-doc` (marginal cost, higher quality)
 
-Q4: Claude quota exhausted mid-pipeline?
+q4: Claude quota exhausted mid-pipeline?
   → Cursor `/from-doc` continuation mode (Step 0 detects Claude artifacts, resumes)
   → Output ~75% quality (fallback acceptable for MVP, re-run in Claude when quota back for production)
 ```
@@ -134,7 +134,7 @@ clarification-notes: ""                    # initialized empty; PM writes questi
 
 ## Feature Registry (`docs/feature-map.yaml`)
 
-Monorepo: REQUIRED. Mini-repo: RECOMMENDED.
+monorepo: REQUIRED. Mini-repo: RECOMMENDED.
 Both producers create/update at workspace root.
 
 ```yaml
@@ -143,7 +143,7 @@ features:
   {id}:
     name: {name}
     project: {service}
-    docs_path: {path}
+    docs-path: {path}
     status: in-progress
     current-stage: ba
     depends-on: []              # empty = no dependencies (can start immediately)
@@ -165,8 +165,8 @@ features:
 ## Directory structure
 
 ```
-Mini: docs/features/{id}/_state.md + intel/
-Mono: src/{apps|services}/{name}/docs/features/{id}/_state.md + intel/
+mini: docs/features/{id}/_state.md + intel/
+mono: src/{apps|services}/{name}/docs/features/{id}/_state.md + intel/
 Cross-cutting: docs/features/{id}/ (PM designates)
 ```
 
@@ -176,7 +176,7 @@ Cross-cutting: docs/features/{id}/ (PM designates)
 /resume-feature {feature-id}
 ```
 
-Locate: feature-map.yaml (PRIMARY) → docs/features/ → docs/hotfixes/ → glob (last resort).
+locate: feature-map.yaml (PRIMARY) → docs/features/ → docs/hotfixes/ → glob (last resort).
 
 ## Validation (Cursor verifies before dispatcher)
 

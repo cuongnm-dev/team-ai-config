@@ -22,9 +22,9 @@ User-facing output: Vietnamese.
 
 Ad-hoc code review outside formal pipeline.
 
-Input: PR URL, branch name, file paths, or staged diff
+input: PR URL, branch name, file paths, or staged diff
 
-Steps:
+steps:
 1. Get diff: `gh pr diff` or `git diff`
 2. Task(reviewer) → checklist:
    - Readability, naming, structure
@@ -34,10 +34,10 @@ Steps:
    - Backward compatibility (breaking changes?)
 3. Classify findings: must-fix / should-fix / nit
 
-Output:
+output:
 ```
 ## Review: {description}
-Verdict: {Approved | Changes requested | Blocked}
+verdict: {Approved | Changes requested | Blocked}
 
 ### Must-fix
 - [{file}:{line}] {finding}
@@ -50,15 +50,15 @@ Verdict: {Approved | Changes requested | Blocked}
 
 QA identifies scenarios, dev writes test code following repo conventions.
 
-Input: module path, function name, or feature area
+input: module path, function name, or feature area
 
-Steps:
+steps:
 1. Scan existing test patterns (framework, naming, directory structure, helpers)
 2. Task(qa) → test scenarios: happy path, edge cases, error cases, boundary values
 3. Task(dev) → write test files matching repo conventions
 4. Run tests → report results
 
-Output: test files in `{project-path}/src/` (or matching test directory)
+output: test files in `{project-path}/src/` (or matching test directory)
 
 ---
 

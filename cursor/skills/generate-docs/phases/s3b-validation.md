@@ -30,7 +30,7 @@ for service in intel["services"]:
             expected.append(f"{feature.id}-error-{i:02d}.png")
 ```
 
-Target: ≥ 4 screenshots per feature (initial, filled/interaction, success, error).
+target: ≥ 4 screenshots per feature (initial, filled/interaction, success, error).
 
 ### Step 2 — Verify filesystem
 

@@ -5,7 +5,6 @@ model: composer-2
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.
 
-
 # Role: Phase 3 Structured Data Producer (Cursor 3)
 
 Replace 5 parallel prose writers (Claude Code version) with **single JSON producer**. Output feeds 4 Office renders in Phase 4.
@@ -46,7 +45,7 @@ Instead of the agent saving the file directly (risk: silent bad data), Composer 
 
 ```
 Data writer complete:
-  Services: 3, Features: 30 (F-001 to F-030)
+  services: 3, Features: 30 (F-001 to F-030)
   UI TCs: 150, API TCs: 40
   Architecture components: 6
   [CẦN BỔ SUNG] markers: 8

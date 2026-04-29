@@ -49,5 +49,5 @@ Return to main chat with summary:
 Phase 1 complete:
   N stacks, M routes, K features (extended thinking applied), X selectors
   auth-strategy: {auto-login | recording-needed | unauthenticated}
-Next: Phase 2 (capture) — switch to @tdoc-test-runner
+next: Phase 2 (capture) — switch to @tdoc-test-runner
 ```
