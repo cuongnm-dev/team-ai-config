@@ -324,8 +324,11 @@ const printDivider = (title, count) => {
 };
 
 const printItem = (name, title, nameWidth = 24) => {
+  const w = _cols();
   const n = name.length > nameWidth ? name.slice(0, nameWidth - 1) + '…' : name.padEnd(nameWidth);
-  process.stdout.write(`  ${S.gray}›${S.reset} ${S.cyan}${n}${S.reset}  ${S.gray}${title || ''}${S.reset}\n`);
+  const maxDesc = Math.max(10, w - nameWidth - 6);
+  const t = (title || '').length > maxDesc ? title.slice(0, maxDesc - 1) + '…' : (title || '');
+  process.stdout.write(`  ${S.gray}›${S.reset} ${S.cyan}${n}${S.reset}  ${S.gray}${t}${S.reset}\n`);
 };
 
 const readDocItems = (dir) => {
@@ -333,7 +336,7 @@ const readDocItems = (dir) => {
   return fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().map(f => {
     const c = fs.readFileSync(path.join(dir, f), 'utf8');
     const m = c.match(/^title:\s*(.+)$/m);
-    return {name: f.replace(/\.md$/, ''), title: (m ? m[1].replace(/^["']|["']$/g, '') : f).slice(0, 58)};
+    return {name: f.replace(/\.md$/, ''), title: m ? m[1].replace(/^["']|["']$/g, '') : f};
   });
 };
 
@@ -367,7 +370,7 @@ const printSkillsIndex = (brief) => {
       if (!exists(md)) return {name: e.name, title: '(no SKILL.md)'};
       const c = fs.readFileSync(md, 'utf8');
       const m = c.match(/^description:\s*(.+)$/m);
-      return {name: e.name, title: cleanDesc(m ? m[1] : '').slice(0, 66)};
+      return {name: e.name, title: cleanDesc(m ? m[1] : '')};
     });
   };
   const cs = readSkills(path.join(REPO_DIR, 'claude', 'skills'));
@@ -390,7 +393,7 @@ const printAgentsIndex = (brief) => {
     return fs.readdirSync(dir).filter(f => f.endsWith('.md') && !f.startsWith('ref-')).sort().map(f => {
       const c = fs.readFileSync(path.join(dir, f), 'utf8');
       const m = c.match(/^description:\s*(.+)$/m);
-      return {name: f.replace(/\.md$/, ''), title: cleanDesc(m ? m[1] : '').slice(0, 66)};
+      return {name: f.replace(/\.md$/, ''), title: cleanDesc(m ? m[1] : '')};
     });
   };
   const cs = readAgents(path.join(REPO_DIR, 'claude', 'agents'));
