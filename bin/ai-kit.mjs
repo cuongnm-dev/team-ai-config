@@ -289,7 +289,9 @@ const renderDoc = (file) => {
   const content = fs.readFileSync(file, 'utf8');
   const stripped = stripFm(content);
   if (cmdAvail('glow')) {
-    try { execaSync('glow', ['-p', file], {stdio: 'inherit'}); return; } catch {}
+    // Windows lacks 'less' for -p paging; let terminal handle scrolling natively
+    const glowArgs = process.platform === 'win32' ? [file] : ['-p', file];
+    try { execaSync('glow', glowArgs, {stdio: 'inherit'}); return; } catch {}
   }
   const w = _cols();
   const bar = '─'.repeat(w - 4);
