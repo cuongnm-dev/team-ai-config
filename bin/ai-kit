@@ -121,7 +121,19 @@ cmd_doctor() {
   if docker info >/dev/null 2>&1; then ok "docker daemon running"; else err "docker daemon not running"; pass=false; fi
   if [ -d "$REPO_DIR/.git" ]; then ok "team-ai-config cloned"; else err "team-ai-config not cloned"; pass=false; fi
   if echo "$PATH" | tr ':' '\n' | grep -q "$AI_KIT_HOME/bin"; then ok "$AI_KIT_HOME/bin in PATH"; else warn "$AI_KIT_HOME/bin NOT in PATH (add to ~/.bashrc or ~/.zshrc)"; fi
-  $pass && echo -e "${C_GREEN}All checks passed.${C_RESET}" || exit 1
+
+  # Optional pretty-print tools
+  echo ""
+  echo -e "${C_BOLD}Optional (prettier docs rendering):${C_RESET}"
+  if command -v glow >/dev/null 2>&1; then ok "glow found (best markdown renderer)"
+  elif command -v bat >/dev/null 2>&1; then ok "bat found (syntax highlight)"
+  else
+    warn "No markdown renderer detected. Install for prettier output:"
+    echo "    macOS:  brew install glow      (or: brew install bat)"
+    echo "    Linux:  snap install glow      (or: apt install bat)"
+  fi
+
+  $pass && echo -e "${C_GREEN}All required checks passed.${C_RESET}" || exit 1
 }
 
 cmd_mcp() {

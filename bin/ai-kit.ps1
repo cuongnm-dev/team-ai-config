@@ -217,7 +217,19 @@ function DoDoctor {
   $binDir = Join-Path $AiKitHome 'bin'
   if ($userPath -split ';' -contains $binDir) { Write-Ok "$binDir in user PATH" }
   else { Write-Warn "$binDir NOT in user PATH (run bootstrap.ps1 again to fix)" }
-  if ($pass) { Write-Host "All checks passed." -ForegroundColor Green }
+
+  # Optional pretty-print tools
+  Write-Host ''
+  Write-Host 'Optional (prettier docs rendering):' -ForegroundColor White
+  if (Get-Command glow -ErrorAction SilentlyContinue) { Write-Ok "glow found (best markdown renderer)" }
+  elseif (Get-Command bat -ErrorAction SilentlyContinue) { Write-Ok "bat found (syntax highlight)" }
+  else {
+    Write-Warn 'No markdown renderer detected. Install for prettier output:'
+    Write-Host '    winget install charmbracelet.glow      (recommended)'
+    Write-Host '    winget install sharkdp.bat             (alternative)'
+  }
+
+  if ($pass) { Write-Host '' -NoNewline; Write-Host "All required checks passed." -ForegroundColor Green }
   else { exit 1 }
 }
 
