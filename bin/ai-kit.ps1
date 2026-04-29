@@ -209,19 +209,192 @@ function DoUninstall {
   Write-Ok "Restore previous ~\.claude / ~\.cursor from latest backup at ~\ai-config-backup-* if needed."
 }
 
+function DoLogs {
+  Ensure-Repo
+  Push-Location (Join-Path $RepoDir 'mcp\etc-platform')
+  try { docker compose logs -f etc-platform } finally { Pop-Location }
+}
+
+function DoPack {
+  Ensure-Repo
+  & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoDir 'pack.ps1') @Rest
+}
+
+function DoPublish {
+  Ensure-Repo
+  $msg = if ($Rest.Count -gt 0) { $Rest[0] } else { '' }
+  if (-not $msg) {
+    Write-Err 'Usage: ai-kit publish "<commit message>"'
+    exit 1
+  }
+  Write-Info 'Pack ~/ -> repo'
+  & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoDir 'pack.ps1')
+  Write-Info 'Git commit + push'
+  Push-Location $RepoDir
+  try {
+    git diff --quiet 2>$null; $unstagedClean = $LASTEXITCODE -eq 0
+    git diff --cached --quiet 2>$null; $stagedClean = $LASTEXITCODE -eq 0
+    $untracked = (git status --porcelain) -ne $null
+    if ($unstagedClean -and $stagedClean -and -not $untracked) {
+      Write-Ok 'No changes to publish'
+      return
+    }
+    git add -A
+    git commit -m $msg
+    git push
+    $sha = (git rev-parse --short HEAD).Trim()
+    Write-Ok "Published $sha"
+  } finally { Pop-Location }
+}
+
+function DoListBackups {
+  $backups = Get-ChildItem -Path $env:USERPROFILE -Directory -Filter 'ai-config-backup-*' -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending
+  if ($backups.Count -eq 0) {
+    Write-Warn "No backups found at $env:USERPROFILE\ai-config-backup-*"
+    return
+  }
+  Write-Host 'Available backups (newest first):' -ForegroundColor White
+  $i = 1
+  foreach ($b in $backups) {
+    $size = (Get-ChildItem $b.FullName -Recurse -Force -ErrorAction SilentlyContinue |
+             Measure-Object -Property Length -Sum).Sum
+    $sizeStr = if ($size -gt 1MB) { '{0:N1} MB' -f ($size / 1MB) } else { '{0:N0} KB' -f ($size / 1KB) }
+    "{0,3}. {1}  ({2})" -f $i, $b.Name, $sizeStr | Write-Host
+    $i++
+  }
+  Write-Host ''
+  Write-Host 'Restore: ai-kit rollback [N]   (default 1 = newest)'
+}
+
+function DoRollback {
+  $idx = if ($Rest.Count -gt 0) { [int]$Rest[0] } else { 1 }
+  $backups = Get-ChildItem -Path $env:USERPROFILE -Directory -Filter 'ai-config-backup-*' -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending
+  if ($idx -lt 1 -or $idx -gt $backups.Count) {
+    Write-Err "Backup #$idx not found. Run: ai-kit list-backups"
+    exit 1
+  }
+  $backup = $backups[$idx - 1]
+  Write-Warn "Restore from: $($backup.FullName)"
+  Write-Warn 'This OVERWRITES ~\.claude and ~\.cursor with backup contents.'
+  $yn = Read-Host 'Continue? (y/N)'
+  if ($yn -notmatch '^[Yy]') { Write-Host 'Aborted.'; exit 0 }
+
+  $cb = Join-Path $backup.FullName '.claude'
+  $cu = Join-Path $backup.FullName '.cursor'
+  if (Test-Path $cb) {
+    Remove-Item -Recurse -Force (Join-Path $env:USERPROFILE '.claude') -ErrorAction SilentlyContinue
+    Copy-Item -Recurse -Force $cb (Join-Path $env:USERPROFILE '.claude')
+    Write-Ok 'Restored ~\.claude'
+  }
+  if (Test-Path $cu) {
+    Remove-Item -Recurse -Force (Join-Path $env:USERPROFILE '.cursor') -ErrorAction SilentlyContinue
+    Copy-Item -Recurse -Force $cu (Join-Path $env:USERPROFILE '.cursor')
+    Write-Ok 'Restored ~\.cursor'
+  }
+  Write-Ok 'Rollback complete'
+}
+
+function DoClean {
+  $keep = 3
+  for ($i = 0; $i -lt $Rest.Count; $i++) {
+    if ($Rest[$i] -eq '--keep' -and $i + 1 -lt $Rest.Count) {
+      $keep = [int]$Rest[$i + 1]
+    }
+  }
+  Write-Info "Keeping $keep most recent backups, deleting rest"
+  $backups = Get-ChildItem -Path $env:USERPROFILE -Directory -Filter 'ai-config-backup-*' -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending
+  $deleted = 0
+  for ($i = $keep; $i -lt $backups.Count; $i++) {
+    Remove-Item -Recurse -Force $backups[$i].FullName
+    Write-Ok "Deleted: $($backups[$i].Name)"
+    $deleted++
+  }
+  if ($deleted -eq 0) { Write-Ok 'Nothing to delete' }
+
+  Write-Info 'Pruning unused docker images'
+  docker image prune -f *> $null
+  Write-Ok 'Docker images pruned'
+}
+
+function DoDiff {
+  Ensure-Repo
+  Write-Host 'Local edits vs team-config repo' -ForegroundColor White
+  Write-Host ''
+  foreach ($dir in @('claude', 'cursor')) {
+    $repo = Join-Path $RepoDir $dir
+    $deploy = Join-Path $env:USERPROFILE ".$dir"
+    if (-not (Test-Path $repo) -or -not (Test-Path $deploy)) { continue }
+    Write-Host "~\.$dir <-> repo\$dir" -ForegroundColor White
+
+    # Compare via hash
+    $repoFiles = Get-ChildItem -Path $repo -Recurse -File -ErrorAction SilentlyContinue |
+      ForEach-Object { @{ rel = $_.FullName.Substring($repo.Length + 1); hash = (Get-FileHash $_.FullName -Algorithm MD5).Hash } }
+    $deployFiles = Get-ChildItem -Path $deploy -Recurse -File -ErrorAction SilentlyContinue |
+      ForEach-Object { @{ rel = $_.FullName.Substring($deploy.Length + 1); hash = (Get-FileHash $_.FullName -Algorithm MD5).Hash } }
+
+    $repoMap = @{}; $repoFiles | ForEach-Object { $repoMap[$_.rel] = $_.hash }
+    $deployMap = @{}; $deployFiles | ForEach-Object { $deployMap[$_.rel] = $_.hash }
+
+    $diffs = @()
+    foreach ($k in $deployMap.Keys) {
+      if (-not $repoMap.ContainsKey($k))      { $diffs += "  + (local-only) $k" }
+      elseif ($repoMap[$k] -ne $deployMap[$k]) { $diffs += "  ~ (modified)   $k" }
+    }
+    foreach ($k in $repoMap.Keys) {
+      if (-not $deployMap.ContainsKey($k))    { $diffs += "  - (in-repo)    $k" }
+    }
+    if ($diffs.Count -eq 0) { Write-Ok 'In sync' }
+    else { $diffs | Select-Object -First 50 | ForEach-Object { Write-Host $_ }
+           if ($diffs.Count -gt 50) { Write-Host "  ... and $($diffs.Count - 50) more" } }
+    Write-Host ''
+  }
+  Write-Host "Tip: 'ai-kit publish `"msg`"' to upstream local edits."
+}
+
+function DoEdit {
+  Ensure-Repo
+  if (Get-Command code -ErrorAction SilentlyContinue) {
+    & code $RepoDir
+  } elseif ($env:EDITOR) {
+    & $env:EDITOR $RepoDir
+  } else {
+    Write-Info "Opening repo in Explorer (no `$env:EDITOR set, no VS Code)"
+    Invoke-Item $RepoDir
+  }
+}
+
 function DoHelp {
 @"
 ai-kit $Version — team AI config manager
 
 Usage:  ai-kit <command>
 
-Commands:
+User commands:
   install            First-time setup (use bootstrap.ps1; this exists for symmetry)
-  update             Pull latest team config + redeploy + refresh MCP image
-  status             Show versions, deployed counts, MCP health
-  doctor             Verify deps + paths
+  update | up        Pull latest team config + redeploy + refresh MCP image
+  status | st        Show versions, deployed counts, MCP health
+  logs               Tail MCP container logs
+  doctor | dr        Verify deps + paths
+  version | -v       Show ai-kit + team-config + MCP image versions
+
+MCP control:
   mcp <verb>         start | stop | restart | logs | pull | status
-  version            Show ai-kit + team-config + MCP image versions
+
+Backups:
+  list-backups       List ~\ai-config-backup-* (newest first)
+  rollback [N]       Restore from backup #N (default 1 = newest)
+  clean [--keep N]   Delete old backups (keep N most recent, default 3) + docker prune
+
+Maintainer:
+  pack               Run pack.ps1: snapshot ~\ -> repo (review with 'ai-kit diff')
+  publish "<msg>"    pack + git commit -m <msg> + git push (one-shot release)
+  diff               Show what differs between deployed config and repo
+  edit               Open team-ai-config in VS Code / `$env:EDITOR / Explorer
+
+Misc:
   uninstall          Remove $AiKitHome (keeps deployed config)
   help               Show this message
 
@@ -230,20 +403,29 @@ Layout:  $AiKitHome
 }
 
 switch ($Command) {
-  'install'   { DoInstall }
-  'update'    { DoUpdate }
-  'up'        { DoUpdate }
-  'status'    { DoStatus }
-  'st'        { DoStatus }
-  'doctor'    { DoDoctor }
-  'dr'        { DoDoctor }
-  'mcp'       { DoMcp }
-  'version'   { DoVersion }
-  '-v'        { DoVersion }
-  '--version' { DoVersion }
-  'uninstall' { DoUninstall }
-  'help'      { DoHelp }
-  '-h'        { DoHelp }
-  '--help'    { DoHelp }
-  default     { Write-Err "Unknown command: $Command"; DoHelp; exit 1 }
+  'install'           { DoInstall }
+  'update'            { DoUpdate }
+  'up'                { DoUpdate }
+  'status'            { DoStatus }
+  'st'                { DoStatus }
+  'doctor'            { DoDoctor }
+  'dr'                { DoDoctor }
+  'mcp'               { DoMcp }
+  'logs'              { DoLogs }
+  'pack'              { DoPack }
+  'publish'           { DoPublish }
+  'list-backups'      { DoListBackups }
+  'backups'           { DoListBackups }
+  'rollback'          { DoRollback }
+  'clean'             { DoClean }
+  'diff'              { DoDiff }
+  'edit'              { DoEdit }
+  'version'           { DoVersion }
+  '-v'                { DoVersion }
+  '--version'         { DoVersion }
+  'uninstall'         { DoUninstall }
+  'help'              { DoHelp }
+  '-h'                { DoHelp }
+  '--help'            { DoHelp }
+  default             { Write-Err "Unknown command: $Command"; DoHelp; exit 1 }
 }

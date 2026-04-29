@@ -151,19 +151,165 @@ cmd_uninstall() {
   ok "Restore previous ~/.claude / ~/.cursor from latest backup at ~/ai-config-backup-* if needed."
 }
 
+cmd_logs() {
+  ensure_repo
+  cd "$REPO_DIR/mcp/etc-platform"
+  docker compose logs "${@:--f}" etc-platform
+}
+
+cmd_pack() {
+  ensure_repo
+  bash "$REPO_DIR/pack.sh" "$@"
+}
+
+cmd_publish() {
+  ensure_repo
+  local msg="${1:-}"
+  if [ -z "$msg" ]; then
+    err "Usage: ai-kit publish \"<commit message>\""
+    exit 1
+  fi
+  info "Pack ~/ -> repo"
+  bash "$REPO_DIR/pack.sh"
+  info "Git commit + push"
+  cd "$REPO_DIR"
+  if git diff --quiet && git diff --cached --quiet; then
+    ok "No changes to publish"
+    return
+  fi
+  git add -A
+  git commit -m "$msg"
+  git push
+  ok "Published $(git rev-parse --short HEAD)"
+}
+
+cmd_list_backups() {
+  local backups
+  backups=$(find "$HOME" -maxdepth 1 -type d -name 'ai-config-backup-*' 2>/dev/null | sort -r)
+  if [ -z "$backups" ]; then
+    warn "No backups found at $HOME/ai-config-backup-*"
+    return
+  fi
+  echo -e "${C_BOLD}Available backups${C_RESET} (newest first):"
+  local i=1
+  while IFS= read -r b; do
+    local size; size=$(du -sh "$b" 2>/dev/null | awk '{print $1}')
+    printf "  %2d. %s  (%s)\n" "$i" "$(basename "$b")" "$size"
+    i=$((i+1))
+  done <<< "$backups"
+  echo ""
+  echo "Restore: ai-kit rollback [N]   (default 1 = newest)"
+}
+
+cmd_rollback() {
+  local idx="${1:-1}"
+  local backup
+  backup=$(find "$HOME" -maxdepth 1 -type d -name 'ai-config-backup-*' 2>/dev/null | sort -r | sed -n "${idx}p")
+  if [ -z "$backup" ]; then
+    err "Backup #$idx not found. Run: ai-kit list-backups"
+    exit 1
+  fi
+  warn "Restore from: $backup"
+  warn "This OVERWRITES ~/.claude and ~/.cursor with backup contents."
+  read -p "Continue? (y/N) " yn
+  [[ "$yn" =~ ^[Yy] ]] || { echo "Aborted."; exit 0; }
+
+  if [ -d "$backup/.claude" ]; then
+    rm -rf "$HOME/.claude"
+    cp -R "$backup/.claude" "$HOME/.claude"
+    ok "Restored ~/.claude"
+  fi
+  if [ -d "$backup/.cursor" ]; then
+    rm -rf "$HOME/.cursor"
+    cp -R "$backup/.cursor" "$HOME/.cursor"
+    ok "Restored ~/.cursor"
+  fi
+  ok "Rollback complete"
+}
+
+cmd_clean() {
+  local keep=3
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --keep) shift; keep="$1" ;;
+      *) shift ;;
+    esac
+    shift 2>/dev/null || true
+  done
+  info "Keeping $keep most recent backups, deleting rest"
+  local backups
+  backups=$(find "$HOME" -maxdepth 1 -type d -name 'ai-config-backup-*' 2>/dev/null | sort -r)
+  local i=0 deleted=0
+  while IFS= read -r b; do
+    i=$((i+1))
+    [ -z "$b" ] && continue
+    if [ "$i" -gt "$keep" ]; then
+      rm -rf "$b"
+      ok "Deleted: $(basename "$b")"
+      deleted=$((deleted+1))
+    fi
+  done <<< "$backups"
+  [ "$deleted" -eq 0 ] && ok "Nothing to delete"
+
+  info "Pruning unused docker images"
+  docker image prune -f >/dev/null 2>&1 || true
+  ok "Docker images pruned"
+}
+
+cmd_diff() {
+  ensure_repo
+  echo -e "${C_BOLD}Local edits vs team-config repo${C_RESET}"
+  echo ""
+  for dir in claude cursor; do
+    local repo="$REPO_DIR/$dir" deploy="$HOME/.$dir"
+    [ ! -d "$repo" ] && continue
+    [ ! -d "$deploy" ] && continue
+    echo -e "${C_BOLD}~/.${dir} <-> repo/${dir}${C_RESET}"
+    diff -rq "$repo" "$deploy" 2>/dev/null | grep -vE '\.(git|claude|cursor)\b' | head -50 | sed 's/^/  /' || true
+    echo ""
+  done
+  echo "Tip: 'ai-kit publish \"msg\"' to upstream local edits."
+}
+
+cmd_edit() {
+  ensure_repo
+  local editor="${EDITOR:-${VISUAL:-vi}}"
+  if command -v code >/dev/null 2>&1; then
+    code "$REPO_DIR"
+  else
+    "$editor" "$REPO_DIR"
+  fi
+}
+
 cmd_help() {
   cat <<EOF
 ai-kit $VERSION — team AI config manager
 
 Usage:  ai-kit <command>
 
-Commands:
+User commands:
   install            First-time setup (use bootstrap.sh; this exists for symmetry)
-  update             Pull latest team config + redeploy + refresh MCP image
-  status             Show versions, deployed counts, MCP health
-  doctor             Verify deps + paths
+  update | up        Pull latest team config + redeploy + refresh MCP image
+  status | st        Show versions, deployed counts, MCP health
+  logs               Tail MCP container logs
+  doctor | dr        Verify deps + paths
+  version | -v       Show ai-kit + team-config + MCP image versions
+
+MCP control:
   mcp <verb>         start | stop | restart | logs | pull | status
-  version            Show ai-kit + team-config + MCP image versions
+
+Backups:
+  list-backups       List ~/ai-config-backup-* (newest first)
+  rollback [N]       Restore from backup #N (default 1 = newest)
+  clean [--keep N]   Delete old backups (keep N most recent, default 3) + docker prune
+
+Maintainer:
+  pack               Run pack.sh: snapshot ~/ -> repo (review with 'ai-kit diff')
+  publish "<msg>"    pack + git commit -m <msg> + git push (one-shot release)
+  diff               Show what differs between deployed config and repo
+  edit               Open team-ai-config in \$EDITOR (or VS Code if found)
+
+Misc:
   uninstall          Remove ~/.ai-kit (keeps deployed config)
   help               Show this message
 
@@ -173,13 +319,21 @@ EOF
 
 # ─── dispatch ──────────────────────────────────────────────────────────
 case "${1:-help}" in
-  install)   shift; cmd_install "$@" ;;
-  update|up) shift; cmd_update "$@" ;;
-  status|st) shift; cmd_status "$@" ;;
-  doctor|dr) shift; cmd_doctor "$@" ;;
-  mcp)       shift; cmd_mcp "$@" ;;
+  install)             shift; cmd_install "$@" ;;
+  update|up)           shift; cmd_update "$@" ;;
+  status|st)           shift; cmd_status "$@" ;;
+  doctor|dr)           shift; cmd_doctor "$@" ;;
+  mcp)                 shift; cmd_mcp "$@" ;;
+  logs)                shift; cmd_logs "$@" ;;
+  pack)                shift; cmd_pack "$@" ;;
+  publish)             shift; cmd_publish "$@" ;;
+  list-backups|backups) shift; cmd_list_backups "$@" ;;
+  rollback)            shift; cmd_rollback "$@" ;;
+  clean)               shift; cmd_clean "$@" ;;
+  diff)                shift; cmd_diff "$@" ;;
+  edit)                shift; cmd_edit "$@" ;;
   version|-v|--version) shift; cmd_version "$@" ;;
-  uninstall) shift; cmd_uninstall "$@" ;;
-  help|-h|--help) cmd_help ;;
+  uninstall)           shift; cmd_uninstall "$@" ;;
+  help|-h|--help)      cmd_help ;;
   *) err "Unknown command: $1"; cmd_help; exit 1 ;;
 esac
