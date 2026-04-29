@@ -8,7 +8,8 @@ services:
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: ${ETC_PLATFORM_LOG_LEVEL:-INFO}
     volumes:
-      - etc-data:/data
+      # Bind mount — Docker Desktop handles permissions; Linux: chmod 777 ./data once
+      - ./data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/healthz || exit 1"]
@@ -17,5 +18,3 @@ services:
       retries: 3
       start_period: 30s
 
-volumes:
-  etc-data:
