@@ -25,12 +25,11 @@ That's it. Updates later: `ai-kit update`.
 ```
 team-ai-config/
 ├── bootstrap.sh / bootstrap.ps1   ← team member: one-liner first install
+├── publish.ps1                    ← maintainer: pack → commit → push (Windows)
 ├── bin/
 │   ├── ai-kit                     ← POSIX CLI (linked to PATH)
 │   ├── ai-kit.ps1                 ← Windows PowerShell CLI
 │   └── ai-kit.cmd                 ← Windows cmd shim
-├── deploy.sh / deploy.ps1         ← internal: file sync (called by ai-kit)
-├── pack.sh / pack.ps1             ← maintainer: pack ~/ → repo before commit
 ├── claude/                        ← deployed to ~/.claude
 ├── cursor/                        ← deployed to ~/.cursor
 └── mcp/etc-platform/
@@ -149,27 +148,14 @@ Default is `:latest`. Pin to a version (e.g. `v3.0.0`) for stability.
 
 When you've improved an agent / skill / rule:
 
-```bash
+```powershell
 cd ~/team-ai-config
-
-# Pack from your local ~/ into repo (excludes secrets/runtime)
-./pack.sh           # Mac/Linux
-.\pack.ps1          # Windows
-
-# Review changes
-git status
-git diff
-
-# Sanitize: pack.* warns if it finds machine-specific paths.
-# Replace before commit:
-#   C:/Users/<your-name>/.claude   →  ~/.claude  (or $HOME/.claude / $env:USERPROFILE/.claude)
-#   D:/MCP Server/etc-platform     →  $MCP_SERVER_ROOT or container image
-
-# Commit
-git add claude/ cursor/
-git commit -m "Update agents: ..."
-git push
+.\publish.ps1          # pack → validate → commit → push (prompts for message)
+# hoặc:
+.\publish.ps1 "fix: mô tả thay đổi"
 ```
+
+`publish.ps1` tự động: pack từ `~/.claude` + `~/.cursor` → kiểm tra path máy cá nhân → commit → push.
 
 Team members run `ai-kit update` to receive the change.
 
@@ -232,6 +218,6 @@ Before opening a PR:
 
 - [ ] Agent/skill has `LIFECYCLE CONTRACT` block per `claude/schemas/intel/LIFECYCLE.md` §5
 - [ ] Prompt body is English-only (Vietnamese only in `description` frontmatter or output examples — per CD-9)
-- [ ] No machine-specific paths (`pack.*` script warns if found)
+- [ ] No machine-specific paths (`publish.ps1` cảnh báo nếu có)
 - [ ] No secrets / API keys committed (.gitignore catches common patterns)
 - [ ] If schema changed: bump version + add migration note in commit
