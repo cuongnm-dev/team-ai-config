@@ -1,4 +1,4 @@
-# Team AI config bootstrap — Windows (PowerShell 5.1+)
+﻿# Team AI config bootstrap — Windows (PowerShell 5.1+)
 # One-liner: irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex
 
 #Requires -Version 5.1

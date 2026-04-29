@@ -1,4 +1,4 @@
-# Pack current ~/.claude and ~/.cursor into team-ai-config repo (Windows).
+﻿# Pack current ~/.claude and ~/.cursor into team-ai-config repo (Windows).
 # Maintainer-only: run this BEFORE git commit to refresh shared config.
 #
 # Whitelist approach: ONLY copy paths in INCLUDE_CLAUDE / INCLUDE_CURSOR.

@@ -1,4 +1,4 @@
-# Deploy claude\ + cursor\ from this repo into ~\.claude and ~\.cursor (Windows).
+﻿# Deploy claude\ + cursor\ from this repo into ~\.claude and ~\.cursor (Windows).
 # Called by ai-kit (install/update). Idempotent. Backs up first.
 #
 # Whitelist deploy: only touches paths PRESENT in the repo's claude\ and cursor\

@@ -2,10 +2,11 @@
 *.sh         text eol=lf
 bin/ai-kit   text eol=lf
 
-# Windows scripts use CRLF
-*.ps1        text eol=crlf
-*.cmd        text eol=crlf
-*.bat        text eol=crlf
+# Windows scripts: store as-is (BOM + CRLF preserved). PS 5.1 needs UTF-8 BOM to parse correctly;
+# `-text` tells git not to normalize line endings or strip BOM.
+*.ps1        -text
+*.cmd        -text
+*.bat        -text
 
 # Markdown / config — let git handle (default)
 *.md         text

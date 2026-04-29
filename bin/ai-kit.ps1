@@ -1,10 +1,9 @@
-# ai-kit — team AI config CLI (Windows / PowerShell 5.1+)
+﻿# ai-kit — team AI config CLI (Windows / PowerShell 5.1+)
 # Wraps git + docker + deploy.ps1 for one-command updates.
 
 #Requires -Version 5.1
-[CmdletBinding()]
 param(
-  [Parameter(Position=0)] [string] $Command = 'help',
+  [string] $Command = 'help',
   [Parameter(ValueFromRemainingArguments=$true)] $Rest
 )
 
