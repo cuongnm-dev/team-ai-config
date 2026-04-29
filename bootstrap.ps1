@@ -1,4 +1,4 @@
-﻿# Team AI config bootstrap — Windows (PowerShell 5.1+)
+# Team AI config bootstrap — Windows (PowerShell 5.1+)
 # One-liner: irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex
 
 #Requires -Version 5.1
@@ -12,6 +12,39 @@ $BinDir    = Join-Path $AiKitHome 'bin'
 function Write-Info($msg) { Write-Host "▶ $msg" -ForegroundColor White }
 function Write-Ok($msg)   { Write-Host "  ✓ $msg" -ForegroundColor Green }
 function Write-Err($msg)  { Write-Host "  ✗ $msg" -ForegroundColor Red }
+
+function Invoke-GitChecked {
+  param(
+    [Parameter(Mandatory)] [string[]] $Args,
+    [Parameter(Mandatory)] [string] $ErrorMessage
+  )
+
+  & git @Args
+  if ($LASTEXITCODE -ne 0) {
+    Write-Err $ErrorMessage
+    exit 1
+  }
+}
+
+function Resolve-DirtyRepo {
+  param([Parameter(Mandatory)] [string] $Path)
+
+  $dirty = @(git -C $Path status --porcelain)
+  if ($dirty.Count -eq 0) { return }
+
+  if ($env:AI_KIT_FORCE_CLEAN -eq '1') {
+    Write-Info "AI_KIT_FORCE_CLEAN=1 detected - discarding local repo changes"
+    Invoke-GitChecked -Args @('-C', $Path, 'reset', '--hard', 'HEAD') -ErrorMessage "Failed to reset local changes in $Path"
+    Invoke-GitChecked -Args @('-C', $Path, 'clean', '-fd') -ErrorMessage "Failed to clean untracked files in $Path"
+    return
+  }
+
+  Write-Err "Local changes detected in $Path. Refusing to auto-merge."
+  Write-Host "  Review with:  git -C $Path status"
+  Write-Host "  Keep changes: git -C $Path stash push -u"
+  Write-Host "  Discard all:  `$env:AI_KIT_FORCE_CLEAN='1'; .\\bootstrap.ps1"
+  exit 1
+}
 
 # Pre-flight
 foreach ($cmd in @('git','docker')) {
@@ -30,12 +63,17 @@ if ($LASTEXITCODE -ne 0) {
 New-Item -ItemType Directory -Path $AiKitHome -Force | Out-Null
 if (Test-Path (Join-Path $RepoDir '.git')) {
   Write-Info "Existing repo at $RepoDir — pulling latest"
-  git -C $RepoDir pull --ff-only --quiet
+  Resolve-DirtyRepo -Path $RepoDir
+  Invoke-GitChecked -Args @('-C', $RepoDir, 'pull', '--ff-only', '--quiet') -ErrorMessage "Failed to pull latest team-ai-config"
 } else {
   Write-Info "Cloning team-ai-config to $RepoDir"
-  git clone --quiet $RepoUrl $RepoDir
+  Invoke-GitChecked -Args @('clone', '--quiet', $RepoUrl, $RepoDir) -ErrorMessage "Failed to clone team-ai-config"
 }
-$sha = (git -C $RepoDir rev-parse --short HEAD).Trim()
+$sha = (& git -C $RepoDir rev-parse --short HEAD).Trim()
+if ($LASTEXITCODE -ne 0) {
+  Write-Err "Failed to determine current commit at $RepoDir"
+  exit 1
+}
 Write-Ok "Repo at $sha"
 
 # Install ai-kit launcher to bin/
