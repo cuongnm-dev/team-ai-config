@@ -1,0 +1,578 @@
+#!/usr/bin/env bash
+# ai-kit — team AI config CLI (Mac/Linux)
+# Wraps git + docker + deploy.sh for one-command updates.
+
+set -euo pipefail
+
+AI_KIT_HOME="${AI_KIT_HOME:-$HOME/.ai-kit}"
+REPO_DIR="$AI_KIT_HOME/team-ai-config"
+VERSION="0.1.0"
+
+# ─── colors ────────────────────────────────────────────────────────────
+if [ -t 1 ]; then
+  C_RESET='\033[0m'; C_BOLD='\033[1m'; C_GREEN='\033[32m'
+  C_YELLOW='\033[33m'; C_RED='\033[31m'; C_DIM='\033[2m'
+else
+  C_RESET=''; C_BOLD=''; C_GREEN=''; C_YELLOW=''; C_RED=''; C_DIM=''
+fi
+
+info() { echo -e "${C_BOLD}▶${C_RESET} $*"; }
+ok()   { echo -e "  ${C_GREEN}✓${C_RESET} $*"; }
+warn() { echo -e "  ${C_YELLOW}⚠${C_RESET} $*"; }
+err()  { echo -e "  ${C_RED}✗${C_RESET} $*" >&2; }
+
+# ─── ensure repo present ───────────────────────────────────────────────
+ensure_repo() {
+  if [ ! -d "$REPO_DIR/.git" ]; then
+    err "team-ai-config not found at $REPO_DIR"
+    err "Run: ai-kit install (first-time bootstrap)"
+    exit 1
+  fi
+}
+
+# ─── commands ──────────────────────────────────────────────────────────
+
+cmd_install() {
+  if [ -d "$REPO_DIR/.git" ]; then
+    info "Already cloned. Running update instead."
+    cmd_update
+    return
+  fi
+  err "Repo missing. Use bootstrap.sh first:"
+  err "  curl -sL https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.sh | bash"
+  exit 1
+}
+
+cmd_update() {
+  ensure_repo
+  info "Pulling latest team config"
+  git -C "$REPO_DIR" fetch --quiet
+  local before after
+  before=$(git -C "$REPO_DIR" rev-parse HEAD)
+  git -C "$REPO_DIR" pull --ff-only --quiet
+  after=$(git -C "$REPO_DIR" rev-parse HEAD)
+  if [ "$before" = "$after" ]; then
+    ok "Already up to date ($before"
+  else
+    ok "Updated $(git -C "$REPO_DIR" rev-parse --short "$before") -> $(git -C "$REPO_DIR" rev-parse --short "$after")"
+    info "Changes:"
+    git -C "$REPO_DIR" log --oneline "$before..$after" | sed 's/^/    /'
+  fi
+
+  # Self-update: refresh ai-kit CLI itself
+  local bin_dir="$AI_KIT_HOME/bin"
+  if [ -d "$bin_dir" ]; then
+    for f in ai-kit ai-kit.ps1 ai-kit.cmd; do
+      [ -f "$REPO_DIR/bin/$f" ] && cp -f "$REPO_DIR/bin/$f" "$bin_dir/$f"
+    done
+    chmod +x "$bin_dir/ai-kit" 2>/dev/null || true
+    ok "ai-kit CLI refreshed in PATH bin/"
+  fi
+
+  info "Deploying claude/ + cursor/"
+  bash "$REPO_DIR/deploy.sh"
+
+  info "Refreshing MCP image (stop -> pull -> start)"
+  cd "$REPO_DIR/mcp/etc-platform"
+  docker compose down >/dev/null 2>&1 || true
+  docker compose pull --quiet
+  docker compose up -d
+  cd - >/dev/null
+  ok "MCP refreshed"
+}
+
+cmd_status() {
+  ensure_repo
+  echo -e "${C_BOLD}Team AI Config${C_RESET}"
+  echo -e "  ${C_DIM}repo:${C_RESET}    $REPO_DIR"
+  echo -e "  ${C_DIM}version:${C_RESET} $(git -C "$REPO_DIR" rev-parse --short HEAD) ($(git -C "$REPO_DIR" log -1 --format=%cd --date=short))"
+  echo -e "  ${C_DIM}commit:${C_RESET}  $(git -C "$REPO_DIR" log -1 --format=%s)"
+  echo ""
+  echo -e "${C_BOLD}Deployed${C_RESET}"
+  local agents skills
+  agents=$(find "$HOME/.claude/agents" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
+  skills=$(find "$HOME/.claude/skills" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+  echo -e "  ${C_DIM}claude agents:${C_RESET}  $agents"
+  echo -e "  ${C_DIM}claude skills:${C_RESET}  $skills"
+  agents=$(find "$HOME/.cursor/agents" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
+  skills=$(find "$HOME/.cursor/skills" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+  echo -e "  ${C_DIM}cursor agents:${C_RESET}  $agents"
+  echo -e "  ${C_DIM}cursor skills:${C_RESET}  $skills"
+  echo ""
+  echo -e "${C_BOLD}MCP — etc-platform${C_RESET}"
+  if docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null | grep -q '^etc-platform'; then
+    docker ps --format '  {{.Status}}' --filter name=etc-platform
+    if curl -sf http://localhost:8001/healthz >/dev/null 2>&1; then
+      ok "healthz OK on http://localhost:8001"
+    else
+      warn "container running but healthz failed"
+    fi
+  else
+    err "container not running. Run: ai-kit mcp start"
+  fi
+}
+
+cmd_doctor() {
+  echo -e "${C_BOLD}ai-kit doctor${C_RESET}"
+  local pass=true
+  for c in git docker rsync curl; do
+    if command -v $c >/dev/null 2>&1; then ok "$c found"; else err "$c MISSING"; pass=false; fi
+  done
+  if docker info >/dev/null 2>&1; then ok "docker daemon running"; else err "docker daemon not running"; pass=false; fi
+  if [ -d "$REPO_DIR/.git" ]; then ok "team-ai-config cloned"; else err "team-ai-config not cloned"; pass=false; fi
+  if echo "$PATH" | tr ':' '\n' | grep -q "$AI_KIT_HOME/bin"; then ok "$AI_KIT_HOME/bin in PATH"; else warn "$AI_KIT_HOME/bin NOT in PATH (add to ~/.bashrc or ~/.zshrc)"; fi
+
+  # Optional pretty-print tools
+  echo ""
+  echo -e "${C_BOLD}Optional (prettier docs rendering):${C_RESET}"
+  if command -v glow >/dev/null 2>&1; then ok "glow found (best markdown renderer)"
+  elif command -v bat >/dev/null 2>&1; then ok "bat found (syntax highlight)"
+  else
+    warn "No markdown renderer detected. Install for prettier output:"
+    echo "    macOS:  brew install glow      (or: brew install bat)"
+    echo "    Linux:  snap install glow      (or: apt install bat)"
+  fi
+
+  $pass && echo -e "${C_GREEN}All required checks passed.${C_RESET}" || exit 1
+}
+
+cmd_mcp() {
+  ensure_repo
+  local verb="${1:-status}"
+  cd "$REPO_DIR/mcp/etc-platform"
+  case "$verb" in
+    start)   docker compose up -d ;;
+    stop)    docker compose down ;;
+    restart) docker compose restart ;;
+    logs)    shift; docker compose logs "${@:--f}" etc-platform ;;
+    pull)    docker compose down >/dev/null 2>&1 || true; docker compose pull && docker compose up -d ;;
+    status|ps) docker compose ps ;;
+    *) err "Unknown mcp verb: $verb"; echo "  Use: start | stop | restart | logs | pull | status"; exit 1 ;;
+  esac
+}
+
+cmd_version() {
+  ensure_repo
+  echo "ai-kit:           $VERSION"
+  echo "team-ai-config:   $(git -C "$REPO_DIR" describe --always --dirty)"
+  echo "                  $(git -C "$REPO_DIR" log -1 --format=%cd --date=short) — $(git -C "$REPO_DIR" log -1 --format=%s)"
+  local img
+  img=$(grep -oE 'ETC_PLATFORM_IMAGE=[^ ]*' "$REPO_DIR/mcp/etc-platform/.env" 2>/dev/null | cut -d= -f2 || echo '<not set>')
+  echo "MCP image:        $img"
+}
+
+cmd_reset() {
+  ensure_repo
+  cd "$REPO_DIR"
+  local dirty
+  dirty=$(git status --porcelain)
+  if [ -z "$dirty" ]; then
+    ok "Repo already clean. Nothing to reset."
+    return
+  fi
+  echo -e "${C_BOLD}Local changes:${C_RESET}"
+  git status --short
+  echo ""
+  warn "ai-kit reset will:"
+  warn "  1. git reset --hard HEAD       (discard tracked edits)"
+  warn "  2. git clean -fd               (remove untracked)"
+  warn "  3. git pull --ff-only          (re-sync to remote)"
+  echo ""
+  read -p "Continue? (y/N) " yn
+  [[ "$yn" =~ ^[Yy] ]] || { echo "Aborted."; return; }
+  git reset --hard HEAD
+  git clean -fd
+  git pull --ff-only --quiet
+  ok "Repo reset to $(git rev-parse --short HEAD)"
+}
+
+cmd_uninstall() {
+  ensure_repo
+  warn "This will REMOVE $AI_KIT_HOME and stop the MCP container."
+  warn "Your ~/.claude and ~/.cursor stay (already deployed)."
+  read -p "Continue? (y/N) " yn
+  [[ "$yn" =~ ^[Yy] ]] || { echo "Aborted."; exit 0; }
+  cd "$REPO_DIR/mcp/etc-platform" 2>/dev/null && docker compose down 2>/dev/null || true
+  rm -rf "$AI_KIT_HOME"
+  ok "Removed $AI_KIT_HOME"
+  ok "Restore previous ~/.claude / ~/.cursor from latest backup at ~/ai-config-backup-* if needed."
+}
+
+cmd_logs() {
+  ensure_repo
+  cd "$REPO_DIR/mcp/etc-platform"
+  docker compose logs "${@:--f}" etc-platform
+}
+
+cmd_pack() {
+  ensure_repo
+  bash "$REPO_DIR/pack.sh" "$@"
+}
+
+cmd_publish() {
+  ensure_repo
+  local msg="${1:-}"
+  if [ -z "$msg" ]; then
+    err "Usage: ai-kit publish \"<commit message>\""
+    exit 1
+  fi
+  info "Pack ~/ -> repo"
+  bash "$REPO_DIR/pack.sh"
+  info "Git commit + push"
+  cd "$REPO_DIR"
+  if git diff --quiet && git diff --cached --quiet; then
+    ok "No changes to publish"
+    return
+  fi
+  git add -A
+  git commit -m "$msg"
+  git push
+  ok "Published $(git rev-parse --short HEAD)"
+}
+
+cmd_list_backups() {
+  local backups
+  backups=$(find "$HOME" -maxdepth 1 -type d -name 'ai-config-backup-*' 2>/dev/null | sort -r)
+  if [ -z "$backups" ]; then
+    warn "No backups found at $HOME/ai-config-backup-*"
+    return
+  fi
+  echo -e "${C_BOLD}Available backups${C_RESET} (newest first):"
+  local i=1
+  while IFS= read -r b; do
+    local size; size=$(du -sh "$b" 2>/dev/null | awk '{print $1}')
+    printf "  %2d. %s  (%s)\n" "$i" "$(basename "$b")" "$size"
+    i=$((i+1))
+  done <<< "$backups"
+  echo ""
+  echo "Restore: ai-kit rollback [N]   (default 1 = newest)"
+}
+
+cmd_rollback() {
+  local idx="${1:-1}"
+  local backup
+  backup=$(find "$HOME" -maxdepth 1 -type d -name 'ai-config-backup-*' 2>/dev/null | sort -r | sed -n "${idx}p")
+  if [ -z "$backup" ]; then
+    err "Backup #$idx not found. Run: ai-kit list-backups"
+    exit 1
+  fi
+  warn "Restore from: $backup"
+  warn "This OVERWRITES ~/.claude and ~/.cursor with backup contents."
+  read -p "Continue? (y/N) " yn
+  [[ "$yn" =~ ^[Yy] ]] || { echo "Aborted."; exit 0; }
+
+  if [ -d "$backup/.claude" ]; then
+    rm -rf "$HOME/.claude"
+    cp -R "$backup/.claude" "$HOME/.claude"
+    ok "Restored ~/.claude"
+  fi
+  if [ -d "$backup/.cursor" ]; then
+    rm -rf "$HOME/.cursor"
+    cp -R "$backup/.cursor" "$HOME/.cursor"
+    ok "Restored ~/.cursor"
+  fi
+  ok "Rollback complete"
+}
+
+cmd_clean() {
+  local keep=3
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --keep) shift; keep="$1" ;;
+      *) shift ;;
+    esac
+    shift 2>/dev/null || true
+  done
+  info "Keeping $keep most recent backups, deleting rest"
+  local backups
+  backups=$(find "$HOME" -maxdepth 1 -type d -name 'ai-config-backup-*' 2>/dev/null | sort -r)
+  local i=0 deleted=0
+  while IFS= read -r b; do
+    i=$((i+1))
+    [ -z "$b" ] && continue
+    if [ "$i" -gt "$keep" ]; then
+      rm -rf "$b"
+      ok "Deleted: $(basename "$b")"
+      deleted=$((deleted+1))
+    fi
+  done <<< "$backups"
+  [ "$deleted" -eq 0 ] && ok "Nothing to delete"
+
+  info "Pruning unused docker images"
+  docker image prune -f >/dev/null 2>&1 || true
+  ok "Docker images pruned"
+}
+
+cmd_diff() {
+  ensure_repo
+  echo -e "${C_BOLD}Local edits vs team-config repo${C_RESET}"
+  echo ""
+  for dir in claude cursor; do
+    local repo="$REPO_DIR/$dir" deploy="$HOME/.$dir"
+    [ ! -d "$repo" ] && continue
+    [ ! -d "$deploy" ] && continue
+    echo -e "${C_BOLD}~/.${dir} <-> repo/${dir}${C_RESET}"
+    diff -rq "$repo" "$deploy" 2>/dev/null | grep -vE '\.(git|claude|cursor)\b' | head -50 | sed 's/^/  /' || true
+    echo ""
+  done
+  echo "Tip: 'ai-kit publish \"msg\"' to upstream local edits."
+}
+
+cmd_edit() {
+  ensure_repo
+  local editor="${EDITOR:-${VISUAL:-vi}}"
+  if command -v code >/dev/null 2>&1; then
+    code "$REPO_DIR"
+  else
+    "$editor" "$REPO_DIR"
+  fi
+}
+
+# ─── docs ──────────────────────────────────────────────────────────────
+docs_render_md() {
+  local file="$1"
+  if command -v glow >/dev/null 2>&1; then
+    glow -p "$file"   # paginated, pretty
+  elif command -v bat >/dev/null 2>&1; then
+    bat --style=plain --paging=always "$file"
+  elif command -v less >/dev/null 2>&1; then
+    less -R "$file"
+  else
+    cat "$file"
+  fi
+}
+
+docs_list_topics() {
+  local docs_dir="$REPO_DIR/docs"
+  echo -e "${C_BOLD}Available docs${C_RESET}"
+  echo ""
+  echo -e "${C_DIM}Workflows (task-oriented):${C_RESET}"
+  for f in "$docs_dir"/workflows/*.md; do
+    [ -e "$f" ] && printf "  %-30s %s\n" "$(basename "$f" .md)" "$(grep -m1 '^title:' "$f" | sed 's/title: *//;s/"//g')"
+  done
+  echo ""
+  echo -e "${C_DIM}Reference:${C_RESET}"
+  for f in "$docs_dir"/reference/*.md; do
+    [ -e "$f" ] && printf "  %-30s %s\n" "$(basename "$f" .md)" "$(grep -m1 '^title:' "$f" | sed 's/title: *//;s/"//g')"
+  done
+  echo ""
+  echo -e "${C_DIM}Other:${C_RESET}"
+  for f in "$docs_dir"/*.md; do
+    [ -e "$f" ] && printf "  %-30s %s\n" "$(basename "$f" .md)" "$(grep -m1 '^title:' "$f" | sed 's/title: *//;s/"//g')"
+  done
+  echo ""
+  echo -e "${C_DIM}Auto-generated:${C_RESET}"
+  echo "  skills                         List all Claude + Cursor skills"
+  echo "  agents                         List all Claude + Cursor agents"
+  echo ""
+  echo "Usage: ai-kit docs <topic>   |   ai-kit docs --search <term>"
+}
+
+docs_resolve_topic() {
+  local topic="$1"
+  local docs_dir="$REPO_DIR/docs"
+  # Exact match (with .md extension auto-added)
+  for path in "$docs_dir/$topic.md" "$docs_dir/workflows/$topic.md" "$docs_dir/reference/$topic.md"; do
+    [ -f "$path" ] && { echo "$path"; return 0; }
+  done
+  # Fuzzy: find first md whose basename contains topic
+  find "$docs_dir" -name '*.md' | while IFS= read -r p; do
+    if basename "$p" .md | grep -qi "$topic"; then echo "$p"; return 0; fi
+  done | head -1
+}
+
+# Strip surrounding quotes + bracket prefixes (e.g. [ESCALATION TIER...])
+docs_clean_desc() {
+  local d="$1"
+  d="${d#\"}"; d="${d%\"}"
+  d="${d#\'}"; d="${d%\'}"
+  d="${d#\[*\] }"   # strip [ESCALATION TIER] prefix
+  echo "$d"
+}
+
+docs_skills_index() {
+  ensure_repo
+  local mode="${1:-full}"   # full | brief
+  echo -e "${C_BOLD}Claude Skills${C_RESET}  (~/.claude/skills/)"
+  echo ""
+  for d in "$REPO_DIR/claude/skills"/*/; do
+    [ -d "$d" ] || continue
+    local name; name=$(basename "$d")
+    local skill_md="$d/SKILL.md"
+    if [ ! -f "$skill_md" ]; then continue; fi
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+    desc=$(docs_clean_desc "$desc")
+    if [ "$mode" = "brief" ]; then
+      printf "  %-25s %s\n" "/$name" "${desc:0:90}"
+    else
+      printf "  ${C_BOLD}/%s${C_RESET}\n      %s\n\n" "$name" "$desc"
+    fi
+  done
+  echo ""
+  echo -e "${C_BOLD}Cursor Skills${C_RESET}  (~/.cursor/skills/)"
+  echo ""
+  for d in "$REPO_DIR/cursor/skills"/*/; do
+    [ -d "$d" ] || continue
+    local name; name=$(basename "$d")
+    local skill_md="$d/SKILL.md"
+    [ -f "$skill_md" ] || continue
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+    desc=$(docs_clean_desc "$desc")
+    if [ "$mode" = "brief" ]; then
+      printf "  %-25s %s\n" "/$name" "${desc:0:90}"
+    else
+      printf "  ${C_BOLD}/%s${C_RESET}\n      %s\n\n" "$name" "$desc"
+    fi
+  done
+}
+
+docs_agents_index() {
+  ensure_repo
+  local mode="${1:-full}"   # full | brief
+  echo -e "${C_BOLD}Claude Agents${C_RESET}  (~/.claude/agents/)"
+  echo ""
+  for f in "$REPO_DIR/claude/agents"/*.md; do
+    [ -f "$f" ] || continue
+    local name; name=$(basename "$f" .md)
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
+    desc=$(docs_clean_desc "$desc")
+    if [ "$mode" = "brief" ]; then
+      printf "  %-30s %s\n" "$name" "${desc:0:90}"
+    else
+      printf "  ${C_BOLD}%s${C_RESET}\n      %s\n\n" "$name" "$desc"
+    fi
+  done
+  echo ""
+  echo -e "${C_BOLD}Cursor Agents${C_RESET}  (~/.cursor/agents/)"
+  echo ""
+  for f in "$REPO_DIR/cursor/agents"/*.md; do
+    [ -f "$f" ] || continue
+    [[ "$(basename "$f")" == ref-* ]] && continue
+    local name; name=$(basename "$f" .md)
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
+    desc=$(docs_clean_desc "$desc")
+    if [ "$mode" = "brief" ]; then
+      printf "  %-30s %s\n" "$name" "${desc:0:90}"
+    else
+      printf "  ${C_BOLD}%s${C_RESET}\n      %s\n\n" "$name" "$desc"
+    fi
+  done
+}
+
+docs_search() {
+  local term="$1"
+  ensure_repo
+  echo -e "${C_BOLD}Searching for:${C_RESET} $term"
+  echo ""
+  grep -rni --color=always "$term" "$REPO_DIR/docs" "$REPO_DIR/claude/agents" "$REPO_DIR/claude/skills" "$REPO_DIR/cursor/agents" "$REPO_DIR/cursor/skills" 2>/dev/null \
+    | grep -v -E '\.git/' | head -50 | sed "s|$REPO_DIR/||"
+}
+
+cmd_docs() {
+  ensure_repo
+  case "${1:-}" in
+    ''|--toc|index)       docs_list_topics ;;
+    --list|-l)            docs_list_topics ;;
+    --search|-s)          [ -z "${2:-}" ] && { err 'Usage: ai-kit docs --search <term>'; exit 1; }; docs_search "$2" ;;
+    --open|-o)            cmd_edit ;;
+    skills)
+      shift
+      if [ "${1:-}" = "--brief" ]; then
+        docs_skills_index brief
+      else
+        # Render curated skills.md if exists, else fallback to auto-extract
+        local skills_md="$REPO_DIR/docs/skills.md"
+        [ -f "$skills_md" ] && docs_render_md "$skills_md" || docs_skills_index full
+      fi
+      ;;
+    agents)
+      shift
+      if [ "${1:-}" = "--brief" ]; then
+        docs_agents_index brief
+      else
+        local agents_md="$REPO_DIR/docs/agents.md"
+        [ -f "$agents_md" ] && docs_render_md "$agents_md" || docs_agents_index full
+      fi
+      ;;
+    *)
+      local topic="$1"
+      local file; file=$(docs_resolve_topic "$topic")
+      if [ -n "$file" ] && [ -f "$file" ]; then
+        docs_render_md "$file"
+      else
+        err "Topic not found: $topic"
+        echo ""
+        docs_list_topics
+        exit 1
+      fi
+      ;;
+  esac
+}
+
+cmd_help() {
+  cat <<EOF
+ai-kit $VERSION — team AI config manager
+
+Usage:  ai-kit <command>
+
+User commands:
+  install            First-time setup (use bootstrap.sh; this exists for symmetry)
+  update | up        Pull latest team config + redeploy + refresh MCP image
+  status | st        Show versions, deployed counts, MCP health
+  logs               Tail MCP container logs
+  doctor | dr        Verify deps + paths
+  version | -v       Show ai-kit + team-config + MCP image versions
+
+Documentation:
+  docs               Show docs index (workflows + reference)
+  docs <topic>       Render specific doc (eg: ai-kit docs new-feature)
+  docs skills        Auto-list all skills (Claude + Cursor)
+  docs agents        Auto-list all agents (Claude + Cursor)
+  docs --search <t>  Grep across docs + agents + skills
+  docs --open        Open repo docs/ in editor
+
+MCP control:
+  mcp <verb>         start | stop | restart | logs | pull | status
+
+Backups:
+  list-backups       List ~/ai-config-backup-* (newest first)
+  rollback [N]       Restore from backup #N (default 1 = newest)
+  clean [--keep N]   Delete old backups (keep N most recent, default 3) + docker prune
+
+Maintainer:
+  pack               Run pack.sh: snapshot ~/ -> repo (review with 'ai-kit diff')
+  publish "<msg>"    pack + git commit -m <msg> + git push (one-shot release)
+  diff               Show what differs between deployed config and repo
+  edit               Open team-ai-config in \$EDITOR (or VS Code if found)
+
+Misc:
+  reset              Discard local repo edits + pull (interactive)
+  uninstall          Remove ~/.ai-kit (keeps deployed config)
+  help               Show this message
+
+Layout:  $AI_KIT_HOME
+EOF
+}
+
+# ─── dispatch ──────────────────────────────────────────────────────────
+case "${1:-help}" in
+  install)             shift; cmd_install "$@" ;;
+  update|up)           shift; cmd_update "$@" ;;
+  status|st)           shift; cmd_status "$@" ;;
+  doctor|dr)           shift; cmd_doctor "$@" ;;
+  mcp)                 shift; cmd_mcp "$@" ;;
+  logs)                shift; cmd_logs "$@" ;;
+  pack)                shift; cmd_pack "$@" ;;
+  publish)             shift; cmd_publish "$@" ;;
+  list-backups|backups) shift; cmd_list_backups "$@" ;;
+  rollback)            shift; cmd_rollback "$@" ;;
+  clean)               shift; cmd_clean "$@" ;;
+  diff)                shift; cmd_diff "$@" ;;
+  edit)                shift; cmd_edit "$@" ;;
+  docs|doc)            shift; cmd_docs "$@" ;;
+  reset)               shift; cmd_reset "$@" ;;
+  version|-v|--version) shift; cmd_version "$@" ;;
+  uninstall)           shift; cmd_uninstall "$@" ;;
+  help|-h|--help)      cmd_help ;;
+  *) err "Unknown command: $1"; cmd_help; exit 1 ;;
+esac

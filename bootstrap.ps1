@@ -53,6 +53,7 @@ function Hint-Install($tool) {
     'git'    { 'winget install --id Git.Git -e' }
     'docker' { 'Download Docker Desktop: https://www.docker.com/products/docker-desktop/  (or: winget install --id Docker.DockerDesktop -e)' }
     'python' { 'winget install --id Python.Python.3.12 -e' }
+    'node'   { 'winget install --id OpenJS.NodeJS.LTS -e' }
     'curl'   { 'Built-in on Windows 10+; install via winget if missing: winget install --id curl.curl -e' }
     default  { "winget install $tool" }
   }
@@ -66,6 +67,7 @@ function Auto-Install($tool) {
   switch ($tool) {
     'git'    { winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements; return ($LASTEXITCODE -eq 0) }
     'python' { winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements; return ($LASTEXITCODE -eq 0) }
+    'node'   { winget install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements; return ($LASTEXITCODE -eq 0) }
     'docker' { Write-Err 'Docker Desktop auto-install too risky (needs admin + reboot for WSL2). Install manually:'; Write-Host "  $(Hint-Install 'docker')"; return $false }
     default  { winget install $tool; return ($LASTEXITCODE -eq 0) }
   }
@@ -74,7 +76,7 @@ function Auto-Install($tool) {
 # ─── env check ─────────────────────────────────────────────────────────
 Write-Info 'Checking environment'
 $missing = @()
-foreach ($t in @('git','docker','python','curl')) {
+foreach ($t in @('git','docker','python','curl','node')) {
   $bin = $t
   if ($t -eq 'python') { $bin = 'python' }
   if (Get-Command $bin -ErrorAction SilentlyContinue) {
@@ -82,6 +84,14 @@ foreach ($t in @('git','docker','python','curl')) {
   } else {
     Write-Err "$t MISSING — Install: $(Hint-Install $t)"
     $missing += $t
+  }
+}
+# Node version check (>= 18)
+if (Get-Command node -ErrorAction SilentlyContinue) {
+  $nodeMajor = [int](& node -p 'process.versions.node.split(".")[0]')
+  if ($nodeMajor -lt 18) {
+    Write-Err "node v$nodeMajor too old — ai-kit needs Node >= 18"
+    $missing += 'node'
   }
 }
 # Docker daemon
@@ -163,6 +173,19 @@ if (-not (Get-Command glow -ErrorAction SilentlyContinue)) {
   } else {
     Write-Host '  ! winget not available — install glow manually for prettier docs:'
     Write-Host '    https://github.com/charmbracelet/glow#installation'
+  }
+}
+
+# Install Node deps (one-time)
+if (Test-Path (Join-Path $RepoDir 'package.json')) {
+  if (-not (Test-Path (Join-Path $RepoDir 'node_modules'))) {
+    Write-Info 'Installing Node.js dependencies'
+    Push-Location $RepoDir
+    try {
+      & npm install --omit=dev --silent
+      if ($LASTEXITCODE -eq 0) { Write-Ok 'Node deps installed' }
+      else { Write-Host '  ! npm install failed — CLI will fall back to legacy mode' -ForegroundColor Yellow }
+    } finally { Pop-Location }
   }
 }
 

@@ -45,11 +45,15 @@ hint_install() {
     macos-docker) echo "Download Docker Desktop: https://www.docker.com/products/docker-desktop" ;;
     macos-rsync)  echo "brew install rsync   (usually pre-installed)" ;;
     macos-python) echo "brew install python@3.12   (or use pre-installed python3)" ;;
+    macos-node)   echo "brew install node   (or use nvm)" ;;
 
     debian-git)    echo "sudo apt update && sudo apt install -y git" ;;
     debian-docker) echo "https://docs.docker.com/engine/install/ubuntu/ (or: curl -fsSL https://get.docker.com | sh)" ;;
     debian-rsync)  echo "sudo apt install -y rsync" ;;
     debian-python) echo "sudo apt install -y python3 python3-pip" ;;
+    debian-node)   echo "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs" ;;
+    rhel-node)     echo "sudo dnf module install -y nodejs:20" ;;
+    arch-node)     echo "sudo pacman -S nodejs npm" ;;
 
     rhel-git)    echo "sudo dnf install -y git" ;;
     rhel-docker) echo "https://docs.docker.com/engine/install/centos/" ;;
@@ -118,6 +122,16 @@ check_tool docker
 check_tool rsync
 check_tool python python3
 check_tool curl
+check_tool node
+
+# Node.js >= 18 check
+if command -v node >/dev/null 2>&1; then
+  NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+  if [ "$NODE_MAJOR" -lt 18 ]; then
+    err "node is too old (v$NODE_MAJOR) — ai-kit needs Node >= 18"
+    MISSING+=("node")
+  fi
+fi
 
 # Docker daemon check
 if command -v docker >/dev/null 2>&1; then
@@ -201,6 +215,14 @@ if ! command -v glow >/dev/null 2>&1; then
       warn "Skip glow (unknown OS). Manual: https://github.com/charmbracelet/glow#installation"
       ;;
   esac
+fi
+
+# ─── install Node deps (one-time) ──────────────────────────────────────
+if [ -f "$REPO_DIR/package.json" ]; then
+  if [ ! -d "$REPO_DIR/node_modules" ]; then
+    info "Installing Node.js dependencies"
+    (cd "$REPO_DIR" && npm install --omit=dev --silent) && ok "Node deps installed" || warn "npm install failed — CLI will fall back to legacy mode"
+  fi
 fi
 
 # ─── run first-time deploy ─────────────────────────────────────────────
