@@ -222,7 +222,7 @@ const Status = () => {
     h(Header, {title: 'Team AI Config — Status', subtitle: `Repo: ${REPO_DIR}`}),
     h(Section, {title: 'Repository'},
       h(Row, {label: 'version', value: `${sha} (${date})`, color: T.success}),
-      h(Row, {label: 'commit', value: msg.length > 60 ? msg.slice(0, 57) + '...' : msg})
+      h(Row, {label: 'commit', value: msg})
     ),
     h(Section, {title: 'Deployed configs'},
       h(Row, {label: 'claude agents', value: String(claudeAgents), color: claudeAgents > 0 ? T.success : T.warn}),
@@ -324,11 +324,8 @@ const printDivider = (title, count) => {
 };
 
 const printItem = (name, title, nameWidth = 24) => {
-  const w = _cols();
-  const n = name.length > nameWidth ? name.slice(0, nameWidth - 1) + '…' : name.padEnd(nameWidth);
-  const maxDesc = Math.max(10, w - nameWidth - 6);
-  const t = (title || '').length > maxDesc ? title.slice(0, maxDesc - 1) + '…' : (title || '');
-  process.stdout.write(`  ${S.gray}›${S.reset} ${S.cyan}${n}${S.reset}  ${S.gray}${t}${S.reset}\n`);
+  const n = name.padEnd(nameWidth);
+  process.stdout.write(`  ${S.gray}›${S.reset} ${S.cyan}${n}${S.reset}  ${S.gray}${title || ''}${S.reset}\n`);
 };
 
 const readDocItems = (dir) => {
@@ -449,7 +446,7 @@ const docCommand = (args) => {
       ...search(path.join(REPO_DIR, 'docs')),
       ...search(path.join(REPO_DIR, 'claude', 'agents')),
       ...search(path.join(REPO_DIR, 'cursor', 'agents')),
-    ].slice(0, 50);
+    ];
     const w = _cols();
     const bar = '─'.repeat(w - 4);
     const out = process.stdout;
