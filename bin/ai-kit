@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 # ai-kit launcher — Node.js + Ink CLI
-# Falls back to legacy bash CLI for commands not yet ported.
+# Falls back to legacy bash CLI if Node deps are unavailable.
 
 set -e
-DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Resolve symlinks so DIR = the real repo bin/, not ~/.ai-kit/bin/
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  SDIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$SDIR/$SOURCE"
+done
+DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
 # Check Node.js >= 18
 if ! command -v node >/dev/null 2>&1; then
@@ -13,13 +21,13 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
+NODE_MAJOR=$(node --version | cut -c2- | cut -d. -f1)
 if [ "$NODE_MAJOR" -lt 18 ]; then
   echo "✗ Node.js $NODE_MAJOR detected — ai-kit needs >= 18." >&2
   exit 1
 fi
 
-# Ensure node_modules present
+# Ensure node_modules present in repo root (where package.json lives)
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
 if [ ! -d "$REPO_ROOT/node_modules" ]; then
   echo "▶ First run — installing Node deps (one-time)…"
