@@ -436,7 +436,7 @@ const docCommand = (args) => {
             const lines = fs.readFileSync(p, 'utf8').split('\n');
             lines.forEach((line, i) => {
               if (line.toLowerCase().includes(term.toLowerCase())) {
-                results.push({path: path.relative(REPO_DIR, p), line: i + 1, text: line.trim().slice(0, 80)});
+                results.push({path: path.relative(REPO_DIR, p), line: i + 1, text: line.trim()});
               }
             });
           }
