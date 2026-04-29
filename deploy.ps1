@@ -57,5 +57,5 @@ Deploy-Whitelist -Source (Join-Path $RepoRoot 'cursor') -Destination $CursorHome
 if (-not (Get-ChildItem -Path $BackupDir -ErrorAction SilentlyContinue)) {
   Remove-Item -Force $BackupDir
 } else {
-  Write-Host "  ✓ backup -> $BackupDir"
+  Write-Host "  [ok] backup -> $BackupDir"
 }

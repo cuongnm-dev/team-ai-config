@@ -281,6 +281,143 @@ cmd_edit() {
   fi
 }
 
+# ─── docs ──────────────────────────────────────────────────────────────
+docs_render_md() {
+  local file="$1"
+  if command -v glow >/dev/null 2>&1; then
+    glow -p "$file"   # paginated, pretty
+  elif command -v bat >/dev/null 2>&1; then
+    bat --style=plain --paging=always "$file"
+  elif command -v less >/dev/null 2>&1; then
+    less -R "$file"
+  else
+    cat "$file"
+  fi
+}
+
+docs_list_topics() {
+  local docs_dir="$REPO_DIR/docs"
+  echo -e "${C_BOLD}Available docs${C_RESET}"
+  echo ""
+  echo -e "${C_DIM}Workflows (task-oriented):${C_RESET}"
+  for f in "$docs_dir"/workflows/*.md; do
+    [ -e "$f" ] && printf "  %-30s %s\n" "$(basename "$f" .md)" "$(grep -m1 '^title:' "$f" | sed 's/title: *//;s/"//g')"
+  done
+  echo ""
+  echo -e "${C_DIM}Reference:${C_RESET}"
+  for f in "$docs_dir"/reference/*.md; do
+    [ -e "$f" ] && printf "  %-30s %s\n" "$(basename "$f" .md)" "$(grep -m1 '^title:' "$f" | sed 's/title: *//;s/"//g')"
+  done
+  echo ""
+  echo -e "${C_DIM}Other:${C_RESET}"
+  for f in "$docs_dir"/*.md; do
+    [ -e "$f" ] && printf "  %-30s %s\n" "$(basename "$f" .md)" "$(grep -m1 '^title:' "$f" | sed 's/title: *//;s/"//g')"
+  done
+  echo ""
+  echo -e "${C_DIM}Auto-generated:${C_RESET}"
+  echo "  skills                         List all Claude + Cursor skills"
+  echo "  agents                         List all Claude + Cursor agents"
+  echo ""
+  echo "Usage: ai-kit docs <topic>   |   ai-kit docs --search <term>"
+}
+
+docs_resolve_topic() {
+  local topic="$1"
+  local docs_dir="$REPO_DIR/docs"
+  # Exact match (with .md extension auto-added)
+  for path in "$docs_dir/$topic.md" "$docs_dir/workflows/$topic.md" "$docs_dir/reference/$topic.md"; do
+    [ -f "$path" ] && { echo "$path"; return 0; }
+  done
+  # Fuzzy: find first md whose basename contains topic
+  find "$docs_dir" -name '*.md' | while IFS= read -r p; do
+    if basename "$p" .md | grep -qi "$topic"; then echo "$p"; return 0; fi
+  done | head -1
+}
+
+docs_skills_index() {
+  ensure_repo
+  echo -e "${C_BOLD}Claude Skills${C_RESET}  (~/.claude/skills/)"
+  echo ""
+  for d in "$REPO_DIR/claude/skills"/*/; do
+    [ -d "$d" ] || continue
+    local name; name=$(basename "$d")
+    local skill_md="$d/SKILL.md"
+    if [ -f "$skill_md" ]; then
+      local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+      printf "  %-25s %s\n" "/$name" "${desc:0:90}"
+    else
+      printf "  %-25s %s\n" "/$name" "(no SKILL.md)"
+    fi
+  done
+  echo ""
+  echo -e "${C_BOLD}Cursor Skills${C_RESET}  (~/.cursor/skills/)"
+  echo ""
+  for d in "$REPO_DIR/cursor/skills"/*/; do
+    [ -d "$d" ] || continue
+    local name; name=$(basename "$d")
+    local skill_md="$d/SKILL.md"
+    if [ -f "$skill_md" ]; then
+      local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+      printf "  %-25s %s\n" "/$name" "${desc:0:90}"
+    fi
+  done
+}
+
+docs_agents_index() {
+  ensure_repo
+  echo -e "${C_BOLD}Claude Agents${C_RESET}  (~/.claude/agents/)"
+  echo ""
+  for f in "$REPO_DIR/claude/agents"/*.md; do
+    [ -f "$f" ] || continue
+    local name; name=$(basename "$f" .md)
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
+    printf "  %-30s %s\n" "$name" "${desc:0:80}"
+  done
+  echo ""
+  echo -e "${C_BOLD}Cursor Agents${C_RESET}  (~/.cursor/agents/)"
+  echo ""
+  for f in "$REPO_DIR/cursor/agents"/*.md; do
+    [ -f "$f" ] || continue
+    [[ "$(basename "$f")" == ref-* ]] && continue
+    local name; name=$(basename "$f" .md)
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
+    printf "  %-30s %s\n" "$name" "${desc:0:80}"
+  done
+}
+
+docs_search() {
+  local term="$1"
+  ensure_repo
+  echo -e "${C_BOLD}Searching for:${C_RESET} $term"
+  echo ""
+  grep -rni --color=always "$term" "$REPO_DIR/docs" "$REPO_DIR/claude/agents" "$REPO_DIR/claude/skills" "$REPO_DIR/cursor/agents" "$REPO_DIR/cursor/skills" 2>/dev/null \
+    | grep -v -E '\.git/' | head -50 | sed "s|$REPO_DIR/||"
+}
+
+cmd_docs() {
+  ensure_repo
+  case "${1:-}" in
+    ''|--toc|index)       docs_list_topics ;;
+    --list|-l)            docs_list_topics ;;
+    --search|-s)          [ -z "${2:-}" ] && { err 'Usage: ai-kit docs --search <term>'; exit 1; }; docs_search "$2" ;;
+    --open|-o)            cmd_edit ;;
+    skills)               docs_skills_index ;;
+    agents)               docs_agents_index ;;
+    *)
+      local topic="$1"
+      local file; file=$(docs_resolve_topic "$topic")
+      if [ -n "$file" ] && [ -f "$file" ]; then
+        docs_render_md "$file"
+      else
+        err "Topic not found: $topic"
+        echo ""
+        docs_list_topics
+        exit 1
+      fi
+      ;;
+  esac
+}
+
 cmd_help() {
   cat <<EOF
 ai-kit $VERSION — team AI config manager
@@ -294,6 +431,14 @@ User commands:
   logs               Tail MCP container logs
   doctor | dr        Verify deps + paths
   version | -v       Show ai-kit + team-config + MCP image versions
+
+Documentation:
+  docs               Show docs index (workflows + reference)
+  docs <topic>       Render specific doc (eg: ai-kit docs new-feature)
+  docs skills        Auto-list all skills (Claude + Cursor)
+  docs agents        Auto-list all agents (Claude + Cursor)
+  docs --search <t>  Grep across docs + agents + skills
+  docs --open        Open repo docs/ in editor
 
 MCP control:
   mcp <verb>         start | stop | restart | logs | pull | status
@@ -332,6 +477,7 @@ case "${1:-help}" in
   clean)               shift; cmd_clean "$@" ;;
   diff)                shift; cmd_diff "$@" ;;
   edit)                shift; cmd_edit "$@" ;;
+  docs|doc)            shift; cmd_docs "$@" ;;
   version|-v|--version) shift; cmd_version "$@" ;;
   uninstall)           shift; cmd_uninstall "$@" ;;
   help|-h|--help)      cmd_help ;;

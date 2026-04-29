@@ -403,6 +403,176 @@ function DoEdit {
   }
 }
 
+# ─── docs ──────────────────────────────────────────────────────────────
+function Docs-RenderMd {
+  param([Parameter(Mandatory)] [string] $File)
+  if (Get-Command glow -ErrorAction SilentlyContinue) {
+    & glow -p $File
+  } elseif (Get-Command bat -ErrorAction SilentlyContinue) {
+    & bat --style=plain --paging=always $File
+  } else {
+    # Set console output to UTF-8 so Vietnamese chars render correctly on PS 5.1
+    $prev = [Console]::OutputEncoding
+    try {
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      $content = [System.IO.File]::ReadAllText($File, [System.Text.Encoding]::UTF8)
+      # Strip BOM if present
+      if ($content.Length -gt 0 -and $content[0] -eq [char]0xFEFF) { $content = $content.Substring(1) }
+      $content
+    } finally {
+      [Console]::OutputEncoding = $prev
+    }
+  }
+}
+
+function Docs-ListTopics {
+  $docsDir = Join-Path $RepoDir 'docs'
+  Write-Host "Available docs" -ForegroundColor White
+  Write-Host ''
+  Write-Dim "Workflows (task-oriented):"
+  Get-ChildItem -Path (Join-Path $docsDir 'workflows') -Filter '*.md' -ErrorAction SilentlyContinue | ForEach-Object {
+    $title = (Select-String -Path $_.FullName -Pattern '^title:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value -replace '"','' })
+    "  {0,-30} {1}" -f $_.BaseName, $title | Write-Host
+  }
+  Write-Host ''
+  Write-Dim "Reference:"
+  Get-ChildItem -Path (Join-Path $docsDir 'reference') -Filter '*.md' -ErrorAction SilentlyContinue | ForEach-Object {
+    $title = (Select-String -Path $_.FullName -Pattern '^title:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value -replace '"','' })
+    "  {0,-30} {1}" -f $_.BaseName, $title | Write-Host
+  }
+  Write-Host ''
+  Write-Dim "Other:"
+  Get-ChildItem -Path $docsDir -Filter '*.md' -File -ErrorAction SilentlyContinue | ForEach-Object {
+    $title = (Select-String -Path $_.FullName -Pattern '^title:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value -replace '"','' })
+    "  {0,-30} {1}" -f $_.BaseName, $title | Write-Host
+  }
+  Write-Host ''
+  Write-Dim "Auto-generated:"
+  Write-Host "  skills                         List all Claude + Cursor skills"
+  Write-Host "  agents                         List all Claude + Cursor agents"
+  Write-Host ''
+  Write-Host "Usage: ai-kit docs <topic>   |   ai-kit docs --search <term>"
+}
+
+function Docs-ResolveTopic {
+  param([string] $Topic)
+  $docsDir = Join-Path $RepoDir 'docs'
+  $candidates = @(
+    (Join-Path $docsDir "$Topic.md"),
+    (Join-Path $docsDir "workflows\$Topic.md"),
+    (Join-Path $docsDir "reference\$Topic.md")
+  )
+  foreach ($p in $candidates) {
+    if (Test-Path $p) { return $p }
+  }
+  # Fuzzy match
+  $match = Get-ChildItem -Path $docsDir -Filter '*.md' -Recurse -ErrorAction SilentlyContinue |
+    Where-Object { $_.BaseName -like "*$Topic*" } | Select-Object -First 1
+  if ($match) { return $match.FullName }
+  return $null
+}
+
+function Docs-SkillsIndex {
+  Ensure-Repo
+  Write-Host "Claude Skills  (~/.claude/skills/)" -ForegroundColor White
+  Write-Host ''
+  Get-ChildItem -Path (Join-Path $RepoDir 'claude\skills') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $skillMd = Join-Path $_.FullName 'SKILL.md'
+    if (Test-Path $skillMd) {
+      $desc = (Select-String -Path $skillMd -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
+      $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
+      "  {0,-25} {1}" -f "/$($_.Name)", $short | Write-Host
+    } else {
+      "  {0,-25} (no SKILL.md)" -f "/$($_.Name)" | Write-Host
+    }
+  }
+  Write-Host ''
+  Write-Host "Cursor Skills  (~/.cursor/skills/)" -ForegroundColor White
+  Write-Host ''
+  Get-ChildItem -Path (Join-Path $RepoDir 'cursor\skills') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $skillMd = Join-Path $_.FullName 'SKILL.md'
+    if (Test-Path $skillMd) {
+      $desc = (Select-String -Path $skillMd -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
+      $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
+      "  {0,-25} {1}" -f "/$($_.Name)", $short | Write-Host
+    }
+  }
+}
+
+function Docs-AgentsIndex {
+  Ensure-Repo
+  Write-Host "Claude Agents  (~/.claude/agents/)" -ForegroundColor White
+  Write-Host ''
+  Get-ChildItem -Path (Join-Path $RepoDir 'claude\agents') -Filter '*.md' -ErrorAction SilentlyContinue | ForEach-Object {
+    $desc = (Select-String -Path $_.FullName -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
+    $short = if ($desc.Length -gt 80) { $desc.Substring(0, 77) + '...' } else { $desc }
+    "  {0,-30} {1}" -f $_.BaseName, $short | Write-Host
+  }
+  Write-Host ''
+  Write-Host "Cursor Agents  (~/.cursor/agents/)" -ForegroundColor White
+  Write-Host ''
+  Get-ChildItem -Path (Join-Path $RepoDir 'cursor\agents') -Filter '*.md' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike 'ref-*' } | ForEach-Object {
+    $desc = (Select-String -Path $_.FullName -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
+    $short = if ($desc.Length -gt 80) { $desc.Substring(0, 77) + '...' } else { $desc }
+    "  {0,-30} {1}" -f $_.BaseName, $short | Write-Host
+  }
+}
+
+function Docs-Search {
+  param([Parameter(Mandatory)] [string] $Term)
+  Ensure-Repo
+  Write-Host "Searching for: $Term" -ForegroundColor White
+  Write-Host ''
+  $paths = @(
+    (Join-Path $RepoDir 'docs'),
+    (Join-Path $RepoDir 'claude\agents'),
+    (Join-Path $RepoDir 'claude\skills'),
+    (Join-Path $RepoDir 'cursor\agents'),
+    (Join-Path $RepoDir 'cursor\skills')
+  ) | Where-Object { Test-Path $_ }
+  Get-ChildItem -Path $paths -Recurse -File -Include *.md -ErrorAction SilentlyContinue |
+    Select-String -Pattern $Term -CaseSensitive:$false -SimpleMatch |
+    Select-Object -First 50 |
+    ForEach-Object {
+      $rel = $_.Path.Replace($RepoDir, '').TrimStart('\','/')
+      "  {0}:{1}: {2}" -f $rel, $_.LineNumber, $_.Line.Trim() | Write-Host
+    }
+}
+
+function DoDocs {
+  Ensure-Repo
+  $sub = if ($Rest.Count -gt 0) { $Rest[0] } else { '' }
+  switch ($sub) {
+    ''               { Docs-ListTopics }
+    '--toc'          { Docs-ListTopics }
+    '--list'         { Docs-ListTopics }
+    '-l'             { Docs-ListTopics }
+    'index'          { Docs-ListTopics }
+    'skills'         { Docs-SkillsIndex }
+    'agents'         { Docs-AgentsIndex }
+    '--search'       {
+      if ($Rest.Count -lt 2) { Write-Err 'Usage: ai-kit docs --search <term>'; exit 1 }
+      Docs-Search -Term $Rest[1]
+    }
+    '-s'             {
+      if ($Rest.Count -lt 2) { Write-Err 'Usage: ai-kit docs -s <term>'; exit 1 }
+      Docs-Search -Term $Rest[1]
+    }
+    '--open'         { DoEdit }
+    '-o'             { DoEdit }
+    default          {
+      $file = Docs-ResolveTopic -Topic $sub
+      if ($file) { Docs-RenderMd -File $file }
+      else {
+        Write-Err "Topic not found: $sub"
+        Write-Host ''
+        Docs-ListTopics
+        exit 1
+      }
+    }
+  }
+}
+
 function DoHelp {
 @"
 ai-kit $Version — team AI config manager
@@ -416,6 +586,14 @@ User commands:
   logs               Tail MCP container logs
   doctor | dr        Verify deps + paths
   version | -v       Show ai-kit + team-config + MCP image versions
+
+Documentation:
+  docs               Show docs index (workflows + reference)
+  docs <topic>       Render specific doc (eg: ai-kit docs new-feature)
+  docs skills        Auto-list all skills (Claude + Cursor)
+  docs agents        Auto-list all agents (Claude + Cursor)
+  docs --search <t>  Grep across docs + agents + skills
+  docs --open        Open repo docs/ in editor
 
 MCP control:
   mcp <verb>         start | stop | restart | logs | pull | status
@@ -457,6 +635,8 @@ switch ($Command) {
   'clean'             { DoClean }
   'diff'              { DoDiff }
   'edit'              { DoEdit }
+  'docs'              { DoDocs }
+  'doc'               { DoDocs }
   'version'           { DoVersion }
   '-v'                { DoVersion }
   '--version'         { DoVersion }
