@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "status-evidence.json — per-feature implementation status evidence",
+  "description": "Static completeness analysis output. Feeds _state.md current-implementation-status + status.md body + dev agent gaps_to_done backlog.",
+  "type": "object",
+  "required": ["meta", "scoring_weights", "features"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "properties": {
+        "generated_at": { "type": "string", "format": "date-time" },
+        "service_id": { "type": "string", "description": "Present for per-service files, 'root' for mini" }
+      }
+    },
+
+    "scoring_weights": {
+      "description": "Weights used for this scoring run (tunable). Sum must = 1.0",
+      "type": "object",
+      "required": ["handler_completeness", "test_coverage", "error_path_coverage", "feature_flag_state", "entity_integrity", "todo_density_inverse"],
+      "properties": {
+        "handler_completeness":  { "type": "number", "default": 0.25 },
+        "test_coverage":         { "type": "number", "default": 0.25 },
+        "error_path_coverage":   { "type": "number", "default": 0.15 },
+        "feature_flag_state":    { "type": "number", "default": 0.10 },
+        "entity_integrity":      { "type": "number", "default": 0.15 },
+        "todo_density_inverse":  { "type": "number", "default": 0.10 }
+      }
+    },
+
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "stubbed_below": { "type": "number", "default": 0.2 },
+        "in_progress_below": { "type": "number", "default": 0.7 }
+      }
+    },
+
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["feature_id", "status", "score", "signals", "gaps_to_done"],
+        "properties": {
+          "feature_id": { "type": "string", "description": "Matches features.json id" },
+          "service_id": { "type": "string" },
+          "status": { "enum": ["planned", "stubbed", "in-progress", "done"] },
+          "status_source": { "enum": ["auto", "user-override", "interview-only"] },
+          "user_override_reason": { "type": ["string", "null"] },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 },
+
+          "signals": {
+            "type": "object",
+            "properties": {
+              "handler_completeness": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "total_handlers": { "type": "integer" },
+                  "stub_handlers": { "type": "integer" },
+                  "avg_loc": { "type": "number" },
+                  "avg_cyclomatic": { "type": ["number", "null"] },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "file": { "type": "string" },
+                        "line": { "type": "integer" },
+                        "note": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              },
+
+              "test_coverage": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "handlers_with_tests": { "type": "integer" },
+                  "total_handlers": { "type": "integer" },
+                  "describe_blocks": { "type": "integer" },
+                  "skipped_ratio": { "type": "number" },
+                  "coverage_percent": { "type": ["number", "null"], "description": "From lcov/coverage.xml if available" },
+                  "evidence": { "type": "array", "items": { "type": "object" } }
+                }
+              },
+
+              "error_path_coverage": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "number" },
+                  "try_catch_count": { "type": "integer" },
+                  "happy_path_count": { "type": "integer" },
+                  "error_status_returns": { "type": "integer", "description": "Handlers returning 4xx/5xx paths" }
+                }
+              },
+
+              "feature_flag_state": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "number" },
+                  "flags_found": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string" },
+                        "state": { "type": ["boolean", "string"] },
+                        "source_file": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              },
+
+              "entity_integrity": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "number" },
+                  "entities_referenced": { "type": "integer" },
+                  "entities_resolved": { "type": "integer" },
+                  "dangling": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "entity": { "type": "string" },
+                        "referenced_at": { "type": "string" },
+                        "reason": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              },
+
+              "todo_density_inverse": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "number" },
+                  "todos_in_scope": { "type": "integer" },
+                  "loc_in_scope": { "type": "integer" },
+                  "samples": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "file": { "type": "string" },
+                        "line": { "type": "integer" },
+                        "text": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+
+          "gaps_to_done": {
+            "type": "array",
+            "description": "Actionable items for dev agent to close. Each gap has type + hint.",
+            "items": {
+              "type": "object",
+              "required": ["type", "description"],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "missing-tests",
+                    "stub-handler",
+                    "unhandled-error-path",
+                    "feature-flag-off",
+                    "dangling-entity-ref",
+                    "open-todo",
+                    "missing-validation",
+                    "missing-auth-check",
+                    "migration-pending",
+                    "manual-review"
+                  ]
+                },
+                "description": { "type": "string" },
+                "file": { "type": ["string", "null"] },
+                "line": { "type": ["integer", "null"] },
+                "priority": { "enum": ["P0", "P1", "P2", "P3"] },
+                "estimated_effort": { "enum": ["XS", "S", "M", "L", "XL"], "description": "Relative effort hint for tech-lead" }
+              }
+            }
+          },
+
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+
+    "summary": {
+      "type": "object",
+      "properties": {
+        "counts_by_status": {
+          "type": "object",
+          "properties": {
+            "planned": { "type": "integer" },
+            "stubbed": { "type": "integer" },
+            "in_progress": { "type": "integer" },
+            "done": { "type": "integer" }
+          }
+        },
+        "total_features": { "type": "integer" },
+        "coverage": {
+          "type": "object",
+          "properties": {
+            "routes_mapped_to_features": { "type": "number", "description": "ratio 0..1" },
+            "entities_covered": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

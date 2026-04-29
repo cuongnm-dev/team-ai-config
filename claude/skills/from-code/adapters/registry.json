@@ -1,0 +1,85 @@
+{
+  "$comment": "Adapter registry. Add new adapters by appending an entry + creating adapters/{id}/ folder.",
+  "version": 1,
+  "adapters": [
+    {
+      "id": "dotnet-aspnetcore",
+      "display_name": "ASP.NET Core",
+      "kind": "backend",
+      "languages": ["c#"],
+      "versions": ">=6.0",
+      "priority": 10,
+      "spec_file": "dotnet-aspnetcore.md"
+    },
+    {
+      "id": "angular",
+      "display_name": "Angular",
+      "kind": "frontend",
+      "languages": ["typescript"],
+      "versions": ">=14.0",
+      "priority": 10,
+      "spec_file": "angular.md"
+    },
+    {
+      "id": "nestjs",
+      "display_name": "NestJS",
+      "kind": "backend",
+      "languages": ["typescript"],
+      "versions": ">=9.0",
+      "priority": 10,
+      "spec_file": "nestjs.md"
+    },
+    {
+      "id": "fastapi",
+      "display_name": "FastAPI",
+      "kind": "backend",
+      "languages": ["python"],
+      "versions": ">=0.100",
+      "priority": 10,
+      "spec_file": "fastapi.md"
+    },
+    {
+      "id": "java-spring",
+      "display_name": "Spring Boot",
+      "kind": "backend",
+      "languages": ["java", "kotlin"],
+      "versions": ">=2.7",
+      "priority": 10,
+      "spec_file": "java-spring.md"
+    },
+    {
+      "id": "rust-axum",
+      "display_name": "Axum (Rust)",
+      "kind": "backend",
+      "languages": ["rust"],
+      "versions": ">=0.6",
+      "priority": 10,
+      "spec_file": "rust-axum.md"
+    },
+    {
+      "id": "react",
+      "display_name": "React",
+      "kind": "frontend",
+      "languages": ["typescript", "javascript"],
+      "versions": ">=18.0",
+      "priority": 10,
+      "spec_file": "react.md"
+    }
+  ],
+
+  "tier_1_universal": {
+    "$comment": "Tier 1 primitives run regardless of adapter selection",
+    "tools": ["tree-sitter", "scc-or-tokei", "universal-ctags", "grep-markers", "config-parser"]
+  },
+
+  "tier_3_fallback": {
+    "$comment": "Invoked only when all adapters detect NONE and user has not added override",
+    "trigger": {
+      "all_adapters_confidence": "NONE",
+      "routes_found_tier1": 0,
+      "entities_found_tier1": 0,
+      "user_selected_adapter": null
+    },
+    "action": "Agent(subagent_type: code-intel, prompt: 'task=tier3-fallback-extract, entry_points=[main.*, app.*, Program.cs, index.*]')"
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.vn/schemas/intel/test-accounts.schema.json",
+  "title": "Test Accounts (intel layer)",
+  "description": "Test accounts for Playwright auth + manual QA. Cross-skill bridge for tdoc-test-runner, resume-feature dispatcher, generate-docs Stage 3a capture. File MUST be .gitignored when storage='inline'. Producer: from-code (extract from seed scripts) OR manual-interview. Consumer: tdoc-test-runner, generate-docs Stage 0.5, resume-feature implement stage.",
+  "type": "object",
+  "required": ["schema_version", "storage", "accounts"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "storage": {
+      "type": "string",
+      "enum": ["inline", "env-ref"],
+      "description": "inline = passwords stored in this file (REQUIRES .gitignore entry). env-ref = passwords resolved at runtime from env vars."
+    },
+    "gitignore_verified": {
+      "type": "boolean",
+      "description": "When storage='inline', producer MUST verify file is in .gitignore and set true. Consumer SHOULD refuse if storage='inline' AND gitignore_verified=false."
+    },
+    "base_url": {
+      "type": ["string", "null"],
+      "description": "Base URL of the running app (e.g. http://localhost:3000). Optional; consumers may override per-run."
+    },
+    "accounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role_slug", "username"],
+        "additionalProperties": false,
+        "properties": {
+          "role_slug": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "FK → actor-registry.json roles[].slug. Cross-ref enforced by intel-validator."
+          },
+          "username": { "type": "string", "minLength": 1 },
+          "password": {
+            "type": ["string", "null"],
+            "description": "Plaintext password. ONLY allowed when storage='inline'. MUST be null when storage='env-ref'."
+          },
+          "password_ref": {
+            "type": ["string", "null"],
+            "pattern": "^env://[A-Z_][A-Z0-9_]*$",
+            "description": "Env var reference, e.g. env://TEST_HQDK_PASSWORD. Required when storage='env-ref'."
+          },
+          "login_url": {
+            "type": ["string", "null"],
+            "description": "Override actor-registry.roles[].auth.login_url if needed."
+          },
+          "post_login_redirect": {
+            "type": ["string", "null"],
+            "description": "Expected URL after successful login (used by tdoc-test-runner to confirm login)."
+          },
+          "storage_state_file": {
+            "type": ["string", "null"],
+            "description": "Optional Playwright storage state JSON path (relative to repo). When present, prefer this over username/password."
+          },
+          "seed_source": {
+            "type": ["string", "null"],
+            "description": "File:line where this account is seeded (e.g. db/seed/test-users.ts:42). Producer evidence."
+          },
+          "verified_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of last successful login verification."
+          },
+          "notes": { "type": ["string", "null"] }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "storage_state_file": { "type": "null" } }, "required": ["storage_state_file"] },
+            "then": {
+              "anyOf": [
+                { "required": ["password"] },
+                { "required": ["password_ref"] }
+              ]
+            }
+          }
+        ]
+      },
+      "minItems": 1
+    }
+  }
+}

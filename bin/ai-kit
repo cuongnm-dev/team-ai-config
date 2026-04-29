@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# ai-kit — team AI config CLI (Mac/Linux)
+# Wraps git + docker + deploy.sh for one-command updates.
+
+set -euo pipefail
+
+AI_KIT_HOME="${AI_KIT_HOME:-$HOME/.ai-kit}"
+REPO_DIR="$AI_KIT_HOME/team-ai-config"
+VERSION="0.1.0"
+
+# ─── colors ────────────────────────────────────────────────────────────
+if [ -t 1 ]; then
+  C_RESET='\033[0m'; C_BOLD='\033[1m'; C_GREEN='\033[32m'
+  C_YELLOW='\033[33m'; C_RED='\033[31m'; C_DIM='\033[2m'
+else
+  C_RESET=''; C_BOLD=''; C_GREEN=''; C_YELLOW=''; C_RED=''; C_DIM=''
+fi
+
+info() { echo -e "${C_BOLD}▶${C_RESET} $*"; }
+ok()   { echo -e "  ${C_GREEN}✓${C_RESET} $*"; }
+warn() { echo -e "  ${C_YELLOW}⚠${C_RESET} $*"; }
+err()  { echo -e "  ${C_RED}✗${C_RESET} $*" >&2; }
+
+# ─── ensure repo present ───────────────────────────────────────────────
+ensure_repo() {
+  if [ ! -d "$REPO_DIR/.git" ]; then
+    err "team-ai-config not found at $REPO_DIR"
+    err "Run: ai-kit install (first-time bootstrap)"
+    exit 1
+  fi
+}
+
+# ─── commands ──────────────────────────────────────────────────────────
+
+cmd_install() {
+  if [ -d "$REPO_DIR/.git" ]; then
+    info "Already cloned. Running update instead."
+    cmd_update
+    return
+  fi
+  err "Repo missing. Use bootstrap.sh first:"
+  err "  curl -sL https://raw.githubusercontent.com/<USER>/team-ai-config/main/bootstrap.sh | bash"
+  exit 1
+}
+
+cmd_update() {
+  ensure_repo
+  info "Pulling latest team config"
+  git -C "$REPO_DIR" fetch --quiet
+  local before after
+  before=$(git -C "$REPO_DIR" rev-parse HEAD)
+  git -C "$REPO_DIR" pull --ff-only --quiet
+  after=$(git -C "$REPO_DIR" rev-parse HEAD)
+  if [ "$before" = "$after" ]; then
+    ok "Already up to date ($before"
+  else
+    ok "Updated $(git -C "$REPO_DIR" rev-parse --short "$before") -> $(git -C "$REPO_DIR" rev-parse --short "$after")"
+    info "Changes:"
+    git -C "$REPO_DIR" log --oneline "$before..$after" | sed 's/^/    /'
+  fi
+
+  info "Deploying claude/ + cursor/"
+  bash "$REPO_DIR/deploy.sh"
+
+  info "Refreshing MCP image"
+  cd "$REPO_DIR/mcp/etc-platform"
+  docker compose pull --quiet
+  docker compose up -d
+  cd - >/dev/null
+  ok "MCP refreshed"
+}
+
+cmd_status() {
+  ensure_repo
+  echo -e "${C_BOLD}Team AI Config${C_RESET}"
+  echo -e "  ${C_DIM}repo:${C_RESET}    $REPO_DIR"
+  echo -e "  ${C_DIM}version:${C_RESET} $(git -C "$REPO_DIR" rev-parse --short HEAD) ($(git -C "$REPO_DIR" log -1 --format=%cd --date=short))"
+  echo -e "  ${C_DIM}commit:${C_RESET}  $(git -C "$REPO_DIR" log -1 --format=%s)"
+  echo ""
+  echo -e "${C_BOLD}Deployed${C_RESET}"
+  local agents skills
+  agents=$(find "$HOME/.claude/agents" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
+  skills=$(find "$HOME/.claude/skills" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+  echo -e "  ${C_DIM}claude agents:${C_RESET}  $agents"
+  echo -e "  ${C_DIM}claude skills:${C_RESET}  $skills"
+  agents=$(find "$HOME/.cursor/agents" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
+  skills=$(find "$HOME/.cursor/skills" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+  echo -e "  ${C_DIM}cursor agents:${C_RESET}  $agents"
+  echo -e "  ${C_DIM}cursor skills:${C_RESET}  $skills"
+  echo ""
+  echo -e "${C_BOLD}MCP — etc-platform${C_RESET}"
+  if docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null | grep -q '^etc-platform'; then
+    docker ps --format '  {{.Status}}' --filter name=etc-platform
+    if curl -sf http://localhost:8001/healthz >/dev/null 2>&1; then
+      ok "healthz OK on http://localhost:8001"
+    else
+      warn "container running but healthz failed"
+    fi
+  else
+    err "container not running. Run: ai-kit mcp start"
+  fi
+}
+
+cmd_doctor() {
+  echo -e "${C_BOLD}ai-kit doctor${C_RESET}"
+  local pass=true
+  for c in git docker rsync curl; do
+    if command -v $c >/dev/null 2>&1; then ok "$c found"; else err "$c MISSING"; pass=false; fi
+  done
+  if docker info >/dev/null 2>&1; then ok "docker daemon running"; else err "docker daemon not running"; pass=false; fi
+  if [ -d "$REPO_DIR/.git" ]; then ok "team-ai-config cloned"; else err "team-ai-config not cloned"; pass=false; fi
+  if echo "$PATH" | tr ':' '\n' | grep -q "$AI_KIT_HOME/bin"; then ok "$AI_KIT_HOME/bin in PATH"; else warn "$AI_KIT_HOME/bin NOT in PATH (add to ~/.bashrc or ~/.zshrc)"; fi
+  $pass && echo -e "${C_GREEN}All checks passed.${C_RESET}" || exit 1
+}
+
+cmd_mcp() {
+  ensure_repo
+  local verb="${1:-status}"
+  cd "$REPO_DIR/mcp/etc-platform"
+  case "$verb" in
+    start)   docker compose up -d ;;
+    stop)    docker compose down ;;
+    restart) docker compose restart ;;
+    logs)    shift; docker compose logs "${@:--f}" etc-platform ;;
+    pull)    docker compose pull && docker compose up -d ;;
+    status|ps) docker compose ps ;;
+    *) err "Unknown mcp verb: $verb"; echo "  Use: start | stop | restart | logs | pull | status"; exit 1 ;;
+  esac
+}
+
+cmd_version() {
+  ensure_repo
+  echo "ai-kit:           $VERSION"
+  echo "team-ai-config:   $(git -C "$REPO_DIR" describe --always --dirty)"
+  echo "                  $(git -C "$REPO_DIR" log -1 --format=%cd --date=short) — $(git -C "$REPO_DIR" log -1 --format=%s)"
+  local img
+  img=$(grep -oE 'ETC_PLATFORM_IMAGE=[^ ]*' "$REPO_DIR/mcp/etc-platform/.env" 2>/dev/null | cut -d= -f2 || echo '<not set>')
+  echo "MCP image:        $img"
+}
+
+cmd_uninstall() {
+  ensure_repo
+  warn "This will REMOVE $AI_KIT_HOME and stop the MCP container."
+  warn "Your ~/.claude and ~/.cursor stay (already deployed)."
+  read -p "Continue? (y/N) " yn
+  [[ "$yn" =~ ^[Yy] ]] || { echo "Aborted."; exit 0; }
+  cd "$REPO_DIR/mcp/etc-platform" 2>/dev/null && docker compose down 2>/dev/null || true
+  rm -rf "$AI_KIT_HOME"
+  ok "Removed $AI_KIT_HOME"
+  ok "Restore previous ~/.claude / ~/.cursor from latest backup at ~/ai-config-backup-* if needed."
+}
+
+cmd_help() {
+  cat <<EOF
+ai-kit $VERSION — team AI config manager
+
+Usage:  ai-kit <command>
+
+Commands:
+  install            First-time setup (use bootstrap.sh; this exists for symmetry)
+  update             Pull latest team config + redeploy + refresh MCP image
+  status             Show versions, deployed counts, MCP health
+  doctor             Verify deps + paths
+  mcp <verb>         start | stop | restart | logs | pull | status
+  version            Show ai-kit + team-config + MCP image versions
+  uninstall          Remove ~/.ai-kit (keeps deployed config)
+  help               Show this message
+
+Layout:  $AI_KIT_HOME
+EOF
+}
+
+# ─── dispatch ──────────────────────────────────────────────────────────
+case "${1:-help}" in
+  install)   shift; cmd_install "$@" ;;
+  update|up) shift; cmd_update "$@" ;;
+  status|st) shift; cmd_status "$@" ;;
+  doctor|dr) shift; cmd_doctor "$@" ;;
+  mcp)       shift; cmd_mcp "$@" ;;
+  version|-v|--version) shift; cmd_version "$@" ;;
+  uninstall) shift; cmd_uninstall "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *) err "Unknown command: $1"; cmd_help; exit 1 ;;
+esac

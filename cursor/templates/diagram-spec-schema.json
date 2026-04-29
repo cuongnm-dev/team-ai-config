@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Diagram specification schema cho tài liệu CNTT Chính phủ Việt Nam. Màu sắc extract trực tiếp từ PDF vector: Khung KTCPS Bộ Xây dựng v4.0 (moc.gov.vn) + VEGAF v3.0 (QĐ 2568/QĐ-BTTTT/2023). Cấu trúc layer theo Khung Quốc gia Số v4.0 (QĐ 292/QĐ-BKHCN/2025).",
+
+  "color_tokens": {
+    "$comment": "Tokens extract từ PDF vector. Dùng tên token — KHÔNG hard-code hex trong agent.",
+    "user":        { "fill": "#E8F4FD", "stroke": "#2E75B6", "label": "Người sử dụng" },
+    "channel":     { "fill": "#DBEEF3", "stroke": "#31859B", "label": "Kênh giao tiếp" },
+    "application": { "fill": "#FFF2CC", "stroke": "#BF9000", "label": "Ứng dụng & Dịch vụ" },
+    "integration": { "fill": "#92CDDC", "stroke": "#31859B", "label": "Nền tảng tích hợp & Chia sẻ" },
+    "data":        { "fill": "#FBE5D5", "stroke": "#C55A11", "label": "Dữ liệu & CSDL" },
+    "infra":       { "fill": "#EBF1DF", "stroke": "#789440", "label": "Hạ tầng kỹ thuật" },
+    "security":    { "fill": "#F2DCDA", "stroke": "#C00000", "label": "An toàn thông tin" },
+    "governance":  { "fill": "#EEEAF2", "stroke": "#7030A0", "label": "Quản lý & Chỉ đạo" },
+    "datacenter":  { "fill": "#FCE4D6", "stroke": "#E87229", "label": "Trung tâm Dữ liệu Quốc gia" },
+    "external":    { "fill": "#F5F5F5", "stroke": "#808080", "label": "Hệ thống ngoài" }
+  },
+
+  "shape_tokens": {
+    "$comment": "Shape notation — dùng tên shape, renderer quyết định SVG path",
+    "system":      "rectangle",
+    "database":    "cylinder",
+    "cloud":       "cloud",
+    "person":      "person-icon",
+    "group":       "rounded-rectangle",
+    "process":     "rectangle",
+    "decision":    "diamond",
+    "document":    "document-shape"
+  },
+
+  "edge_tokens": {
+    "$comment": "3 loại đường kết nối theo legend VEGAF v3.0",
+    "direct":      { "style": "solid",  "color": "#000000", "label": "Kết nối trực tiếp" },
+    "conditional": { "style": "dashed", "color": "#000000", "label": "Kết nối có điều kiện" },
+    "security":    { "style": "dashed", "color": "#C00000", "label": "Kết nối bảo mật/kiểm soát" }
+  },
+
+  "typography": {
+    "$comment": "Arial/Calibri trong hộp, không phải Times New Roman (theo metadata VEGAF PDF). TNR chỉ dùng cho caption bên ngoài diagram.",
+    "label_font":   "Arial",
+    "label_size":   "11pt",
+    "title_font":   "Arial",
+    "title_size":   "13pt",
+    "title_weight": "bold",
+    "caption_font": "Times New Roman",
+    "caption_size": "12pt",
+    "language":     "vi"
+  },
+
+  "layout_rules": {
+    "standard_architecture": {
+      "$comment": "Layout chuẩn cho sơ đồ kiến trúc tổng thể — horizontal layered bands",
+      "orientation": "top-to-bottom",
+      "layers_order": [
+        "user",
+        "channel",
+        "application",
+        "integration",
+        "data",
+        "infra"
+      ],
+      "vertical_overlays": [
+        { "zone": "security",   "position": "left",  "span": "all-layers" },
+        { "zone": "governance", "position": "right", "span": "all-layers" }
+      ],
+      "right_sidebar": {
+        "zone": "datacenter",
+        "position": "right",
+        "span": "infra-to-data"
+      }
+    },
+    "erd": {
+      "notation":    "crow-foot",
+      "pk_style":    "bold-underline",
+      "fk_style":    "italic",
+      "label_lang":  "vi"
+    },
+    "deployment": {
+      "zones": ["DMZ", "Internal", "Cloud"],
+      "zone_style": "dashed-rectangle"
+    },
+    "use_case": {
+      "notation": "UML",
+      "actor_shape": "person-icon",
+      "usecase_shape": "oval",
+      "system_boundary": "rectangle"
+    }
+  },
+
+  "diagram_types": {
+    "$comment": "Mapping loại diagram → doc type → rendering route",
+    "layered-architecture": {
+      "for_docs": ["Đề án CĐS", "NCKT", "TKCS"],
+      "complexity": "high",
+      "preferred_route": "figma",
+      "fallback": "mermaid",
+      "mermaid_type": "graph TD"
+    },
+    "deployment": {
+      "for_docs": ["TKCS", "TKCT"],
+      "complexity": "high",
+      "preferred_route": "figma",
+      "fallback": "mermaid",
+      "mermaid_type": "graph LR"
+    },
+    "erd": {
+      "for_docs": ["TKCS", "TKCT"],
+      "complexity": "medium",
+      "preferred_route": "figma",
+      "fallback": "mermaid",
+      "mermaid_type": "erDiagram"
+    },
+    "sequence": {
+      "for_docs": ["TKCT"],
+      "complexity": "medium",
+      "preferred_route": "mermaid",
+      "mermaid_type": "sequenceDiagram"
+    },
+    "use-case": {
+      "for_docs": ["TKCS"],
+      "complexity": "medium",
+      "preferred_route": "figma",
+      "fallback": "mermaid",
+      "mermaid_type": "graph TD"
+    },
+    "flowchart": {
+      "for_docs": ["all"],
+      "complexity": "simple",
+      "preferred_route": "mermaid",
+      "mermaid_type": "flowchart TD"
+    },
+    "org-chart": {
+      "for_docs": ["Đề án CĐS", "NCKT"],
+      "complexity": "simple",
+      "preferred_route": "mermaid",
+      "mermaid_type": "graph TD"
+    },
+    "roadmap": {
+      "for_docs": ["Đề án CĐS"],
+      "complexity": "medium",
+      "preferred_route": "figma",
+      "fallback": "mermaid",
+      "mermaid_type": "gantt"
+    }
+  },
+
+  "mermaid_style_template": {
+    "$comment": "Inject vào cuối mỗi Mermaid diagram để đảm bảo màu nhất quán với color_tokens",
+    "node_styles": {
+      "user":        "fill:#E8F4FD,stroke:#2E75B6,color:#000",
+      "channel":     "fill:#DBEEF3,stroke:#31859B,color:#000",
+      "application": "fill:#FFF2CC,stroke:#BF9000,color:#000",
+      "integration": "fill:#92CDDC,stroke:#31859B,color:#000",
+      "data":        "fill:#FBE5D5,stroke:#C55A11,color:#000",
+      "infra":       "fill:#EBF1DF,stroke:#789440,color:#000",
+      "security":    "fill:#F2DCDA,stroke:#C00000,color:#000",
+      "governance":  "fill:#EEEAF2,stroke:#7030A0,color:#000",
+      "external":    "fill:#F5F5F5,stroke:#808080,color:#555"
+    }
+  },
+
+  "golden_samples": {
+    "$comment": "Tham chiếu các sơ đồ mẫu thực tế từ tài liệu chính phủ",
+    "vegaf_v3_overview": {
+      "source": "QĐ 2568/QĐ-BTTTT/2023 — Sơ đồ khái quát CPĐT/CPS Việt Nam",
+      "url": "https://storage-vnportal.vnpt.vn/lci-ubnd-responsive/6223/HuongCDS/XinYK/1_3_vegaf_ver30_final_update_13092023_v9_20230918053127533.pdf",
+      "page": 6,
+      "type": "layered-architecture",
+      "note": "Sơ đồ tổng thể 18 thành phần, JPEG 2116x1370px nhúng trong PDF"
+    },
+    "bxd_application_arch": {
+      "source": "Khung KTCPS Bộ Xây dựng v4.0 (2026)",
+      "url": "https://moc.gov.vn/Images/editor/files/Nam%202026/2_%20Khung%20KTCPS%204_0%20BXD.pdf",
+      "type": "layered-architecture",
+      "note": "Ví dụ cấp bộ ngành — 5 lĩnh vực ứng dụng, màu sắc extract từ vector PDF"
+    },
+    "cpdt_v1_reference": {
+      "source": "Khung Kiến trúc CPĐT v1.0 (2015) — dx.gov.vn",
+      "type": "layered-architecture",
+      "note": "Nền tảng gốc, dùng #365F91 (Office Blue) làm màu chủ đạo"
+    }
+  },
+
+  "validation_rules": {
+    "$comment": "Rules để validate diagram spec trước khi render",
+    "required_fields": ["id", "type", "title", "nodes"],
+    "node_required": ["id", "type", "label"],
+    "node_type_must_be_in": ["user", "channel", "application", "integration", "data", "infra", "security", "governance", "datacenter", "external"],
+    "title_must_match": "^Hình [0-9]+\\.[0-9]+: .+$",
+    "label_language": "vi",
+    "max_colors": 7,
+    "no_3d_effects": true,
+    "no_gradients": true,
+    "no_english_labels": "except technology names: PostgreSQL, REST API, Docker, etc."
+  }
+}

@@ -1,0 +1,180 @@
+---
+description: Diagram generation rules — 12+ diagrams mandatory (Mermaid default + optional SVG hero templates) per government doc standards
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# Diagrams — Government Mandate
+
+Khi edit `content-data.json`, PHẢI điền `diagrams` block.
+
+## Mandate checklist (per export_targets)
+
+| Target trong export | Diagram keys bắt buộc trong `content-data.diagrams` |
+|---|---|
+| `tkkt` | `architecture_diagram`, `logical_diagram`, `data_diagram`, `integration_diagram`, `deployment_diagram`, `security_diagram` (6) |
+| `tkcs` | `tkcs_architecture_diagram`, `tkcs_data_model_diagram` (2 — có thể reuse TKKT) |
+| `tkct` | `tkct_architecture_overview_diagram`, `tkct_db_erd_diagram`, `tkct_ui_layout_diagram`, `tkct_integration_diagram` (4) + per-module `flow_diagram` |
+
+**Tổng min 12 diagrams** cho full pipeline.
+
+## Hai dạng source được MCP engine hỗ trợ
+
+MCP `export` tool (etc-docgen) auto-detect mỗi entry trong `diagrams` block theo shape:
+
+### Dạng A — Mermaid source (string) — DEFAULT
+Dùng cho 90% diagrams. Render qua `mmdc` CLI trong container.
+
+```jsonc
+{
+  "diagrams": {
+    "logical_diagram": "flowchart TB\n  Web --> API\n  API --> DB"
+  }
+}
+```
+
+### Dạng B — SVG hero template (object) — PREMIUM
+Dùng cho 3 diagram có ý nghĩa "trang bìa"/tổng thể, cần thẩm mỹ cao (xuất hiện ở
+cover, slide lãnh đạo, quyết định phê duyệt). Render qua Jinja2 → Chromium → PNG.
+
+```jsonc
+{
+  "diagrams": {
+    "architecture_diagram": {
+      "template": "kien-truc-4-lop",   // tên template (không đuôi)
+      "data": { /* schema riêng từng template — xem notepad */ }
+    }
+  }
+}
+```
+
+**3 SVG hero templates hiện có** (Tier 1):
+
+| Template | Dùng khi | Mandated key phù hợp |
+|---|---|---|
+| `kien-truc-4-lop` | Project liên quan Chính phủ số, cần kiến trúc 4 lớp CPĐT 4.0 (QĐ 292) | `architecture_diagram` hoặc `tkcs_architecture_diagram` |
+| `ndxp-hub-spoke` | Project có tích hợp qua NDXP/LGSP, muốn show hub-spoke | `integration_diagram` |
+| `swimlane-workflow` | Project DVC trực tuyến toàn trình (5 lanes: CD/DN, Cổng DVC, LGSP, NDXP+CSDLQG, Cán bộ) | `tkct_integration_diagram` (workflow = integration view cho DVC) |
+
+**Quy tắc quan trọng**: chỉ dùng SVG hero ở những **key docx engine đã có
+placeholder**. Key tự invent (VD `business_flow_diagram`) sẽ render PNG nhưng
+không nhúng được vào docx — orphan artifact. Các key có placeholder:
+
+- **arch**: `architecture_diagram`, `logical_diagram`, `data_diagram`,
+  `deployment_diagram`, `integration_diagram`, `security_diagram`
+- **tkcs**: `architecture_diagram`, `data_model_diagram`
+- **tkct**: `architecture_overview_diagram`, `db_erd_diagram`,
+  `ui_layout_diagram`, `integration_diagram`
+- **module**: `flow_diagram` (per `tkct.modules[]`)
+
+**Quy tắc chọn form**:
+- Nếu intel/DCB cho biết project fit hero template (CPĐT, NDXP, DVCTT) → dùng Dạng B
+- Ngược lại → dùng Dạng A (Mermaid). An toàn, không sai mapping.
+- Các key còn lại (logical, data, deployment, security, tkct_*, per-module) → LUÔN Mermaid
+
+## ⛔ CRITICAL — Tránh nhầm chỗ lưu Mermaid source
+
+**Hai chỗ khác nhau, đừng gộp:**
+
+| Field | Loại giá trị | Vai trò |
+|---|---|---|
+| `diagrams.{key}` | **Mermaid source** (không fence ```mermaid```) hoặc SVG hero dict | Engine auto-render → PNG |
+| `architecture.{name}_diagram` (+tkcs, tkct) | **Filename reference** `"{key}.png"` | docxtpl InlineImage pickup |
+
+**SAI** (agent hay làm):
+```jsonc
+"architecture": {
+  "architecture_diagram": "```mermaid\nflowchart LR\n  Web --> API\n```"   // ❌ sai — đây PHẢI là filename
+}
+```
+→ docxtpl cố InlineImage("\`\`\`mermaid\n...") → render blank hoặc crash.
+
+**ĐÚNG**:
+```jsonc
+{
+  "diagrams": {
+    "architecture_diagram": "flowchart LR\n  Web --> API"      // ✅ Mermaid source, không fence
+  },
+  "architecture": {
+    "architecture_diagram": "architecture_diagram.png"          // ✅ filename khớp key
+  }
+}
+```
+
+**KHÔNG** dùng fence ```` ```mermaid ``` ```` — chỉ cần raw Mermaid source.
+**KHÔNG** tự render PNG — engine auto-renders via `render_all()` triggered at Stage 6 export job (`mcp__etc-platform__export_async` with `auto_render_mermaid=True`).
+
+---
+
+## Cross-reference trong fields
+
+Với mỗi entry trong `diagrams.{key}` (bất kể dạng A hay B), PHẢI có field reference
+tương ứng trong `architecture/tkcs/tkct/modules[]`:
+
+```jsonc
+{
+  "diagrams": {
+    "architecture_diagram": { "template": "kien-truc-4-lop", "data": {...} },
+    "logical_diagram": "flowchart LR\n..."
+  },
+  "architecture": {
+    "architecture_diagram": "architecture_diagram.png",   // <— khớp key
+    "logical_diagram": "logical_diagram.png"
+  }
+}
+```
+
+Filename convention: `{key}.png` — match key trong `diagrams` block. MCP engine tự
+sanitize ký tự không hợp lệ (`/`, quote) sang `_`.
+
+## Source validation
+
+1. **Mermaid**: syntax valid — test bằng mermaid.live nếu nghi ngờ
+2. **SVG hero**: schema `data` phải khớp template (xem `@Notepads mermaid-templates`
+   → section "SVG hero schemas"). Field thiếu → Jinja2 StrictUndefined raise lỗi.
+3. Labels tiếng Việt cho business entities, tiếng Anh cho technical
+4. ≤ 20 nodes per Mermaid diagram
+5. Không hardcode version — reference `architecture.tech_stack[].version`
+6. Mermaid arrows có label khi show interaction
+
+## Fallback khi data thiếu
+
+Path A + `doc-intel` không có components/entities/containers → vẫn PHẢI emit
+placeholder Mermaid (không skip, không escalate SVG hero):
+
+```json
+"architecture_diagram": "flowchart TB\n    Placeholder[\"[CẦN BỔ SUNG: Sơ đồ kiến trúc — Kiến trúc sư vẽ]\"]"
+```
+
+Diagram placeholder render PNG có text → thẩm định thấy slot, BA/KTS fill sau khi
+mở docx.
+
+**KHÔNG** dùng SVG hero với data rỗng/giả — hero phải có dữ liệu thật hoặc fallback
+Mermaid placeholder.
+
+## Reference notepad
+
+Agent MUST `@Notepads mermaid-templates` để copy template đúng per diagram type
+(cả Mermaid và SVG hero schema). Đừng sáng tạo từ đầu.
+
+## Forbidden
+
+- ❌ **KHÔNG** bỏ diagram field (fill `""` hoặc null) — thẩm định reject
+- ❌ **KHÔNG** hardcode Mermaid không map với intel data
+- ❌ **KHÔNG** generate quá 20 nodes trong 1 diagram — split
+- ❌ **KHÔNG** dùng SVG hero template khi project không map (ví dụ hệ thống nội bộ
+  doanh nghiệp thì `kien-truc-4-lop` CPĐT không hợp)
+- ❌ **KHÔNG** tự invent template mới — chỉ dùng 3 template hiện có trong bundle
+
+## Verification sau render
+
+Sau Phase 4 export, check `out/diagrams/` folder có ≥ 12 PNG:
+
+```bash
+ls {docs-path}/output/diagrams/ | wc -l
+# Expect ≥ 12 (6 TKKT + 2 TKCS + 4 TKCT + N module flows)
+```
+
+SVG hero entries sinh thêm `{key}.svg` bên cạnh `{key}.png` (debug artifact).
+Thiếu PNG nào → check `export` response `diagrams.failed[]` field để debug.

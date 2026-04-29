@@ -1,0 +1,106 @@
+# Audience Profile — TKCS (Thiết kế Cơ sở) — DOMAIN-AGNOSTIC
+# Per NĐ 45/2026 Đ13. Investment-approval body, NON-technical.
+
+audience_id: tkcs
+display_name: "Thiết kế Cơ sở (TKCS)"
+
+persona:
+  reader: "Cơ quan thẩm định đầu tư CNTT — Bộ TC / Sở TC / ban QLDA"
+  level: "Director / Trưởng phòng KH-Tài chính / Chuyên viên thẩm định"
+  technical_familiarity: "low"
+  reading_purpose: "Duyệt đầu tư + phạm vi dự án theo NĐ 45/2026 Đ13"
+  legal_basis: "NĐ 45/2026/NĐ-CP, NĐ 85/2016/NĐ-CP, TT 12/2022/TT-BTTTT"
+
+vocabulary:
+  required_voice: "passive_formal_legal_VN"
+  preferred_terms:
+    - "hệ thống thông tin, phân hệ chức năng"
+    - "phương án kỹ thuật, phương án công nghệ"
+    - "cấp độ ATTT, tiêu chuẩn an toàn thông tin"
+    - "tổng mức đầu tư, chi phí vận hành"
+    - "lộ trình triển khai, mốc nghiệm thu"
+  allowed_proper_nouns_baseline:
+    - "NDXP, LGSP, VNeID, CSDLQG-DC"
+
+vocabulary_banned:
+  literal:
+    - "JWT, OAuth, Bearer, API, endpoint, REST, JSON, GraphQL"
+    - "controller, decorator, middleware, ORM, DTO"
+    - "Docker, Kubernetes, container, microservice"
+    - "PostgreSQL, MongoDB, Redis, Neo4j"
+  regex:
+    - '/api/[\w/:\-]+'
+    - 'HTTP\s*[1-5]\d{2}'
+    - '\.(?:ts|tsx|js|jsx|py|java|go|rs)\b'
+    - 'docker\s*compose'
+    - '\b[a-z]+(?:[A-Z][a-z]+)+\b'
+    - '\b(?:Next\.?js|NestJS|FastAPI|Django|Spring|Spring Boot|Express|Vue|Angular|Flask|Laravel|Rails)\b'
+
+intel_sources:
+  business_context:
+    file: "docs/intel/business-context.json"
+    allow_fields: ["*"]
+    deny_fields: []
+    note: "Primary source for TKCS — investment+legal+stakeholder facts"
+
+  system_inventory:
+    file: "docs/intel/system-inventory.json"
+    allow_fields: ["system.name", "system.organization", "system.description"]
+    deny_fields: ["services[].backend", "services[].port", "infrastructure"]
+
+  actor_registry:
+    file: "docs/intel/actor-registry.json"
+    allow_fields: ["roles[].slug", "roles[].display_name"]
+    deny_fields: ["auth_mode", "tenant_isolation", "permissions"]
+
+  code_facts:
+    file: "docs/intel/code-facts.json"
+    allow_fields: []
+    deny_fields: ["*"]
+    reason: "TKCS is investment doc, no code-level content"
+
+precomputed_metrics:
+  - { id: phan_he_count,         compute: "len(unique(feature.module))" }
+  - { id: roles_count,           compute: "len(actor_registry.roles)" }
+  - { id: external_count,        compute: "len(integrations.external_systems)" }
+  - { id: legal_basis_count,     compute: "len(business_context.compliance_requirements.applicable_regulations)" }
+  - { id: budget_total,          compute: "business_context.investment.total_investment_billion_vnd" }
+  - { id: project_duration,      compute: "business_context.investment.project_duration_months" }
+  - { id: security_level_attt,   compute: "business_context.compliance_requirements.security_level_attt.level" }
+
+tropes:
+  - { pattern_type: regex, pattern: '/api/[\w/:\-]+', output: '<excluded>', enforcement: hard_block }
+  - { pattern_type: literal, pattern: 'JWT', output: 'cơ chế xác thực phiên đăng nhập' }
+  - { pattern_type: literal, pattern: 'PostgreSQL', output: 'hệ quản trị cơ sở dữ liệu quan hệ' }
+  - { pattern_type: literal, pattern: 'Redis', output: 'bộ nhớ đệm phân tán' }
+  - pattern_type: regex
+    pattern: '\b(?:Next\.?js|NestJS|FastAPI|Django|Spring|Express|Vue|Angular|Flask|Laravel|Rails)\b'
+    output: 'nền tảng phát triển hiện đại'
+  - { pattern_type: literal, pattern: 'docker compose', output: 'công nghệ ảo hóa container' }
+
+fewshot_examples:
+  - bad: |
+      Chọn Next.js cho UX nhanh và SSR/rewrite phù hợp portal; NestJS cho module hóa
+      API; Postgres cho tính toàn vẹn dữ liệu; Redis cho hiệu năng; docker compose
+      cho dev/prod-like.
+    good: |
+      Phương án công nghệ được lựa chọn dựa trên các tiêu chí: (i) phù hợp Khung
+      Kiến trúc Chính phủ điện tử 4.0 theo Quyết định số 2568/QĐ-BTTTT; (ii) đáp
+      ứng yêu cầu hiệu năng phục vụ {N} người dùng đồng thời; (iii) tuân thủ tiêu
+      chuẩn an toàn thông tin cấp độ {level} theo Nghị định số 85/2016/NĐ-CP;
+      (iv) bảo đảm khả năng mở rộng và tích hợp với các hệ thống Chính phủ
+      ({platform_list_from_project}).
+
+validation:
+  banned_jargon_block_render: true
+  required_legal_refs_count: 7
+  current_state_min_numbers: 10
+  security_plan_must_contain: ["cấp độ"]
+  required_5_attt_groups: true
+
+token_budget:
+  briefing_total: 6000
+
+writer_output_schema:
+  block: "tkcs"
+  required_fields: ["legal_basis, current_state, necessity, objectives, ..."]

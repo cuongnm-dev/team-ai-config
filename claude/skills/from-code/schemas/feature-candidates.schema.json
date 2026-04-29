@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "feature-candidates.json — pre-cluster candidate features with evidence trail",
+  "description": "Output of P3a (clustering). Each candidate has composite score + evidence signals. Downstream P3b scores status, P3c names, P5 interview confirms.",
+  "type": "object",
+  "required": ["meta", "clustering_weights", "candidates"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "properties": {
+        "generated_at": { "type": "string", "format": "date-time" },
+        "service_id": { "type": "string" },
+        "composite_threshold": { "type": "number", "default": 0.6 }
+      }
+    },
+
+    "clustering_weights": {
+      "type": "object",
+      "required": ["url_prefix", "entity_touched", "auth_scope", "i18n_namespace", "test_describe", "folder_module"],
+      "properties": {
+        "url_prefix":      { "type": "number", "default": 0.20 },
+        "entity_touched":  { "type": "number", "default": 0.25 },
+        "auth_scope":      { "type": "number", "default": 0.15 },
+        "i18n_namespace":  { "type": "number", "default": 0.15 },
+        "test_describe":   { "type": "number", "default": 0.15 },
+        "folder_module":   { "type": "number", "default": 0.10 }
+      }
+    },
+
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["candidate_id", "proposed_name", "service_id", "route_ids", "evidence", "confidence"],
+        "properties": {
+          "candidate_id": { "type": "string", "pattern": "^FC-[0-9]{3,}$" },
+          "proposed_name": { "type": "string", "description": "Vietnamese name derived from i18n/test-describe/LLM" },
+          "name_source": { "enum": ["i18n", "test-describe", "folder-name", "llm-proposal", "controller-classname"] },
+          "service_id": { "type": "string" },
+          "route_ids": { "type": "array", "items": { "type": "string" } },
+          "entity_ids": { "type": "array", "items": { "type": "string" } },
+          "actors_hint": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Inferred from auth_scope: role:admin → 'Quản trị viên'"
+          },
+          "screens_hint": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "FE route path matches or Angular component names"
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "url_prefix": {
+                "type": "object",
+                "properties": {
+                  "prefix": { "type": "string" },
+                  "match_strength": { "type": "number" }
+                }
+              },
+              "entity_touched": {
+                "type": "object",
+                "properties": {
+                  "entities": { "type": "array", "items": { "type": "string" } },
+                  "cohesion": { "type": "number", "description": "1.0 = all routes share same entity set" }
+                }
+              },
+              "auth_scope": {
+                "type": "object",
+                "properties": {
+                  "scopes": { "type": "array", "items": { "type": "string" } },
+                  "uniformity": { "type": "number" }
+                }
+              },
+              "i18n_namespace": {
+                "type": "object",
+                "properties": {
+                  "namespace": { "type": "string" },
+                  "key_count": { "type": "integer" },
+                  "sample_keys": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+              "test_describe": {
+                "type": "object",
+                "properties": {
+                  "describe_texts": { "type": "array", "items": { "type": "string" } },
+                  "file_paths": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+              "folder_module": {
+                "type": "object",
+                "properties": {
+                  "folder": { "type": "string" },
+                  "cohesion": { "type": "number" }
+                }
+              }
+            }
+          },
+          "composite_score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "split_suggestion": {
+            "type": ["object", "null"],
+            "description": "If candidate seems too coarse (entity count > 5, auth mix), suggest split",
+            "properties": {
+              "reason": { "type": "string" },
+              "proposed_splits": { "type": "array", "items": { "type": "object" } }
+            }
+          },
+          "merge_suggestion": {
+            "type": ["object", "null"],
+            "description": "If two candidates share > X signals, suggest merge",
+            "properties": {
+              "with_candidate_id": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "orphan_routes": {
+      "type": "array",
+      "description": "Routes not clustered into any candidate (composite < threshold with every candidate)",
+      "items": { "type": "string" }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

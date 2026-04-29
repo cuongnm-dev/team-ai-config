@@ -1,0 +1,137 @@
+# Audience Profile — TKKT (Thiết kế Kiến trúc) — DOMAIN-AGNOSTIC
+
+audience_id: tkkt
+display_name: "Thiết kế Kiến trúc (TKKT)"
+
+persona:
+  reader: "Ban thẩm định kiến trúc CNTT — Bộ/Sở chuyên ngành / ban QLDA"
+  level: "Director / Trưởng phòng KT-Quy hoạch"
+  technical_familiarity: "mid"
+  reading_purpose: "Thẩm định phù hợp KTCPĐT 4.0 + tính khả thi kỹ thuật"
+
+vocabulary:
+  required_voice: "passive_formal_VN"
+  preferred_terms:
+    - "hệ thống thông tin, phân hệ, lớp kiến trúc, thành phần"
+    - "tích hợp, giao tiếp, đồng bộ, luồng nghiệp vụ"
+    - "yêu cầu phi chức năng (NFR), hiệu năng, khả mở rộng, khả dụng"
+    - "an toàn thông tin, cấp độ ATTT, bảo mật"
+
+  # Skill ships generic VN gov well-known platforms; project intel adds project-specific.
+  allowed_proper_nouns_baseline:
+    - "NDXP, LGSP, VNeID, CSDLQG-DC"   # CT 34 / QĐ 749 platforms
+    - "PostgreSQL, MySQL, Oracle, SQL Server"
+    - "Linux, Windows Server, RHEL, Ubuntu"
+
+vocabulary_banned:
+  literal:
+    - "JWT, OAuth, Bearer, JSON-RPC, gRPC, GraphQL"
+    - "controller, decorator, middleware, ORM"
+    - "Docker, Kubernetes, container, microservice"
+  regex:
+    - '/api/[\w/:\-]+'
+    - 'HTTP\s*[1-5]\d{2}'
+    - '\.(?:ts|tsx|js|jsx|py|java|go|rs)\b'
+    - '\b[a-z]+(?:[A-Z][a-z]+)+\b'
+    - '@[A-Z]\w+\b'
+    - 'docker\s*compose'
+    - '\b(?:Next\.?js|NestJS|FastAPI|Django|Spring|Spring Boot|Express|Vue|Angular|Flask|Laravel|Rails|Gin|Echo|React|Svelte|Solid)\b'
+
+intel_sources:
+  business_context:
+    file: "docs/intel/business-context.json"
+    allow_fields: ["organization.*", "current_system.*", "objectives.*", "stakeholders.*", "compliance_requirements.*"]
+    deny_fields: []
+
+  system_inventory:
+    file: "docs/intel/system-inventory.json"
+    allow_fields:
+      - "system.name"
+      - "system.organization"
+      - "system.description"
+      - "services[].name"
+      - "services[].domain"          # business domain (not tech)
+      - "services[].status"
+    deny_fields:
+      - "services[].backend"          # framework name → CẤM
+      - "services[].port"
+      - "services[].external"
+
+  code_facts:
+    file: "docs/intel/code-facts.json"
+    allow_fields: []
+    deny_fields: ["*"]
+    reason: "Code-facts is implementation layer; orchestrator aggregates counts only."
+
+  actor_registry:
+    file: "docs/intel/actor-registry.json"
+    allow_fields: ["roles[].slug", "roles[].display_name", "auth_mode"]
+    deny_fields: ["tenant_isolation", "permissions"]
+
+  integrations:
+    file: "docs/intel/integrations.json"
+    allow_fields: ["external_systems[].name", "external_systems[].purpose", "external_systems[].integration_type"]
+    deny_fields: ["external_systems[].endpoints", "external_systems[].auth_details"]
+
+precomputed_metrics:
+  - { id: total_phan_he,            compute: "len(unique(feature.module))" }
+  - { id: total_components,         compute: "len(system_inventory.services)" }
+  - { id: api_count_aggregate,      compute: "len(routes)", note: "count only — NEVER list paths" }
+  - { id: data_entities_count,      compute: "len(entities.entities)" }
+  - { id: external_integrations,    compute: "integrations.external_systems[]" }
+  - { id: roles_count,              compute: "len(actor_registry.roles)" }
+  - { id: cpdt_4_layers,            compute: "group_services_by_cpdt_layer(services)" }
+
+tropes:
+  - { pattern_type: regex, pattern: '/api/[\w/:\-]+', output: '<aggregate to count>', enforcement: hard_block }
+  - { pattern_type: literal, pattern: 'JWT', output: 'mã xác thực phiên đăng nhập' }
+  - { pattern_type: literal, pattern: 'Bearer token', output: 'tham số xác thực' }
+  - pattern_type: regex
+    pattern: '\b(?:Next\.?js|NestJS|FastAPI|Django|Spring|Spring Boot|Express|Vue|Angular|Flask|Laravel|Rails|Gin|Echo|React|Svelte|Solid)\b'
+    output: 'nền tảng phát triển hiện đại'
+  - { pattern_type: literal, pattern: 'Redis', output: 'bộ nhớ đệm phân tán' }
+  - { pattern_type: literal, pattern: 'MongoDB', output: 'cơ sở dữ liệu phi quan hệ' }
+  - { pattern_type: literal, pattern: 'Docker', output: 'công nghệ ảo hóa container' }
+  - { pattern_type: literal, pattern: 'container', output: 'khối ứng dụng đóng gói' }
+
+fewshot_examples:
+  - bad: |
+      Hệ thống gồm web-admin (Next.js 15) gọi API NestJS qua /api/*; data lưu
+      Postgres 14, cache Redis 7; deployed via docker compose.
+    good: |
+      Hệ thống được tổ chức thành 3 lớp kiến trúc theo nguyên tắc tách biệt
+      trách nhiệm: (1) lớp giao diện vận hành phục vụ cán bộ; (2) lớp xử lý
+      nghiệp vụ chứa logic của {N} phân hệ; (3) lớp dữ liệu gồm hệ quản trị
+      cơ sở dữ liệu quan hệ làm kho lưu trữ chính, kết hợp bộ nhớ đệm phân
+      tán để tối ưu hiệu năng. Toàn bộ thành phần được đóng gói qua công nghệ
+      ảo hóa container, sẵn sàng triển khai trên hạ tầng đám mây hoặc tại chỗ.
+
+  - bad: |
+      Frontend Next.js 15. Backend NestJS 10. Gateway NestJS 10. Database PostgreSQL.
+    good: |
+      | Lớp | Vai trò | Loại công nghệ |
+      |---|---|---|
+      | Giao diện       | Phân hệ vận hành cán bộ              | Web frontend hiện đại |
+      | Xử lý nghiệp vụ | {N} phân hệ logic nghiệp vụ           | Backend RESTful   |
+      | Cổng tích hợp   | Kết nối thiết bị/hệ thống ngoại vi  | Backend chuyên dụng |
+      | Lưu trữ         | Kho dữ liệu chính + đệm phân tán    | RDBMS + cache     |
+
+validation:
+  banned_jargon_block_render: true
+  min_words_per_section:
+    purpose: 200
+    business_overview: 500
+    architecture_layers_description: 400
+    nfr_description: 300
+    security_description: 500
+
+token_budget:
+  briefing_total: 6000
+
+writer_output_schema:
+  block: "architecture"
+  required_fields:
+    - "purpose, scope, business_overview"
+    - "design_principles, components[]"
+    - "data_entities[], apis_aggregate"
+    - "deployment_description, nfr[], security_description"

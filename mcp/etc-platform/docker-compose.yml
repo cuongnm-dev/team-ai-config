@@ -1,0 +1,24 @@
+services:
+  etc-platform:
+    image: ${ETC_PLATFORM_IMAGE:-o0mrblack0o/etc-platform:latest}
+    container_name: etc-platform
+    ports:
+      - "${ETC_PLATFORM_PORT:-8001}:8001"
+    environment:
+      - ETC_PLATFORM_LOG_LEVEL=${ETC_PLATFORM_LOG_LEVEL:-info}
+    volumes:
+      - etc-uploads:/app/uploads
+      - etc-jobs:/app/jobs
+      - etc-kb:/app/kb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8001/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  etc-uploads:
+  etc-jobs:
+  etc-kb:

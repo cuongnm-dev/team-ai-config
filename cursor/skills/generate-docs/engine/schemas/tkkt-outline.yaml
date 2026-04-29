@@ -1,0 +1,52 @@
+source: "QĐ 292/QĐ-BKHCN 2025 — Khung Kiến trúc Chính phủ điện tử 4.0"
+description: "Outline tài liệu Thiết kế Kiến trúc — 5 reference models + deployment + security + NFR"
+outline:
+  # ────── PHẦN 1: TỔNG QUAN ──────
+  - { level: 1, text: "TỔNG QUAN KIẾN TRÚC HỆ THỐNG" }
+  - { level: 2, text: "Mục tiêu kiến trúc" }
+  - { level: 2, text: "Phạm vi và đối tượng áp dụng" }
+  - { level: 2, text: "Nguyên tắc thiết kế kiến trúc" }
+  - { level: 2, text: "Căn cứ và tiêu chuẩn áp dụng" }
+
+  # ────── PHẦN 2: KIẾN TRÚC NGHIỆP VỤ (Business Reference Model) ──────
+  - { level: 1, text: "KIẾN TRÚC NGHIỆP VỤ" }
+  - { level: 2, text: "Mô hình nghiệp vụ tổng thể" }
+  - { level: 2, text: "Danh mục phân hệ và chức năng nghiệp vụ" }
+  - { level: 2, text: "Đối tượng sử dụng và vai trò" }
+  - { level: 2, text: "Quy trình nghiệp vụ chính" }
+
+  # ────── PHẦN 3: KIẾN TRÚC DỮ LIỆU (Data Reference Model) ──────
+  - { level: 1, text: "KIẾN TRÚC DỮ LIỆU" }
+  - { level: 2, text: "Mô hình dữ liệu tổng thể" }
+  - { level: 2, text: "Danh mục thực thể dữ liệu" }
+  - { level: 2, text: "Phân loại và lưu trữ dữ liệu" }
+  - { level: 2, text: "Nguyên tắc quản trị dữ liệu" }
+
+  # ────── PHẦN 4: KIẾN TRÚC ỨNG DỤNG (Application Reference Model) ──────
+  - { level: 1, text: "KIẾN TRÚC ỨNG DỤNG" }
+  - { level: 2, text: "Mô hình ứng dụng tổng thể" }
+  - { level: 2, text: "Danh mục thành phần ứng dụng" }
+  - { level: 2, text: "Tương tác giữa các thành phần" }
+  - { level: 2, text: "Danh mục API và giao diện tích hợp" }
+  - { level: 2, text: "Tích hợp với hệ thống ngoài" }
+
+  # ────── PHẦN 5: KIẾN TRÚC KỸ THUẬT - CÔNG NGHỆ (Technology Reference Model) ──────
+  - { level: 1, text: "KIẾN TRÚC KỸ THUẬT - CÔNG NGHỆ" }
+  - { level: 2, text: "Công nghệ và nền tảng sử dụng" }
+  - { level: 2, text: "Kiến trúc hạ tầng kỹ thuật" }
+  - { level: 2, text: "Phương án triển khai (container/dịch vụ)" }
+  - { level: 2, text: "Môi trường triển khai" }
+
+  # ────── PHẦN 6: KIẾN TRÚC AN TOÀN THÔNG TIN (Security Reference Model) ──────
+  - { level: 1, text: "KIẾN TRÚC AN TOÀN THÔNG TIN" }
+  - { level: 2, text: "Nguyên tắc và chính sách bảo mật" }
+  - { level: 2, text: "Xác thực và phân quyền" }
+  - { level: 2, text: "Bảo vệ dữ liệu" }
+  - { level: 2, text: "Giám sát và ứng phó sự cố" }
+
+  # ────── PHẦN 7: YÊU CẦU PHI CHỨC NĂNG ──────
+  - { level: 1, text: "YÊU CẦU PHI CHỨC NĂNG" }
+  - { level: 2, text: "Hiệu năng và khả năng mở rộng" }
+  - { level: 2, text: "Tính sẵn sàng và khả năng phục hồi" }
+  - { level: 2, text: "Khả năng tương thích và tuân thủ tiêu chuẩn" }
+  - { level: 2, text: "Khả năng bảo trì và vận hành" }

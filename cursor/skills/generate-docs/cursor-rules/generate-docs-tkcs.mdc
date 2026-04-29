@@ -1,0 +1,66 @@
+---
+description: TKCS (NĐ 45/2026 Điều 13) writing rules — legal basis, 11 mandatory sections
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# TKCS — Thiết kế Cơ sở (NĐ 45/2026 Điều 13)
+
+Khi điền `tkcs.*` fields trong content-data.json.
+
+## 11 mandatory sections (NĐ 45/2026 Đ13)
+
+| Section | Field(s) |
+|---|---|
+| 1. Giới thiệu chung | `investment_type`, `funding_source`, `project_duration` |
+| 2. Cơ sở pháp lý | `legal_basis` — viện dẫn QĐ, NĐ, CT có hiệu lực |
+| 3. Hiện trạng + sự cần thiết | `current_state`, `necessity` |
+| 4. Đánh giá phù hợp quy hoạch | `architecture_compliance` (Khung KT CPĐT 4.0 QĐ 292) |
+| 5. Phân tích lựa chọn CN | `technology_rationale`, `tech_criteria_*` |
+| 6. Thiết kế cơ sở | `detailed_design_summary`, `functional_design`, `db_design_summary`, `integration_design_summary`, `software_design`, `infrastructure_design` |
+| 7. Phương án ATTT | `security_plan`, `security_design`, `security_tech` |
+| 8. Tổ chức vận hành | `operations_plan`, `prep_resources`, `prep_policies`, `user_support` |
+| 9. Tiến độ | `timeline`, `milestones`, `schedule` |
+| 10. Tổng mức đầu tư | `total_investment`, `budget_detail`, `operating_cost`, `opex`, `warranty` |
+| 11. Tổ chức QLDA | `project_management`, `pm_form`, `stakeholders`, `pm_method` |
+
+## Legal basis — văn bản pháp lý chính (2026)
+
+Khi điền `legal_basis`, reference TỪ danh sách hiện hành:
+
+- **CĐS**: QĐ 749/QĐ-TTg (Chiến lược quốc gia)
+- **9 nguyên tắc CĐS**: CT 34/CT-TTg (2024)
+- **Quản lý ĐTƯDCNTT**: NĐ 45/2026/NĐ-CP (thay NĐ 73/2019)
+- **Dự toán PM**: TT 04/2020/TT-BTTTT
+- **Đầu tư công**: Luật 58/2024/QH15
+- **Đấu thầu**: Luật 22/2023/QH15 + NĐ 214/2025/NĐ-CP (hiệu lực 04/08/2025)
+- **Văn bản HC**: NĐ 30/2020/NĐ-CP
+- **Bảo vệ DLCN**: NĐ 13/2023/NĐ-CP
+
+**KHÔNG** reference NĐ 73/2019 (đã bị thay), NĐ 24/2024 (đã bị thay).
+
+## Business fields thường `[CẦN BỔ SUNG]`
+
+Nếu Path A và `tkcs_from_docs` thiếu các field sau → auto emit placeholder:
+
+- `total_budget`, `budget_detail`, `opex`, `warranty` — trừ khi có docs/budget.md
+- `pm_form`, `stakeholders`, `pm_method` — trừ khi có docs/governance.md
+- `milestones`, `schedule` — trừ khi có docs/roadmap.md
+- `location`, `scale` — trừ khi có docs/scope.md
+
+BA/PM sẽ fill ở Word editing phase.
+
+## Technical rationale — không generic
+
+`technology_rationale` phải reference cụ thể stack từ `architecture.tech_stack`:
+
+**Đúng**: "Dự án sử dụng Next.js 15 cho frontend vì hỗ trợ Server Components, giúp giảm bundle size và cải thiện SEO..."
+
+**Sai**: "Công nghệ hiện đại, mạnh mẽ, phù hợp với dự án." (generic, vô nghĩa)
+
+## Output reminder
+
+Section 6 `detailed_design_summary` — summary 5-10 câu reference sang TKKT + TKCT để tránh duplicate:
+- "Chi tiết kiến trúc xem TKKT [mã]"
+- "Chi tiết modules xem TKCT [mã]"

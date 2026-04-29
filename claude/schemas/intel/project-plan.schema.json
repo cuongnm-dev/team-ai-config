@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/project-plan.schema.json",
+  "title": "Project Plan",
+  "description": "Phasing, timeline, organization. Tier 3 doc-only — resume-feature SKIPS entirely. Producer: from-doc (interview-driven). Consumed by tdoc-tkcs-writer §5 only. Hard-stop in from-doc Phase 8 if phases[] empty OR organization.owner empty. Justified by: TKCS §5.1-5.3 Đ13 (phân kỳ, tiến độ, tổ chức).",
+  "type": "object",
+  "required": ["schema_version", "phases", "organization"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "description": "TKCS §5.1 phân kỳ đầu tư. Min 1 phase.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "duration_months"],
+        "properties": {
+          "id": { "type": "string", "description": "Phase id, e.g. 'P1'." },
+          "name": { "type": "string", "description": "Vietnamese phase name." },
+          "description": { "type": ["string", "null"] },
+          "duration_months": { "type": "number", "minimum": 0.5 },
+          "start_offset_months": { "type": ["number", "null"], "description": "Months from project start." },
+          "deliverables": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Concrete deliverables for this phase."
+          },
+          "budget_pct": { "type": ["number", "null"], "minimum": 0, "maximum": 100, "description": "Share of total budget." },
+          "milestones": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+
+    "timeline": {
+      "type": "array",
+      "description": "TKCS §5.2 tiến độ. Optional Gantt-style task list.",
+      "items": {
+        "type": "object",
+        "required": ["task", "start_month", "end_month"],
+        "properties": {
+          "task": { "type": "string" },
+          "phase_id": { "type": ["string", "null"], "description": "phases[].id this task belongs to." },
+          "start_month": { "type": "integer", "minimum": 1 },
+          "end_month": { "type": "integer", "minimum": 1 },
+          "dependencies": { "type": "array", "items": { "type": "string" }, "description": "task names this depends on." },
+          "responsible": { "type": ["string", "null"], "description": "Role/team responsible." }
+        }
+      }
+    },
+
+    "organization": {
+      "type": "object",
+      "required": ["owner"],
+      "description": "TKCS §5.3 tổ chức thực hiện.",
+      "properties": {
+        "owner": {
+          "type": "object",
+          "required": ["organization"],
+          "properties": {
+            "organization": { "type": "string", "description": "Investor / project owner." },
+            "responsibilities": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "implementing_unit": {
+          "type": ["object", "null"],
+          "properties": {
+            "organization": { "type": "string" },
+            "responsibilities": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "contractor": {
+          "type": ["object", "null"],
+          "properties": {
+            "organization": { "type": ["string", "null"], "description": "May be TBD at TKCS stage." },
+            "selection_method": { "enum": ["competitive-bidding", "limited-bidding", "direct-appointment", "tbd", null] }
+          }
+        },
+        "supervisor": {
+          "type": ["object", "null"],
+          "properties": {
+            "organization": { "type": ["string", "null"] },
+            "scope": { "type": ["string", "null"] }
+          }
+        },
+        "qa_team": {
+          "type": ["object", "null"],
+          "properties": {
+            "organization": { "type": ["string", "null"] },
+            "scope": { "type": ["string", "null"] }
+          }
+        },
+        "stakeholders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "role"],
+            "properties": {
+              "name": { "type": "string" },
+              "role": { "type": "string" },
+              "engagement_level": { "enum": ["responsible", "accountable", "consulted", "informed"] }
+            }
+          },
+          "description": "RACI-style stakeholder list."
+        }
+      }
+    },
+
+    "risks": {
+      "type": "array",
+      "description": "Project-level execution risks (NOT security threats — those go to security-design.json).",
+      "items": {
+        "type": "object",
+        "required": ["risk", "mitigation"],
+        "properties": {
+          "risk": { "type": "string" },
+          "category": { "enum": ["schedule", "budget", "scope", "quality", "stakeholder", "technical", "regulatory", "other"] },
+          "likelihood": { "enum": ["very-high", "high", "medium", "low", "very-low"] },
+          "impact": { "enum": ["catastrophic", "major", "moderate", "minor", "negligible"] },
+          "mitigation": { "type": "string" }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

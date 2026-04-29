@@ -1,0 +1,256 @@
+# Audience Profile — HDSD (Hướng dẫn sử dụng)
+#
+# DOMAIN-AGNOSTIC TEMPLATE.
+# - Skill ships generic patterns + abstract examples + universal banned terms.
+# - Project intel (business-context.json, feature-catalog.json) supplies domain
+#   lexicon (module names, external systems, business terminology).
+# - Orchestrator merges skill profile + project intel at briefing-build time.
+
+audience_id: hdsd
+display_name: "Hướng dẫn sử dụng (HDSD)"
+
+persona:
+  reader: "Cán bộ nghiệp vụ tại tổ chức/cơ quan sử dụng phần mềm"
+  age_range: "30–55"
+  technical_familiarity: "low"
+  language_familiarity:
+    vietnamese: "native"
+    technical_english: "none"
+  reading_purpose: |
+    Tra cứu cách thực hiện 1 thao tác nghiệp vụ cụ thể.
+    KHÔNG đọc để học hệ thống, KHÔNG đọc để duyệt thiết kế.
+    Mỗi lần tra cứu ~2-5 phút, focus vào 1 màn hình.
+  reading_unit: "1 thao tác = 1 user task = vài screens"
+
+vocabulary:
+  required_voice: "active, second-person ('Bạn nhấn...', 'Hệ thống hiển thị...')"
+  preferred_terms:
+    - "menu, mục, nhóm chức năng"
+    - "màn hình, biểu mẫu, ô nhập liệu"
+    - "nhấn (click), chọn (select), nhập (input), kéo, thả"
+    - "lưu, hủy, xác nhận, gửi, tải lên, tải về, in"
+    - "phiên đăng nhập, đăng nhập lại"
+    - "hệ thống, chức năng, nghiệp vụ"
+  # Skill ships baseline well-known proper nouns (universally allowed).
+  # Project's business-context.external_integrations[] adds domain-specific ones at merge time.
+  allowed_proper_nouns_baseline:
+    - "Excel, Word, PDF"               # office formats
+    - "Chrome, Firefox, Edge, Safari"  # browsers
+    - "Windows, macOS, Linux"          # OS
+    - "Email, SMS, OTP"                # comms
+
+vocabulary_banned:
+  literal:
+    - "API, endpoint, route, JSON, REST, GraphQL, WebSocket"
+    - "JWT, OAuth, Bearer, token, cookie, session-id"
+    - "tenant, RBAC, ACL, IAM, SAML"
+    - "container, Docker, Kubernetes, microservice, pod"
+    - "controller, service, repository, DTO, schema, ORM"
+  # Framework names are domain-agnostic banned via regex below.
+  regex:
+    - '/api/[\w/:\-]+'                  # any /api/* path
+    - '/[a-z][\w\-]*(/[\w\-:.]+){1,5}'  # any FE route path
+    - 'HTTP\s*[1-5]\d{2}'                # HTTP status codes
+    - '\.(?:ts|tsx|js|jsx|py|java|go|rs)\b'  # source extensions
+    - '\b[A-Z]{2,}_[A-Z_]+\b'            # SCREAMING_SNAKE constants
+    - '\b[a-z]+(?:[A-Z][a-z]+)+\b'       # camelCase identifiers
+    - '@[A-Z]\w+\b'                      # decorators
+    - '\b(?:Next\.?js|NestJS|FastAPI|Django|Spring|Express|Vue|Angular|Flask|Laravel|Rails|Gin|Echo|React|Svelte|Solid)\b'
+
+# ─── Intel sources: schema-driven file:field allow/deny ───
+intel_sources:
+  feature_catalog:
+    file: "docs/intel/feature-catalog.json"
+    filter: { "feature.status": "done" }
+    allow_fields:
+      - "id"
+      - "name"
+      - "module"
+      - "business_intent"
+      - "flow_summary"
+      - "acceptance_criteria"
+      - "roles"
+    deny_fields:
+      - "routes"
+      - "fe_routes"
+      - "api_module"
+      - "entities"
+      - "completeness_score"
+
+  sitemap:
+    file: "docs/intel/sitemap.json"
+    path: "services.*.route_groups"
+    allow_fields:
+      - "title"          # Vietnamese menu name
+      - "id"             # used for matching to module — DO NOT render
+    deny_fields:
+      - "routes[].path"
+      - "auth_required"
+      - "auth_type"
+      - "base_url"
+
+  screenshot_map:
+    file: "docs/intel/screenshot-map.json"
+    path: "flows[].screenshots[]"
+    allow_fields: ["label", "file"]
+    deny_fields: ["fe_path", "id"]
+
+  actor_registry:
+    file: "docs/intel/actor-registry.json"
+    path: "roles[]"
+    allow_fields: ["slug", "display_name"]
+    deny_fields: ["auth_mode", "tenant_isolation", "permissions"]
+
+  # Bridge for project-specific lexicon — orchestrator pulls these at merge time.
+  business_context:
+    file: "docs/intel/business-context.json"
+    allow_fields:
+      - "domain"                        # e.g. "customs-clearance" / "doc-management"
+      - "external_integrations[].name"   # e.g. project-specific external system names
+      - "external_integrations[].purpose"
+      - "module_lexicon"                # e.g. {"M01": "Quản lý hồ sơ"} — project supplies
+      - "role_display_lexicon"          # e.g. {"OFFICER": "Cán bộ"} — project supplies
+    deny_fields: []
+
+precomputed_metrics:
+  - { id: total_user_features, compute: "len(feature_catalog.features WHERE status='done')" }
+  - { id: modules_in_scope,    compute: "unique(feature.module WHERE status='done')" }
+  - { id: modules_excluded,    compute: "unique(feature.module WHERE status!='done')" }
+  - { id: total_screenshots,   compute: "sum(len(flow.screenshots) FOR flow IN screenshot_map.flows)" }
+  - { id: roles_user_facing,   compute: "actor_registry.roles WHERE slug != 'system'" }
+
+tropes:
+  # Universal HTTP/auth (no domain assumption)
+  - { pattern_type: literal, pattern: 'JWT expired',   output: 'Phiên đăng nhập đã hết hạn' }
+  - { pattern_type: literal, pattern: 'JWT',           output: 'phiên đăng nhập' }
+  - { pattern_type: regex,   pattern: 'HTTP\s*401',    output: 'Hệ thống yêu cầu đăng nhập lại' }
+  - { pattern_type: regex,   pattern: 'HTTP\s*403',    output: 'Tài khoản không đủ quyền thực hiện' }
+  - { pattern_type: regex,   pattern: 'HTTP\s*5\d{2}', output: 'Hệ thống đang gặp sự cố, vui lòng thử lại' }
+  - { pattern_type: regex,   pattern: 'validation\s*(?:error|failed)', output: 'Thông tin nhập chưa hợp lệ' }
+  - { pattern_type: literal, pattern: 'tenant_id',     output: 'đơn vị công tác của bạn' }
+
+  # Route-to-menu transformation (uses project's module_lexicon at merge time).
+  # Pattern matches ANY /<module>/<sub> route; orchestrator injects project lexicon.
+  - pattern_type: regex
+    pattern: '/(?P<module>[a-z][\w\-]*)(?:/(?P<sub>[\w\-]+))?'
+    transformation: lookup_in_project_lexicon
+    output_template: |
+      menu **{module_lexicon[module] or module}**{if sub}, mục **{sub_label or sub}**{endif}
+
+# Few-shot examples use ABSTRACT domain (User Management — universal pattern).
+fewshot_examples:
+  - bad: |
+      Bước 1: GET /api/users/search?q=...
+      Bước 2: POST /api/users/:id/disable
+      Lỗi: HTTP 401 → redirect login. HTTP 403 if !tenantOwner.
+    good: |
+      **Bước 1**: Truy cập menu **Quản lý người dùng** từ thanh điều hướng.
+      **Bước 2**: Nhập **tên người dùng** vào ô tìm kiếm và nhấn nút **[Tìm]**.
+      **Bước 3**: Sau khi hệ thống hiển thị kết quả, nhấn nút **[Vô hiệu hóa]**
+      ở dòng người dùng cần thao tác.
+
+      **Lỗi thường gặp**:
+      - Nếu hệ thống chuyển bạn về trang đăng nhập → phiên làm việc đã hết hạn,
+        vui lòng đăng nhập lại.
+      - Nếu hệ thống thông báo "Không đủ quyền" → tài khoản của bạn không phải
+        người quản lý đơn vị, vui lòng liên hệ quản trị viên.
+
+  - bad: |
+      The user navigates to /admin/orders (auth_required: JWT) via the route group "admin".
+    good: |
+      Sau khi đăng nhập, bạn chọn nhóm chức năng **Quản trị** trên thanh menu chính,
+      sau đó chọn mục **Đơn hàng**. Hệ thống sẽ mở màn hình tra cứu đơn hàng.
+
+  - bad: |
+      Module M01 thuộc phạm vi hệ thống. Chưa xác định luồng nghiệp vụ trong flow-report.
+      Mô tả này sẽ được thay thế khi có dữ liệu cụ thể.
+    good: |
+      [CẦN BỔ SUNG: mô tả nghiệp vụ chi tiết module {module_id} — vui lòng cung cấp
+       quy trình tại cơ quan của bạn để hoàn thiện hướng dẫn này.]
+
+validation:
+  banned_jargon_block_render: true
+  min_steps_per_feature: 3
+  min_ui_elements_per_screen: 3
+  max_step_words: 40
+  required_voice_active: true
+  flesch_vi_min: 65
+  avg_sentence_length_max: 22
+  forbid_module_text_similarity: 0.70
+
+token_budget:
+  briefing_total: 6000
+  per_feature_facts: 250
+
+writer_output_schema:
+  block: "services"
+
+  # ─── Service grouping rule (industry-standard for multi-role HDSD) ───
+  # When feature_catalog has >1 user-facing role, structure output as
+  # ONE service per role (not per module). Each role-section bundles ALL
+  # features that role uses, ordered by user workflow.
+  #
+  # Rationale: end-users read HDSD by their job function, not by module.
+  # A "Cán bộ kiểm hóa" wants ALL their tasks together; they don't care
+  # that some live in M02 and others in M07.
+  service_structure_rule:
+    when: "len(roles_user_facing) > 1"
+    then: "one_service_per_role"
+    service_naming: "Hướng dẫn cho {role.display_name}"
+    feature_assignment: |
+      For each role R: include feature F if R ∈ F.roles.
+      A feature appearing in multiple roles is duplicated — each role-section
+      shows ONLY the steps that role performs (filter steps by step.actor if available).
+    feature_ordering: "by workflow sequence within role's daily routine"
+  fallback_when_single_role: "one_service_per_module"
+
+  required_fields:
+    # ─── Service level ───
+    - "name"                                  # internal identifier
+    - "display_name"                          # rendered as section title — "Hướng dẫn cho {role}"
+
+    # ─── Feature header ───
+    - "features[].id"
+    - "features[].name"
+    - "features[].description"                # SHORT 1-2 sentence summary (table cell "Mô tả")
+    - "features[].purpose"                    # LONG paragraph explaining business value
+    - "features[].actors"                     # list of role display_names (table cell "Đối tượng")
+    - "features[].preconditions"
+
+    # ─── Steps ───
+    - "features[].steps[].no"
+    - "features[].steps[].action"
+    - "features[].steps[].screenshot"
+
+    # ─── UI elements (table per screen) ───
+    - "features[].ui_elements[].label"        # field label as user sees it
+    - "features[].ui_elements[].type"         # input | select | button | checkbox | radio | textarea | date
+    - "features[].ui_elements[].rules"        # validation/help text in plain VN
+
+    # ─── Dialogs (confirmation/notice popups) ───
+    - "features[].dialogs[].title"
+    - "features[].dialogs[].message"
+    - "features[].dialogs[].buttons"
+
+    # ─── Error cases ───
+    # IMPORTANT: template uses err.message + err.trigger_step (NOT user_message)
+    - "features[].error_cases[].condition"
+    - "features[].error_cases[].message"      # user-facing VN message (template field: err.message)
+    - "features[].error_cases[].trigger_step" # which step number triggers this error (NOT hardcoded 1)
+
+  field_construction_hints:
+    description: |
+      ≤2 sentences. Plain VN, no jargon. Example:
+      "Tra cứu và phân công cán bộ kiểm hóa cho tờ khai luồng đỏ."
+    actors: |
+      Use role.display_name from actor-registry (NOT slug).
+      Multi-role: join with " / " — e.g. "Cán bộ kiểm hóa / Lãnh đạo".
+    trigger_step: |
+      Heuristic mapping by error keyword → step:
+      - "đăng nhập" / "phiên" / "chưa đăng nhập" → step 1
+      - "phê duyệt" / "ký" → step containing "phê duyệt"/"ký"
+      - "không tìm thấy" / "không có" → step containing "tìm"/"tra cứu"
+      - default: step where the action actually fails (NEVER hardcode 1)
+    ui_elements: |
+      Extract from feature.flow_summary + acceptance_criteria.
+      Min 3 per screen. Each must have label + type + rules (even if rules="Không bắt buộc").

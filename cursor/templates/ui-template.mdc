@@ -1,0 +1,40 @@
+---
+description: UI template configuration — khai báo template đang dùng để designer/fe-dev agents đọc trực tiếp. Copy file này vào .cursor/rules/ của từng project, điền thông tin thực tế.
+alwaysApply: true
+---
+
+# UI Template Configuration
+
+<!-- ─────────────────────────────────────────────────────────────
+     Copy file này vào: {your-project}/.cursor/rules/ui-template.mdc
+     Điền thông tin thực tế cho project.
+     Không đặt file này trong global .cursor/rules/ vì mỗi project
+     dùng template khác nhau.
+     ───────────────────────────────────────────────────────────── -->
+
+```yaml
+ui_template:
+  name: "Metronic" # Tên template: Metronic | CoreUI | AdminLTE | NativeBase | ...
+  version: "" # Version nếu biết, để trống nếu không
+  framework: "React" # React | Vue | Angular | React Native
+```
+
+## Quy tắc cho agents (áp dụng khi file này tồn tại)
+
+### Designer agent
+
+- Duyệt toàn bộ component sets trong kit → lập vocabulary
+- Chỉ thiết kế bằng components có trong kit
+- Khi không tìm được component phù hợp → ghi "Gap" và hỏi trước khi custom
+
+### FE-Dev agent
+
+- **Dùng đúng Metronic React components** mà designer liệt kê trong handoff
+- Không tự custom style ngoài những gì Metronic cung cấp qua props/CSS variables
+- Nếu designer handoff thiếu component name → hỏi lại designer, không tự quyết định
+
+### PM agent
+
+- Khi feature có UI/UX impact: đọc `ui_template` từ file này
+- Ghi vào `_state.md`: `ui_template`
+- Truyền vào context bundle của `designer` và `fe-dev`

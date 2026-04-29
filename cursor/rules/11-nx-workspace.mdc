@@ -1,0 +1,57 @@
+---
+description: NX workspace conventions — use NX CLI, project graph, module boundaries, cache, Docker targets, generators, and release tooling instead of raw commands. Load when running builds, tests, generators, or cross-project commands in an NX monorepo.
+alwaysApply: false
+globs:
+  - "nx.json"
+  - "**/project.json"
+  - "**/eslint.config.*"
+  - "tools/**/*"
+  - ".nx/**/*"
+---
+
+# NX Workspace Conventions
+
+## Commands — use NX, not raw npm/yarn
+
+| Instead of      | Use                          |
+| --------------- | ---------------------------- |
+| `npm run build` | `nx run {project}:build`     |
+| `npm run test`  | `nx run {project}:test`      |
+| `npm run lint`  | `nx run {project}:lint`      |
+| Build all       | `nx run-many --target=build` |
+| Test affected   | `nx affected --target=test`  |
+
+## Dependency analysis — NX MCP first
+
+1. If NX MCP available: `get_project_graph`, `get_affected_projects`, `get_project_details`
+2. Fallback CLI: `nx graph --file=output.json`, `nx affected --dry-run`, `nx show project {name}`
+
+Do not manually trace import chains or read package.json scripts.
+
+## Module boundaries
+
+NX enforces `@nx/enforce-module-boundaries` via ESLint.
+Check `tags` and `depConstraints` before proposing cross-library imports.
+
+## Cache
+
+NX caches build/test/lint outputs. Do not re-run unnecessarily. Cached runs are valid.
+
+## Docker targets — use NX, not raw docker
+
+| Instead of              | Use                                             |
+| ----------------------- | ----------------------------------------------- |
+| `docker build -t app .` | `nx run {project}:docker-build`                 |
+| `docker push app:tag`   | `nx run {project}:docker-push`                  |
+| Build changed images    | `nx affected --target=docker-build --base=main` |
+
+Check `nx show project {name}` for Docker target existence before running.
+
+## Generators
+
+Use `nx g @nx/{plugin}:{generator} {name}` for new libs/apps.
+Do not create `project.json`, `tsconfig.json`, or `jest.config.ts` manually.
+
+## Release
+
+Use `nx release` for version bumping and changelog. Not manual CHANGELOG.md edits.

@@ -1,0 +1,254 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/integrations.schema.json",
+  "title": "Integrations Catalog",
+  "description": "External + internal system integrations: LGSP/NGSP/CSDLQG/VNeID + commercial APIs + cross-service calls. Tier 2 cross-stage. Consumed by sa-pro/devops/security (Cursor when designing/implementing integration) + tdoc-tkcs-writer §3.6 (giải pháp tích hợp) + tdoc-tkct-writer §7.2-7.3 (giao thức + LGSP/NGSP) + tdoc-tkkt-writer §7 (sơ đồ tích hợp). Aggregates code-facts.integrations[] (HTTP clients/SDK calls) + from-doc business-level integrations (LGSP/NGSP). Justified by: TKCS §3.6 (Đ13 BẮT BUỘC phân tích kết nối + liên thông), TKCT §7.2-7.3, TKKT §7.",
+  "type": "object",
+  "required": ["schema_version", "integrations"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "integrations": {
+      "type": "array",
+      "description": "Flat list of all integration points. Each has direction + protocol + purpose. Hard-stop warning if 0 entries when system-inventory shows external service classes.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type", "direction", "purpose"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^I-[0-9]{3,}$", "description": "Stable id, e.g. 'I-001'." },
+          "name": { "type": "string", "description": "Integration display name. Vietnamese OK." },
+          "name_en": { "type": ["string", "null"] },
+
+          "type": {
+            "type": "string",
+            "enum": [
+              "lgsp",
+              "ngsp",
+              "ndxp",
+              "csdlqg-dancu",
+              "csdlqg-doanhnghiep",
+              "csdlqg-baohiem",
+              "csdlqg-other",
+              "vneid",
+              "dichvucong-quocgia",
+              "internal-service",
+              "external-commercial",
+              "external-government",
+              "third-party-saas",
+              "legacy-system",
+              "other"
+            ],
+            "description": "Integration type. Government bus (LGSP/NGSP/NDXP) and CSDLQG (national databases) are first-class per CT 34 §6 + QĐ 292 Mục V."
+          },
+
+          "direction": {
+            "type": "string",
+            "enum": ["inbound", "outbound", "bi-directional"],
+            "description": "From this system's perspective."
+          },
+
+          "purpose": {
+            "type": "string",
+            "minLength": 50,
+            "description": "Why this integration exists. Min 50 chars Vietnamese. TKCS §3.6 source."
+          },
+
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "rest-http",
+              "rest-https",
+              "soap",
+              "graphql",
+              "grpc",
+              "websocket",
+              "mqtt",
+              "amqp",
+              "kafka",
+              "rabbitmq",
+              "sftp",
+              "ftp",
+              "smb",
+              "jdbc",
+              "odbc",
+              "file-based",
+              "email-smtp",
+              "sms-gateway",
+              "other"
+            ]
+          },
+
+          "endpoint_url": {
+            "type": ["string", "null"],
+            "description": "Endpoint URL or template. Mask secrets."
+          },
+
+          "auth_method": {
+            "type": "object",
+            "properties": {
+              "scheme": { "enum": ["none", "api-key", "bearer-token", "oauth2-client-credentials", "oauth2-authorization-code", "basic", "mtls", "saml", "custom-signed", "ip-whitelist", "vpn"] },
+              "credential_storage": { "type": ["string", "null"], "description": "Where credential is stored: env var name, secret ref, vault path. Format: 'env://VAR_NAME' or 'secrets://path'." },
+              "rotation_policy": { "type": ["string", "null"], "description": "Free-form: 'manual', 'every 90 days', etc." }
+            }
+          },
+
+          "data_exchanged": {
+            "type": "array",
+            "description": "Entities/messages flowing through this integration. Used in TKCT §7.3 'data_exchanged' + TKCS §3.6 narrative.",
+            "items": {
+              "type": "object",
+              "required": ["name", "direction"],
+              "properties": {
+                "name": { "type": "string", "description": "Entity or message name." },
+                "direction": { "enum": ["inbound", "outbound", "bi-directional"] },
+                "entity_ref": { "type": ["string", "null"], "description": "data-model.entities[].name when applicable." },
+                "format": { "enum": ["json", "xml", "csv", "edi", "protobuf", "avro", "binary", "other", null] },
+                "frequency": { "type": ["string", "null"], "description": "Free-form: 'realtime', 'batch nightly', 'on-demand'." },
+                "volume_estimate": { "type": ["string", "null"], "description": "Free-form: '~1K records/day', '~50MB batch'." },
+                "contains_pii": { "type": "boolean" }
+              }
+            }
+          },
+
+          "sla": {
+            "type": ["object", "null"],
+            "properties": {
+              "availability_pct": { "type": ["number", "null"], "minimum": 0, "maximum": 100, "description": "Availability commitment by counterparty (e.g. 99.5)." },
+              "response_time_ms_p95": { "type": ["integer", "null"], "minimum": 0 },
+              "throughput_per_second": { "type": ["integer", "null"], "minimum": 0 },
+              "support_hours": { "type": ["string", "null"], "description": "Free-form: '8x5', '24x7'." }
+            }
+          },
+
+          "status": {
+            "type": "string",
+            "enum": ["active", "planned", "in-development", "deprecated", "retired"]
+          },
+
+          "first_used_at": { "type": ["string", "null"], "format": "date" },
+          "deprecation_date": { "type": ["string", "null"], "format": "date" },
+
+          "lgsp_metadata": {
+            "type": ["object", "null"],
+            "description": "LGSP-specific metadata. Populated when type ∈ {lgsp, ngsp, ndxp}.",
+            "properties": {
+              "service_code": { "type": "string", "description": "LGSP service code as registered with provincial/local LGSP authority." },
+              "service_url": { "type": ["string", "null"] },
+              "owning_org": { "type": ["string", "null"], "description": "Authority operating this LGSP service." },
+              "registered_at": { "type": ["string", "null"], "format": "date" }
+            }
+          },
+
+          "ngsp_metadata": {
+            "type": ["object", "null"],
+            "description": "NGSP/NDXP-specific metadata.",
+            "properties": {
+              "service_code": { "type": "string" },
+              "ndxp_workflow_code": { "type": ["string", "null"], "description": "Cross-system workflow code via NDXP." },
+              "data_sharing_agreement_ref": { "type": ["string", "null"], "description": "Reference to legal data sharing agreement." }
+            }
+          },
+
+          "csdlqg_metadata": {
+            "type": ["object", "null"],
+            "description": "National DB-specific metadata.",
+            "properties": {
+              "csdlqg_code": { "type": "string", "description": "National DB code (dancu, doanhnghiep, baohiem, etc.)." },
+              "fields_consumed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Field names consumed from national DB."
+              },
+              "fields_contributed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Field names this system contributes back to national DB."
+              }
+            }
+          },
+
+          "consuming_components": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "architecture.components[].name that consume this integration."
+          },
+
+          "criticality": {
+            "type": "string",
+            "enum": ["critical", "important", "nice-to-have"],
+            "description": "Business criticality. critical = system fails without it; important = degraded UX; nice-to-have = optional."
+          },
+
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+          },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low", "manual"] },
+          "source_producers": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["from-code", "from-doc", "manual-interview", "intel-merger"] },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+
+    "aggregate_stats": {
+      "type": "object",
+      "description": "Pre-computed aggregates. TKKT §7 + TKCS §3.6 narrative source.",
+      "properties": {
+        "by_type": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "count"],
+            "properties": {
+              "type": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "by_direction": {
+          "type": "object",
+          "properties": {
+            "inbound": { "type": "integer", "minimum": 0 },
+            "outbound": { "type": "integer", "minimum": 0 },
+            "bi_directional": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "lgsp_count": { "type": "integer", "minimum": 0 },
+        "ngsp_count": { "type": "integer", "minimum": 0 },
+        "csdlqg_count": { "type": "integer", "minimum": 0 },
+        "external_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": {
+            "type": "string",
+            "enum": [
+              "missing-auth-method",
+              "missing-purpose",
+              "missing-lgsp-metadata",
+              "missing-ngsp-metadata",
+              "missing-csdlqg-metadata",
+              "deprecated-no-replacement",
+              "credential-inline-risk",
+              "no-rotation-policy",
+              "orphan-integration",
+              "other"
+            ]
+          },
+          "message": { "type": "string" },
+          "integration_id": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

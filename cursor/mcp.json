@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp"
+      ]
+    },
+    "etc-platform": {
+      "type": "sse",
+      "url": "http://localhost:8001/sse"
+    }
+  }
+}

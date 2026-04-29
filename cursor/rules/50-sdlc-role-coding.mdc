@@ -1,0 +1,74 @@
+---
+description: "SDLC role-aware coding rules — auto-attached when editing files in src/ or tests/. Aligns dev/qa/reviewer behavior in code edit mode (outside dispatcher loop) with the same discipline as pipeline agents. Auto-attach by glob."
+globs:
+  - "src/**/*.{ts,tsx,js,jsx,py,go,java,rs,cs,php,rb,kt,swift}"
+  - "tests/**/*.{ts,tsx,js,jsx,py,spec.ts,test.ts,test.py}"
+  - "**/*.test.{ts,tsx,js,jsx,py}"
+  - "**/*.spec.{ts,tsx,js,jsx,py}"
+alwaysApply: false
+---
+
+# SDLC Role-Aware Coding Rules
+
+These rules are auto-attached when Cursor opens code/test files. Purpose: even when working OUTSIDE the dispatcher loop (ad-hoc edits in main chat), Composer should behave like the right SDLC agent for that file's role.
+
+## Mode detection
+
+| File pattern | Implied role | Quality bar |
+|---|---|---|
+| `src/**` (production code) | `dev` / `fe-dev` | AC traceability, BR coverage, lint pass |
+| `tests/**`, `*.spec.*`, `*.test.*` | `qa` | TC ↔ AC mapping, ISTQB technique tag |
+| `*.review.md`, PR descriptions | `reviewer` | Risk flags, AC list, TC adequacy |
+| `*.adr.md`, `docs/adr/**` | `sa` | Trade-off matrix, alternatives |
+
+## Universal coding discipline (all roles)
+
+1. **Intel-first** — Before adding/modifying auth, RBAC, or routes: read `docs/intel/actor-registry.json` + `permission-matrix.json`. Use canonical role slugs. Never invent.
+2. **Feature-state aware** — When editing inside `docs/features/{id}/` workspace: read `_state.md` first. If `status != done` and current-stage doesn't match the file you're editing → warn user about pipeline state mismatch.
+3. **AC tagging** — Every meaningful function/class change should reference AC-NNN in commit message OR inline comment if non-obvious.
+4. **No silent scope creep** — If user asks for X but the file edit needs Y for correctness, surface Y as a separate question instead of bundling.
+
+## Role: dev (`src/**` production)
+
+- Implement ONE acceptance criterion per logical change unit
+- Test next to source: every new function with branching logic gets unit test in same PR
+- Verdict format on completion: `Ready for QA — covers AC-{ids}, BR-{ids}; tests added: {count}`
+
+## Role: qa (`tests/**`)
+
+- Each test file header comment must reference the AC ID(s) it validates
+- Use ISTQB technique tags: `// @technique: BVA | EP | DT | ST | EG`
+- Negative-case parity: at least one negative test per acceptance criterion
+- Verdict format: `Pass — {N} tests, {coverage}% AC coverage` or `Fail — gaps: {list}`
+
+## Role: reviewer (`*.review.md`, PR description draft)
+
+- List ALL AC IDs touched (do not generalize "covers requirements")
+- Flag: missing tests, missing rollback plan (for migrations), missing observability hooks
+- Verdict labels: `Approved` | `Approved with follow-ups` | `Changes requested` | `Blocked`
+
+## Role: sa (`docs/adr/**`, `*.adr.md`)
+
+- Use ADR template: Context → Decision → Alternatives → Consequences → Reversibility
+- Quantify trade-offs (latency, cost, complexity) — never vague "easier"
+- Cite at least one DEDUP source (CT 34 §6) before introducing new platform/library
+
+## Cache-aware editing
+
+When editing files under `.cursor/agents/` or `.cursor/skills/**/SKILL.md`:
+- DO NOT reorder field names in agent prompt header blocks (breaks prompt cache)
+- Run `python ~/.cursor/skills/cache-lint/lint.py --path {file} --strict` before commit
+- Append-only when adding fields to FROZEN_HEADER
+- Field naming: kebab-case lowercase
+
+## Telemetry awareness
+
+If `.cursor/telemetry/{feature-id}.jsonl` exists for the feature this file belongs to:
+- Quick-glance recent telemetry before suggesting changes (look for stage retries, cache misses)
+- Surface anomalies in your response (e.g., "telemetry shows 3 reworks at qa-wave-1 — consider broader test scope")
+
+## Linkage to pipeline
+
+- These rules apply EVEN when user works directly with Composer (no dispatcher loop active)
+- They mirror agent discipline so pipeline-vs-ad-hoc work converges in style
+- For multi-stage work, prefer `/resume-feature {id}` over ad-hoc Composer turns

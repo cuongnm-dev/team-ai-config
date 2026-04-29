@@ -1,0 +1,125 @@
+# Audience Profile — TKCT (Thiết kế Chi tiết) — DOMAIN-AGNOSTIC
+# Persona: Lead engineers + senior devs implementing the system. Technical
+# content IS appropriate, but must be DESIGN narrative (decisions + rationale +
+# constraints), NOT raw intel dump.
+
+audience_id: tkct
+display_name: "Thiết kế Chi tiết (TKCT)"
+
+persona:
+  reader: "Senior engineer / Lead developer / Tech reviewer"
+  level: "Hands-on technical implementer"
+  technical_familiarity: "high"
+  reading_purpose: "Implementation reference + design rationale review"
+
+vocabulary:
+  required_voice: "neutral_technical_VN"
+  preferred_terms:
+    - "module, thành phần, dịch vụ, lớp"
+    - "luồng nghiệp vụ, ràng buộc nghiệp vụ"
+    - "hợp đồng API (API contract), dữ liệu vào/ra"
+    - "cơ sở dữ liệu, bảng, cột, ràng buộc"
+    - "vai trò, quyền truy cập, kiểm soát truy cập"
+  technical_english_allowed:
+    - "REST, JSON, JWT (used as standard term)"
+    - "DBMS names (Postgres, MySQL, Mongo, etc.)"
+    - "framework names in tech stack table"
+
+vocabulary_banned:
+  literal: ["mint token dev", "happy path only", "TODO", "FIXME", "XXX"]
+  regex:
+    - 'console\.log|print\('               # debug code leak
+    - '\bDEV\d{3}\b'                        # dev fixture IDs
+    - '/api/[\w/:\-]+(?:\s+){2,}/api/'       # raw route dump (≥2 adjacent paths in one paragraph)
+
+intel_sources:
+  feature_catalog:
+    file: "docs/intel/feature-catalog.json"
+    allow_fields: ["*"]
+    deny_fields: ["completeness_score", "existing_state_path"]
+
+  code_facts:
+    file: "docs/intel/code-facts.json"
+    allow_fields: ["*"]
+    deny_fields: []
+    rendering_rule: "Transform into design narrative — never paste verbatim."
+
+  entities:
+    file: "docs/intel/entities.json"
+    allow_fields: ["*"]
+    deny_fields: []
+
+  routes:
+    file: "docs/intel/routes.json"
+    allow_fields: ["*"]
+    deny_fields: []
+    rendering_rule: |
+      Routes referenced as design contracts MUST appear in structured tables
+      (method, path, purpose, role, auth) grouped by module. NEVER as a flat
+      list pasted between paragraphs.
+
+  permission_matrix:
+    file: "docs/intel/permission-matrix.json"
+    allow_fields: ["*"]
+    deny_fields: []
+
+precomputed_metrics:
+  - { id: module_count,         compute: "len(unique(feature.module))" }
+  - { id: api_count_total,      compute: "len(routes)" }
+  - { id: db_table_count,       compute: "len(entities.entities)" }
+  - { id: roles_count,          compute: "len(actor_registry.roles)" }
+  - { id: features_per_module,  compute: "group_by(feature_catalog.features, 'module')" }
+  - { id: routes_per_module,    compute: "group_by(routes, 'module')" }
+
+tropes:
+  - pattern_type: regex
+    pattern: '/api/[\w/:\-]+(?:\s+){2,}/api/'
+    output: '<route table required, not flat list>'
+    enforcement: hard_block
+  - pattern_type: regex
+    pattern: 'JWT Bearer \d+ '              # formatting bug from previous renders
+    output: '<formatting bug — use proper API table>'
+    enforcement: hard_block
+
+fewshot_examples:
+  - bad: |
+      JWT Bearer 99 /api/{module}/{entity}/:id PUT api:
+      JWT Bearer 98 /api/{module}/{entity}/bulk POST api:
+    good: |
+      Module {module_name}
+
+      | Method | Path                                    | Mục đích                            | Vai trò      | Auth |
+      |--------|-----------------------------------------|-------------------------------------|--------------|------|
+      | PUT    | /api/{module}/{entity}/:id              | Cập nhật trạng thái {entity}        | {role_a}     | JWT  |
+      | POST   | /api/{module}/{entity}/bulk             | Nhập nhiều {entity} một lần         | {role_a}     | JWT  |
+
+      Ràng buộc nghiệp vụ:
+      - {Entity} chỉ cập nhật được khi {parent_entity} ở trạng thái "{state}"
+      - Nhập bulk giới hạn {N} {entity}/lần để tránh timeout DB
+
+  - bad: |
+      Module M01 thuộc phạm vi hệ thống. Chưa xác định luồng nghiệp vụ.
+      Mô tả này sẽ được thay thế khi có dữ liệu cụ thể.
+    good: |
+      Module {module_id} — {module_name}
+
+      Mục đích nghiệp vụ: {extracted from feature_catalog.business_intent}
+      Phạm vi: {N} chức năng, {M} endpoint, sử dụng {K} thực thể dữ liệu.
+
+      Luồng nghiệp vụ chính: {extracted from feature_catalog.flow_summary}
+
+      [CẦN BỔ SUNG: chi tiết business rules cho module {module_id} — vui lòng
+       cung cấp danh sách validation + error scenarios để hoàn thiện thiết kế.]
+
+validation:
+  banned_jargon_block_render: false   # technical OK
+  module_diversity_threshold: 0.80     # boilerplate detector
+  routes_must_be_in_table: true        # block flat-list dump
+  module_required_design_narrative: true
+
+token_budget:
+  briefing_total: 8000   # larger — TKCT is technical-detail-heavy
+
+writer_output_schema:
+  block: "tkct"
+  required_fields: ["modules[], db_tables[], api_details[], screens[]"]

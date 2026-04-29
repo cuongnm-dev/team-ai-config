@@ -1,0 +1,164 @@
+---
+description: Permission to deep-read code for specific sections requiring technical detail (E13 — TKCT exception to Path A)
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# Deep Code Read Policy — TKCT Detail Exception
+
+## Problem statement
+
+Path A (docs-pure) strict policy forbids reading source code. This works for:
+- HDSD (feature prose from BA specs)
+- TKKT high-level (stack from package.json, architecture overview)
+- TKCS (business + legal + schema summary)
+
+Path A **BREAKS** for:
+- **TKCT db_tables[].columns** — column-level detail rarely in docs
+- **TKCT api_details[].parameters** — request/response schemas rarely documented
+- **TKCT modules[].business_rules** — validation rules embedded in code
+- **Test case validation constraints** — @NotNull/@Min/@Max in annotations
+
+---
+
+## Exception: Scoped deep code read
+
+Path A principles preserved EXCEPT specific fields requiring code detail. Agent may read code for:
+
+| Field | Allowed code reads |
+|---|---|
+| `tkct.db_tables[].columns` | `prisma/schema.prisma`, `*.entity.ts`, `models.py`, `@Column` annotations |
+| `tkct.api_details[].parameters` | DTO files (`*.dto.ts`, `*Request.java`, Pydantic models) |
+| `tkct.api_details[].response_schema` | Return type annotations + interfaces |
+| `tkct.modules[].business_rules` | Service methods + validation decorators |
+| `test_cases.*.validation_scenarios` | class-validator / Pydantic / Joi / bean-validation decorators |
+
+**NOT allowed** để đọc:
+- Business logic flow (for prose sections) — use BA specs
+- Full implementation internals — chỉ public API surface
+- Test files (unless explicitly referenced)
+
+---
+
+## Scoped read patterns
+
+### For `db_tables[].columns`
+
+```
+@Files prisma/schema.prisma
+OR
+@Codebase "@Entity Column PrimaryColumn" (TypeORM)
+OR
+@Codebase "class.*Base.*Column" (SQLAlchemy)
+OR
+@Files src/entities/*.entity.ts src/models/*.model.py
+```
+
+Extract per column:
+```jsonc
+{
+  "name": "email",
+  "type": "String" / "varchar(255)",
+  "nullable": false,
+  "unique": true,
+  "default": null,
+  "description": "Email công vụ — từ schema comment hoặc infer",
+  "constraints": ["@IsEmail", "@Length(max=255)"]
+}
+```
+
+### For `api_details[].parameters`
+
+```
+@Codebase "CreateRequestDto class-validator"
+@Files src/**/dto/*.dto.ts
+```
+
+Extract per parameter:
+```jsonc
+{
+  "name": "title",
+  "location": "body",  // body|query|path|header
+  "type": "string",
+  "required": true,
+  "description": "Tiêu đề yêu cầu",
+  "constraints": {
+    "min_length": 1,
+    "max_length": 200,
+    "pattern": null,
+    "enum": null
+  }
+}
+```
+
+### For `modules[].business_rules`
+
+```
+@Codebase "if.*throw.*Exception" (business rule checks)
+@Codebase "IsNotEmpty ValidateIf IsIn"
+```
+
+Extract rules từ:
+- Validation decorators → field constraints
+- Service method guards → business invariants
+- Controller pre-conditions → state prerequisites
+
+Convert to natural language:
+```
+Code: @ValidateIf(o => o.status === 'submitted') @IsNotEmpty() approver: string
+Business rule: "BR-001: Khi request status = submitted, approver BẮT BUỘC phải set"
+```
+
+### For test case validation scenarios
+
+```
+@Codebase "IsEmail Length Min Max IsIn Matches"
+```
+
+Per validation decorator auto-gen TC:
+```python
+@IsEmail() → TC "Email 'invalid-format' → 'Email không hợp lệ'"
+@Length(min=1, max=200) → TC "Title empty → error; Title 201 chars → error"
+@IsIn(['admin','user']) → TC "Role 'hacker' → 'Role không được phép'"
+```
+
+---
+
+## Scope boundary enforcement
+
+Agent DO NOT:
+- Read service method bodies for prose (use BA spec)
+- Read repository/DAO implementation (use schema only)
+- Read business logic conditionals for section "Mô tả nghiệp vụ"
+- Read test files (unless extracting validation fixtures)
+
+Agent DO:
+- Read DTO classes for parameter schemas
+- Read schema files for column-level detail
+- Read decorators/annotations for validation rules
+- Read enum definitions for allowed values
+
+---
+
+## Why this exception is acceptable
+
+Path A preserves **business interpretation** dans docs domain. Code reads here are:
+1. **Mechanical** — no interpretation, just extract structural data
+2. **Column-level only** — same as reading a spreadsheet
+3. **Deterministic** — same input → same output
+4. **Non-creative** — no prose generation from code
+
+Similar to how Path A allows reading `code-facts.json` (Phase 1B deterministic extract).
+
+---
+
+## Fallback when code read not possible
+
+If repo is encrypted / agent doesn't have file access:
+```
+tkct.db_tables[0].columns: "[CẦN BỔ SUNG: Chi tiết column từ schema — DBA cung cấp]"
+tkct.api_details[0].parameters: "[CẦN BỔ SUNG: Parameter từ DTO — Dev cung cấp]"
+```
+
+Allowed placeholder vì lý do kỹ thuật (không access code), document cause in `intel/code-read-blockers.md`.

@@ -1,0 +1,74 @@
+---
+description: TKKT (Thiết kế Kiến trúc) writing rules — QĐ 292/2025 Khung Kiến trúc CPĐT 4.0
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# TKKT — Thiết kế Kiến trúc
+
+Khi điền `architecture.*` fields (nội dung cho TKKT.docx).
+
+## 9 sections (QĐ 292/2025 CPĐT 4.0)
+
+| Section | Field(s) |
+|---|---|
+| 1. Giới thiệu | `overview.*` (shared) |
+| 2. Tổng quan hệ thống | `system_overview`, `scope_description` |
+| 3. Kiến trúc tổng thể | `architecture_diagram`, `tech_stack[]` |
+| 4. Kiến trúc logic | `logical_diagram`, `components[]` |
+| 5. Kiến trúc dữ liệu | `data_diagram`, `data_entities[]` |
+| 6. Kiến trúc tích hợp | `integration_diagram`, `apis[]`, `external_integrations[]` |
+| 7. Kiến trúc triển khai | `deployment_diagram`, `environments[]`, `containers[]` |
+| 8. Kiến trúc bảo mật | `security_diagram`, `security_description`, `auth_description` |
+| 9. Yêu cầu phi chức năng | `nfr[]` |
+
+## 6 diagrams (TKKT bắt buộc)
+
+- `architecture_diagram` — L0, tổng thể hệ thống
+- `logical_diagram` — L1, components + interactions
+- `data_diagram` — ERD tổng thể
+- `integration_diagram` — external systems + APIs
+- `deployment_diagram` — environments + containers
+- `security_diagram` — auth flow + boundaries
+
+Cung cấp Mermaid source trong field tương ứng; etc-docgen render PNG tự động.
+
+## tech_stack — version precision
+
+Mỗi entry `tech_stack[]`:
+```jsonc
+{
+  "layer": "Frontend",           // Frontend | Backend | Database | Cache | Queue | Infrastructure
+  "technology": "Next.js",        // đúng tên chính thức
+  "version": "15.0.1",           // full semver, không chỉ major
+  "role": "Server Components..."  // 1 câu mô tả role trong project
+}
+```
+
+Thiếu patch version → `"[CẦN BỔ SUNG: patch version]"` không đoán `.0`.
+
+## components[] — đúng số lượng
+
+Số entries = số services trong `intel/arch-report.json` hoặc `docs/architecture.md`. KHÔNG thêm bớt.
+
+## nfr[] — requirement vs solution
+
+Mỗi NFR entry:
+```jsonc
+{
+  "criterion": "Hiệu năng",           // Hiệu năng | Khả dụng | Bảo mật | Mở rộng | Tương thích | Duy trì
+  "requirement": "API p95 < 500ms",    // đo được
+  "solution": "Redis cache + connection pooling + DB index"  // concrete, không generic
+}
+```
+
+Minimum 6 NFR (6 criterion). Nếu docs không có → infer từ stack (Bậc 3 Evidence Ladder) hoặc `[CẦN BỔ SUNG]`.
+
+## Reference khung kiến trúc
+
+Khi viết `compliance` hoặc `design_principles`, reference:
+- **QĐ 292/QĐ-BKHCN (2025)** — Khung Kiến trúc Chính phủ điện tử 4.0
+- **QĐ 2568/QĐ-BTTTT (2024)** — Khung Kiến trúc 3.0 (fallback nếu dự án triển khai từ trước)
+
+Đối chiếu 4 view: Business, Data, Application, Technology.

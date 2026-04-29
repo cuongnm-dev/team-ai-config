@@ -1,0 +1,351 @@
+source: D:\Projects\etracking-management\docs\output\tkcs-outline.json
+outline:
+- level: 1
+  text: GIỚI THIỆU CHUNG DỰ ÁN
+- level: 2
+  text: Tên dự án
+- level: 2
+  text: Chủ đầu tư
+- level: 2
+  text: Tổ chức tư vấn lập dự án
+- level: 2
+  text: Hình thức đầu tư
+- level: 2
+  text: Thời gian thực hiện dự án
+- level: 2
+  text: Nguồn vốn
+- level: 1
+  text: SỰ CẦN THIẾT ĐẦU TƯ
+- level: 2
+  text: Cơ sở pháp lý
+- level: 2
+  text: Tóm tắt hiện trạng
+- level: 3
+  text: Hiện trạng về cơ sở hạ tầng
+- level: 3
+  text: Hiện trạng về công tác lưu trữ và phân tích thông tin về rửa tiền
+- level: 2
+  text: Sự cần thiết đầu tư
+- level: 2
+  text: Xác định mục tiêu, kết quả và đầu ra của dự án
+- level: 3
+  text: Mục tiêu đầu tư
+- level: 3
+  text: Kết quả đầu ra dự án
+- level: 2
+  text: Quy mô đầu tư
+- level: 2
+  text: Địa điểm đầu tư
+- level: 1
+  text: ĐÁNH GIÁ SỰ PHÙ HỢP VỚI QUY HOẠCH CÓ LIÊN QUAN THEO QUY ĐỊNH CỦA PHÁP LUẬT VỀ QUY HOẠCH
+- level: 2
+  text: Thuyết minh sự phù hợp với Khung kiến trúc Chính phủ số Việt nam, phiên bản 4.0
+- level: 2
+  text: Thuyết minh sự phù hợp với Kế hoạch ứng dụng CNTT Bộ Công an
+- level: 2
+  text: Kết luận
+- level: 1
+  text: PHÂN TÍCH, LỰA CHỌN PHƯƠNG ÁN CÔNG NGHỆ, KỸ THUẬT, THIẾT BỊ
+- level: 2
+  text: Các tiêu chí lựa chọn phương án công nghệ, kỹ thuật
+- level: 3
+  text: Các tiêu chí chung
+- level: 3
+  text: Các tiêu chí lựa chọn trang thiết bị hạ tầng kỹ thuật
+- level: 3
+  text: Các tiêu chí lựa chọn giải pháp công nghệ, kỹ thuật
+- level: 2
+  text: Phân tích và lựa chọn các phương án kỹ thuật
+- level: 3
+  text: Phương án phân tích giải pháp tổng thể
+- level: 3
+  text: Phương án dự phòng kết nối
+- level: 3
+  text: Lựa chọn giải pháp, công nghệ phát triển ứng dụng
+- level: 4
+  text: Mô hình kiến trúc phần mềm
+- level: 4
+  text: Lựa chọn công nghệ, ngôn ngữ phát triển
+- level: 4
+  text: Lựa chọn về hệ quản trị cơ sở dữ liệu
+- level: 4
+  text: Lựa chọn hệ điều hành
+- level: 3
+  text: Phân tích, lựa chọn phương án công nghệ, kỹ thuật, thiết bị
+- level: 4
+  text: Các tiêu chí lựa chọn công nghệ
+- level: 4
+  text: Nguyên tắc lựa chọn giải pháp công nghệ
+- level: 4
+  text: Lựa chọn công nghệ mạng
+- level: 4
+  text: Lựa chọn công nghệ tường lửa
+- level: 4
+  text: Lựa chọn công nghệ máy chủ
+- level: 4
+  text: Lựa chọn công nghệ lưu trữ
+- level: 4
+  text: Lựa chọn công nghệ sao lưu
+- level: 4
+  text: Lựa chọn công nghệ đảm bảo an toàn thông tin
+- level: 1
+  text: THIẾT KẾ CƠ SỞ PHƯƠNG ÁN CHỌN
+- level: 2
+  text: Mô tả các yêu cầu của dự án
+- level: 2
+  text: Các yêu cầu kỹ thuật chung của dự án
+- level: 3
+  text: Yêu cầu chung
+- level: 3
+  text: Về an toàn thông tin
+- level: 3
+  text: Về công nghệ kỹ thuật
+- level: 3
+  text: Về an toàn truyền thông
+- level: 3
+  text: Về tính tương thích
+- level: 3
+  text: Về quản trị hệ thống
+- level: 3
+  text: Khả năng phân lập lỗi
+- level: 3
+  text: Về tính mềm dẻo
+- level: 3
+  text: Về yêu cầu đối với giải pháp kỹ thuật, công nghệ nền tảng
+- level: 3
+  text: Yêu cầu đối với hệ thống lưu trữ dữ liệu
+- level: 3
+  text: Yêu cầu đối với máy chủ
+- level: 3
+  text: Yêu cầu đối với máy tính trạm
+- level: 3
+  text: Yêu cầu về kết nối hệ thống ra bên ngoài
+- level: 3
+  text: Yêu cầu phi chức năng khác
+- level: 2
+  text: Danh mục quy chuẩn, tiêu chuẩn chủ yếu áp dụng
+- level: 3
+  text: Tiêu chuẩn kết nối
+- level: 3
+  text: Tiêu chuẩn về tích hợp dữ liệu
+- level: 3
+  text: Tiêu chuẩn về truy cập thông tin
+- level: 3
+  text: Tiêu chuẩn về an toàn thông tin
+- level: 2
+  text: Thiết kế mô hình tổng thể hệ thống
+- level: 3
+  text: Mô hình kiến trúc tổng thể dự án
+- level: 3
+  text: 1. Vùng ngoài và đối tác
+- level: 3
+  text: 2. Vùng tích hợp và tiếp nhận
+- level: 3
+  text: 3. Vùng đệm tiếp nhận liên miền
+- level: 3
+  text: 4. Vùng lõi điều tra nghiệp vụ
+- level: 3
+  text: 5. Vùng phân tích an toàn
+- level: 3
+  text: 6. Vùng phát hành có kiểm soát
+- level: 3
+  text: 7. Vùng phối hợp nghiệp vụ ngành Công an và Công an địa phương
+- level: 3
+  text: Mô hình kiến trúc nghiệp vụ, logic
+- level: 3
+  text: 1. Chuỗi xử lý nghiệp vụ chủ đạo
+- level: 3
+  text: 2. Sự tương ứng giữa logic nghiệp vụ và các vùng xử lý
+- level: 3
+  text: 3. Các điểm kiểm soát trong chuỗi nghiệp vụ
+- level: 3
+  text: 4. Luồng nghiệp vụ STR tham chiếu
+- level: 3
+  text: Mô hình kiến trúc dữ liệu
+- level: 3
+  text: 1. Nguyên tắc tổ chức dữ liệu theo các vùng xử lý
+- level: 3
+  text: 2. Các đối tượng thông tin cốt lõi
+- level: 3
+  text: 3. Dòng đời dữ liệu trong hệ thống
+- level: 3
+  text: 4. Dữ liệu quản trị và dữ liệu truy nguyên
+- level: 3
+  text: Kiến trúc ứng dụng hệ thống
+- level: 3
+  text: 1. Cấu trúc ứng dụng theo vai trò của từng vùng
+- level: 3
+  text: 2. Nhóm chức năng cốt lõi của hệ thống A04
+- level: 3
+  text: 3. Các chức năng hỗ trợ kiến trúc tổng thể
+- level: 3
+  text: Kiến trúc tương tác, trao đổi thông tin
+- level: 3
+  text: 1. Các tuyến trao đổi chính trong hệ thống
+- level: 3
+  text: 2. Nguyên tắc tương tác giữa các vùng
+- level: 3
+  text: 3. Yêu cầu kiểm soát xuyên suốt
+- level: 2
+  text: Thiết kế cơ sở Phần mềm ứng dụng
+- level: 3
+  text: Các văn bản hướng dẫn về nghiệp vụ và kỹ thuật
+- level: 3
+  text: Phần mềm phân tích và xử lý thông tin tội phạm rửa tiền và tài trợ khủng bố
+- level: 4
+  text: Mô hình kiến trúc
+- level: 4
+  text: Yêu cầu nghiệp vụ, dữ liệu
+- level: 4
+  text: Danh mục các dữ liệu quản lý
+- level: 4
+  text: Quy trình nghiệp vụ cần được tin học hóa
+- level: 4
+  text: Các đối tượng tham gia vào quy trình nghiệp vụ và mối liên hệ giữa chúng
+- level: 4
+  text: Các yêu cầu chức năng của phần mềm ứng dụng
+- level: 3
+  text: Yêu cầu phi chức năng chung
+- level: 4
+  text: Yêu cầu cần đáp ứng đối với cơ sở dữ liệu
+- level: 4
+  text: Yêu cầu về an toàn thông tin
+- level: 4
+  text: 'Các yêu cầu cần đáp ứng về thời gian xử lý, độ phức tạp xử lý của các phần mềm:'
+- level: 4
+  text: 'Các yêu cầu về cài đặt, hạ tầng, đường truyền, an toàn vận hành, khai thác, sử dụng:'
+- level: 4
+  text: 'Các ràng buộc đối với hệ thống gồm: ràng buộc môi trường, sự phụ thuộc vào hệ thống nền tảng;'
+- level: 4
+  text: 'Yêu cầu về tính sẵn sàng với IPv6 (nếu hoạt động trên môi trường Internet):'
+- level: 3
+  text: Yêu cầu về độ phức tạp kỹ thuật - công nghệ của phần mềm
+- level: 3
+  text: Yêu cầu môi trường phát triển, nâng cấp, chỉnh sửa phần mềm
+- level: 3
+  text: Đào tạo hướng dẫn sử dụng phần mềm
+- level: 3
+  text: Kiểm thử phần mềm
+- level: 2
+  text: Thiết kế cơ sở Hạ tầng kỹ thuật
+- level: 3
+  text: Mô hình logic tổng thể về hạ tầng
+- level: 3
+  text: Mô hình vật lý tổng thể về hạ tầng
+- level: 3
+  text: Sơ đồ sơ bộ thể hiện việc kết nối, liên thông với các hệ thống hạ tầng kỹ thuật, phần mềm, cơ sở dữ liệu liên quan
+- level: 3
+  text: Sơ đồ sơ bộ xây lắp, lắp đặt (đối với xây lắp mạng, lắp đặt thiết bị công nghệ thông tin và các phụ kiện)
+- level: 4
+  text: Sơ đồ lắp đặt mạng, thiết bị công nghệ thống tin cho hệ thống
+- level: 3
+  text: Thiết kế sẵn sàng đáp ứng IPv6
+- level: 4
+  text: Mô hình thiết kế tổng thể hệ thống
+- level: 4
+  text: Thiết kế hạ tầng đáp ứng IPv6
+- level: 4
+  text: Thiết kế phần mềm đáp ứng IPv6
+- level: 2
+  text: Khối lượng sơ bộ các công tác xây lắp, thiết bị và các yêu cầu kỹ thuật
+- level: 4
+  text: Danh mục các thiết bị phần cứng
+- level: 1
+  text: PHƯƠNG ÁN ĐẢM BẢO AN TOÀN THÔNG TIN CẤP ĐỘ
+- level: 2
+  text: Phương án yêu cầu về thiết kế hệ thống
+- level: 2
+  text: Phương án yêu cầu về kỹ thuật
+- level: 1
+  text: PHƯƠNG ÁN TỔ CHỨC QUẢN LÝ, KHAI THÁC, SỬ DỤNG DỰ ÁN
+- level: 2
+  text: Chuẩn bị về nguồn lực CNTT
+- level: 2
+  text: Chuẩn bị về cơ chế, chính sách
+- level: 2
+  text: Chuẩn bị về hạ tầng truyền thông
+- level: 2
+  text: Chuẩn bị về hạ tầng thiết bị
+- level: 2
+  text: Tổ chức hỗ trợ người sử dụng
+- level: 2
+  text: Tổ chức quản trị và vận hành, bảo trì hệ thống
+- level: 1
+  text: DỰ KIẾN TIẾN ĐỘ THỰC HIỆN DỰ ÁN; CÁC MỐC THỜI GIAN CHÍNH THỰC HIỆN ĐẦU TƯ
+- level: 2
+  text: Dự kiến tiến độ thực hiện dự án
+- level: 3
+  text: Chuẩn bị đầu tư
+- level: 3
+  text: Thực hiện đầu tư
+- level: 3
+  text: Kết thúc đầu tư
+- level: 2
+  text: Các mốc chính của dự án
+- level: 1
+  text: XÁC ĐỊNH TỔNG MỨC ĐẦU TƯ, CƠ CẤU NGUỒN VỐN, PHƯƠNG ÁN HUY ĐỘNG VỐN
+- level: 2
+  text: Tổng mức đầu tư
+- level: 2
+  text: ''
+- level: 2
+  text: Tổng mức đầu tư chi tiết
+- level: 1
+  text: XÁC ĐỊNH CHI PHÍ VẬN HÀNH. BẢO DƯỠNG. DUY TU. SỬA CHỮA LỚN TRONG GIAI ĐOẠN KHAI THÁC DỰ ÁN
+- level: 2
+  text: Bảo hành và hỗ trợ kỹ thuật trong thời gian bảo hành
+- level: 3
+  text: Xác định phạm vi bảo hành phần cứng
+- level: 3
+  text: Xác định phạm vi bảo hành phần mềm hệ thống
+- level: 3
+  text: Xác định phạm vi bảo hành phần mềm ứng dụng
+- level: 3
+  text: Xác định cơ chế tổ chức thực hiện bảo hành và hỗ trợ kỹ thuật
+- level: 4
+  text: Về địa điểm bảo hành của nhà cung cấp
+- level: 4
+  text: Về khung thời gian cần đáp ứng
+- level: 4
+  text: Về mô hình tổ chức thực hiện bảo hành và hỗ trợ kỹ thuật
+- level: 3
+  text: Xác định chi phí bảo hành
+- level: 2
+  text: Xác định sơ bộ về các chi phí vận hành. duy tu bảo dưỡng. sửa chữa lớn trong giai đoạn khai thác
+- level: 3
+  text: Dịch vụ bảo trì phần mềm ứng dụng
+- level: 3
+  text: Dịch vụ bảo trì phần mềm hệ thống
+- level: 3
+  text: Dịch vụ bảo trì tổng thể hệ thống tại Trung tâm dữ liệu
+- level: 3
+  text: Hỗ trợ kỹ thuật cho Trung tâm dữ liệu
+- level: 3
+  text: Xác định chi phí vận hành. bảo dưỡng. duy tu sửa chữa lớn trong giai đoạn khai thác dự án
+- level: 1
+  text: TỔ CHỨC QUẢN LÝ DỰ ÁN. XÁC ĐỊNH CHỦ ĐẦU TƯ. PHÂN TÍCH LỰA CHỌN HÌNH THỨC TỔ CHỨC QUẢN LÝ THỰC HIỆN DỰ ÁN
+- level: 2
+  text: Chủ đầu tư
+- level: 2
+  text: Kiến nghị áp dụng hình thức quản lý dự án
+- level: 2
+  text: Mối quan hệ và trách nhiệm của các chủ thể liên quan đến quá trình thực hiện dự án. tổ chức bộ máy quản lý khai thác
+    dự án
+- level: 3
+  text: Chủ đầu tư
+- level: 3
+  text: Ban quản lý dự án
+- level: 3
+  text: Nhà thầu tư vấn có liên quan
+- level: 3
+  text: Cơ quan. tổ chức thẩm định dự án
+- level: 3
+  text: Đơn vị triển khai
+- level: 2
+  text: Phương pháp quản lý dự án
+- level: 3
+  text: Xây dựng kế hoạch dự án
+- level: 3
+  text: Quản lý tiến độ dự án
+- level: 3
+  text: Quản lý chất lượng dự án

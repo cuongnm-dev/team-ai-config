@@ -1,0 +1,78 @@
+---
+description: Generic NX monorepo structure template — directory layout, file placement patterns, and cross-cutting docs convention. Read before creating files or directories in any NX workspace.
+alwaysApply: false
+globs:
+  - "nx.json"
+  - "package.json"
+  - "tsconfig.base.json"
+  - "**/project.json"
+---
+
+# Project Structure (Generic Template)
+
+## Directory Layout
+
+```
+{root}/
+├── src/
+│   ├── apps/{app-name}/              ← Deployable FE/mobile apps (NX projects)
+│   │   ├── src/
+│   │   ├── docs/                     ← architecture/, adr/, features/{feature-id}/
+│   │   └── project.json
+│   ├── services/{service-name}/      ← Backend services (NX projects)
+│   │   ├── src/
+│   │   ├── db/migrations/            ← Service-local SQL migrations (if applicable)
+│   │   ├── docs/                     ← architecture/, adr/, features/{feature-id}/
+│   │   ├── Dockerfile
+│   │   └── project.json
+│   └── shared/
+│       ├── libs/{name}/              ← Shared libraries (ui, types, utils, config...)
+│       └── assets/                   ← Shared static assets
+├── infra/                            ← Docker, K8s, Terraform, CI configs
+├── tools/generators/                 ← NX custom generators
+├── docs/                             ← Cross-cutting docs only
+│   ├── architecture/                 ← system-context, containers, tech-radar, adr/
+│   ├── business/                     ← vision, domain-model, stakeholders
+│   └── data/                         ← Master data, schemas
+├── docker-compose.yml
+├── AGENTS.md
+└── nx.json, package.json, tsconfig.base.json
+```
+
+## File Placement Patterns
+
+| What | Where |
+|---|---|
+| Workspace config (nx.json, tsconfig.base.json) | Root only |
+| Workspace ADR (affects ≥2 projects) | `docs/architecture/adr/` |
+| Project ADR (one project only) | `{project_path}/docs/adr/` |
+| Feature pipeline artifacts | `{project_path}/docs/features/{feature-id}/` |
+| Cross-cutting feature (PM designates) | `docs/features/{feature-id}` |
+| Shared components (≥2 apps) | `src/shared/libs/ui/src/` |
+| Service Dockerfile | Collocated: `{project_path}/Dockerfile` |
+
+## Docs Path Formula
+
+```
+project-path = src/apps/{name}  OR  src/services/{name}
+docs-path    = {project-path}/docs/features/{feature-id}
+adr-path     = {project-path}/docs/adr/
+```
+
+Feature locate: `docs/feature-map.yaml` → lookup `features.{id}.docs_path` (PRIMARY, avoids glob).
+
+## NX Project Tags Convention
+
+Every `project.json` should include:
+```json
+{
+  "tags": [
+    "scope:{project-name}",
+    "type:{app|service|lib}",
+    "platform:{web|mobile|node|dotnet|python|java|rust|...}",
+    "ui-template:{template-name|none}"
+  ]
+}
+```
+
+Agents use NX MCP `get_project_details({name})` to read tags — no manual lookup needed.

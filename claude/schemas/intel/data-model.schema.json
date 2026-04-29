@@ -1,0 +1,243 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/data-model.schema.json",
+  "title": "Data Model",
+  "description": "Logical + physical data model: entities, tables, columns, ERD, data dictionary, backup strategy. Tier 2 cross-stage. Consumed by sa-pro/data-governance/dev (Cursor when migration) + tdoc-tkct-writer §4 (entirely) + tdoc-tkkt-writer §5 (aggregated). Aggregated from code-facts.entities[] by from-code, augmented with business meaning by from-doc. Justified by TKCT §4.1 (mô hình DL logic), §4.2 (mô hình DL vật lý), §4.3 (từ điển dữ liệu), §4.4 (backup/recovery); TKKT §5 (aggregated entity catalog).",
+  "type": "object",
+  "required": ["schema_version", "entities", "tables"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "erd_diagram": {
+      "type": ["string", "null"],
+      "description": "Mermaid erDiagram source for top 10-15 entities + relationships. Source for TKCT §4.1 + TKKT §5.1 sơ đồ ER."
+    },
+
+    "entities": {
+      "type": "array",
+      "description": "Logical entity catalog (aggregated, business-level). Used by TKKT §5 (no column-level — TKCT territory) + feature-catalog.features[].entities[] FK target.",
+      "items": {
+        "type": "object",
+        "required": ["name", "purpose"],
+        "properties": {
+          "name": { "type": "string", "description": "PascalCase entity name (e.g. 'User', 'ApprovalRequest'). Stable across regenerations." },
+          "name_vn": { "type": ["string", "null"], "description": "Vietnamese display name for TKCT §4.3 + TKKT §5." },
+          "purpose": { "type": "string", "minLength": 30, "description": "Business meaning of this entity. Source for TKCT §4.3 'business_meaning' column. Min 30 chars to prevent thin output." },
+          "category": {
+            "type": "string",
+            "enum": ["master-data", "transaction-data", "reference-data", "document-content", "audit-log", "config", "other"],
+            "description": "TKKT §5.2 phân loại."
+          },
+          "owning_service": { "type": ["string", "null"], "description": "system-inventory.services[].id that owns this entity (writer responsibility)." },
+          "owning_component": { "type": ["string", "null"], "description": "architecture.components[].name that owns this entity. Cross-ref TKKT §4.2." },
+          "key_relations": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Top 3-5 relationships (e.g. 'User has-many ApprovalRequest'). Used in TKKT §5.1 narrative."
+          },
+          "table_refs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "tables[].name that physically implement this entity. Usually 1:1 but may be 1:N for sharded/partitioned."
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+          },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low", "manual"] },
+          "source_producers": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["from-code", "from-doc", "manual-interview", "intel-merger"] },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+
+    "tables": {
+      "type": "array",
+      "description": "Physical table-level DDL detail. TKCT §4.2 mandate: per-table columns + types + constraints + indexes. Hard-stop in from-code Phase 8 if empty when project has DB.",
+      "items": {
+        "type": "object",
+        "required": ["name", "columns"],
+        "properties": {
+          "name": { "type": "string", "description": "Physical table name (db-native casing)." },
+          "schema": { "type": ["string", "null"], "description": "DB schema/namespace (e.g. 'public', 'dbo')." },
+          "entity_ref": { "type": ["string", "null"], "description": "entities[].name this table implements." },
+          "description": { "type": "string", "description": "Table purpose (1-2 sentences)." },
+          "columns": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["name", "type"],
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "type": "string", "description": "DB-native type with precision (e.g. 'VARCHAR(255)', 'INT', 'TIMESTAMP WITH TIME ZONE')." },
+                "nullable": { "type": "boolean" },
+                "default": { "type": ["string", "number", "boolean", "null"] },
+                "primary_key": { "type": "boolean" },
+                "unique": { "type": "boolean" },
+                "foreign_key": {
+                  "type": ["object", "null"],
+                  "properties": {
+                    "target_table": { "type": "string" },
+                    "target_column": { "type": "string" },
+                    "on_delete": { "enum": ["CASCADE", "SET NULL", "RESTRICT", "NO ACTION", "SET DEFAULT", null] },
+                    "on_update": { "enum": ["CASCADE", "SET NULL", "RESTRICT", "NO ACTION", "SET DEFAULT", null] }
+                  }
+                },
+                "business_meaning": { "type": ["string", "null"], "description": "Vietnamese description for TKCT §4.3 từ điển dữ liệu. Augmented by from-doc." },
+                "valid_values": {
+                  "type": "array",
+                  "items": { "type": ["string", "number"] },
+                  "description": "Enum/check-constraint values. TKCT §4.3 mandate."
+                },
+                "is_pii": { "type": "boolean", "description": "PII flag for compliance. NĐ 13/2023 (DLCN) mandate." },
+                "pii_category": {
+                  "type": ["string", "null"],
+                  "enum": ["identity", "contact", "financial", "health", "location", "credentials", "biometric", "other", null]
+                },
+                "encryption_at_rest": { "type": "boolean", "description": "TKCT §5.3 mã hóa requirement." }
+              }
+            }
+          },
+          "indexes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "columns"],
+              "properties": {
+                "name": { "type": "string" },
+                "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+                "unique": { "type": "boolean" },
+                "type": { "enum": ["btree", "hash", "gin", "gist", "fulltext", "spatial", "other"] }
+              }
+            }
+          },
+          "constraints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind"],
+              "properties": {
+                "name": { "type": ["string", "null"] },
+                "kind": { "enum": ["check", "not-null", "unique", "primary-key", "foreign-key", "exclusion"] },
+                "definition": { "type": "string", "description": "SQL fragment or human description." }
+              }
+            }
+          },
+          "row_count_estimate": { "type": ["integer", "null"], "minimum": 0, "description": "Used for TKCS §4.2 sizing + TKCT §6.2 capacity planning." },
+          "growth_estimate": { "type": ["string", "null"], "description": "Free-form: 'low', '~10K rows/month', etc." },
+          "partitioning": {
+            "type": ["object", "null"],
+            "properties": {
+              "scheme": { "enum": ["range", "list", "hash", null] },
+              "key": { "type": "string" }
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+          },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low", "manual"] }
+        }
+      }
+    },
+
+    "data_dictionary": {
+      "type": "array",
+      "description": "Semantic data dictionary — TKCT §4.3 mandate. Augmented business meaning per column. Generated by merging tables[].columns with business prose from from-doc.",
+      "items": {
+        "type": "object",
+        "required": ["table", "column", "type", "business_meaning"],
+        "properties": {
+          "table": { "type": "string" },
+          "column": { "type": "string" },
+          "type": { "type": "string" },
+          "business_meaning": { "type": "string", "minLength": 20, "description": "Vietnamese; what does this column mean to the business?" },
+          "valid_values": { "type": "array", "items": { "type": ["string", "number"] } },
+          "format_pattern": { "type": ["string", "null"], "description": "Regex or format hint (e.g. 'YYYY-MM-DD', 'CCCD 12 digits')." },
+          "is_required": { "type": "boolean" },
+          "example_values": { "type": "array", "items": { "type": ["string", "number", "boolean"] } }
+        }
+      }
+    },
+
+    "data_classification": {
+      "type": "object",
+      "description": "Data sensitivity classification per NĐ 13/2023 (DLCN) + NĐ 85/2016 (ATTT). TKCT §5.3 mandate.",
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "enum": ["public", "internal", "confidential", "restricted", "secret", "custom"],
+          "description": "Classification scheme used."
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["level", "description"],
+            "properties": {
+              "level": { "type": "string" },
+              "description": { "type": "string" },
+              "tables": { "type": "array", "items": { "type": "string" }, "description": "tables[].name with this classification." },
+              "encryption_required": { "type": "boolean" },
+              "audit_required": { "type": "boolean" },
+              "retention_days": { "type": ["integer", "null"], "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+
+    "backup_strategy": {
+      "type": "object",
+      "description": "Backup + recovery design. TKCT §4.4 mandate.",
+      "properties": {
+        "frequency": { "type": ["string", "null"], "description": "Free-form: 'daily', 'every 6h', 'continuous'." },
+        "method": { "enum": ["full", "incremental", "differential", "continuous", "snapshot", "logical-dump", "physical-replica", null] },
+        "retention_policy": { "type": ["string", "null"], "description": "Retention rule. Example: '30 days hot + 1 year cold'." },
+        "storage_location": { "type": ["string", "null"], "description": "Where backups are stored." },
+        "rpo_minutes": { "type": ["integer", "null"], "minimum": 0, "description": "Recovery Point Objective in minutes." },
+        "rto_minutes": { "type": ["integer", "null"], "minimum": 0, "description": "Recovery Time Objective in minutes." },
+        "encryption": { "type": "boolean" },
+        "tested_at": { "type": ["string", "null"], "format": "date", "description": "Last DR drill date." }
+      }
+    },
+
+    "migrations": {
+      "type": "array",
+      "description": "Migration history (chronological). Optional. Source for TKCT §4 schema evolution narrative + drift tracking.",
+      "items": {
+        "type": "object",
+        "required": ["version", "file"],
+        "properties": {
+          "version": { "type": "string", "description": "Migration version/timestamp id." },
+          "file": { "type": "string", "description": "Repo-relative path." },
+          "applied_at": { "type": ["string", "null"], "format": "date-time" },
+          "description": { "type": "string" },
+          "tables_affected": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": {
+            "type": "string",
+            "enum": ["missing-pk", "missing-fk-target", "missing-business-meaning", "thin-data-dictionary", "no-backup-strategy", "pii-not-encrypted", "orphan-entity", "other"]
+          },
+          "message": { "type": "string" },
+          "table": { "type": ["string", "null"] },
+          "column": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

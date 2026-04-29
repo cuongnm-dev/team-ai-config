@@ -1,0 +1,203 @@
+---
+description: Cross-reference validation — content-data claims must match code-facts
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# Cross-Reference Validation Rules
+
+## Principle
+
+`content-data.json` claims về technical facts PHẢI khớp với `code-facts.json` (output từ Phase 1B).
+
+Nếu docs nói "Next.js 14" nhưng package.json nói "15.0.1" → **docs sai, code-facts wins** (code là source of truth).
+
+Exception: Nếu docs reference plan tương lai (vd "sẽ migrate lên Kubernetes Q4/2026"), acceptable.
+
+---
+
+## Mandatory cross-ref checks
+
+### 1. Tech stack versions
+
+Mỗi entry trong `architecture.tech_stack[]`:
+```python
+for ts in data["architecture"]["tech_stack"]:
+    fact = find(code_facts["tech_stack"], name=ts.technology)
+    if fact and fact.version != ts.version:
+        VIOLATION: "tech_stack.{ts.technology}: data={ts.version} vs code={fact.version}"
+```
+
+### 2. Service count
+
+```python
+if len(data["architecture"]["components"]) != len(code_facts["docker"]["services"]):
+    VIOLATION: "components count mismatch"
+```
+
+Components có thể là logical grouping, nhưng phải có thể trace 1-N to docker services.
+
+### 3. Data entities coverage
+
+```python
+data_entity_names = {e.name for e in data["architecture"]["data_entities"]}
+code_entity_names = {e.name for e in code_facts["entities"]}
+
+missing_in_doc = code_entity_names - data_entity_names
+if missing_in_doc:
+    VIOLATION: f"Entities {missing_in_doc} in code but not in data_entities"
+    # OK chỉ nếu doc intentionally scope-limit
+```
+
+### 4. API coverage
+
+```python
+data_apis = {(a.method, a.path) for a in data["architecture"]["apis"]}
+code_apis = {(r.method, r.path) for r in code_facts["routes"]}
+
+missing = code_apis - data_apis
+coverage = 1 - (len(missing) / len(code_apis))
+
+if coverage < 0.8:
+    VIOLATION: f"API coverage {coverage:.0%} < 80%"
+```
+
+API docs không bắt buộc 100% (internal/admin APIs có thể exclude), nhưng ≥ 80%.
+
+### 5. Container facts
+
+```python
+for c in data["architecture"]["containers"]:
+    fact = find(code_facts["docker"]["services"], name=c.name)
+    if not fact:
+        VIOLATION: f"container {c.name} not in docker-compose"
+    if c.image != fact.image:
+        VIOLATION: f"container {c.name} image mismatch"
+    if c.port != fact.ports[0]:
+        VIOLATION: f"container {c.name} port mismatch"
+```
+
+### 6. Environment coverage
+
+```python
+for env in data["architecture"]["environments"]:
+    env_vars = env.get("required_vars", [])
+    code_required = [v for v in code_facts["env_vars"] if v.required]
+    missing = set(v.name for v in code_required) - set(env_vars)
+    if missing:
+        WARN: f"Environment {env.name} docs miss required vars: {missing}"
+```
+
+---
+
+## Feature-to-route mapping
+
+Cho HDSD generation:
+```python
+for service in data["services"]:
+    for feature in service.features:
+        api_refs = feature.get("api_refs", [])
+        for ref in api_refs:
+            method, path = parse_api_ref(ref)
+            if not find(code_facts["routes"], method=method, path=path):
+                VIOLATION: f"feature {feature.id} references non-existent route {ref}"
+```
+
+Nếu feature reference route không tồn tại → feature có thể là stale BA spec, cần review.
+
+---
+
+## Violation severity
+
+| Violation type | Severity |
+|---|---|
+| Tech stack version mismatch (patch) | minor |
+| Tech stack version mismatch (major) | major |
+| Missing entity in docs | major |
+| API coverage < 80% | major |
+| API coverage < 50% | blocker |
+| Container image mismatch | major |
+| Feature references dead route | major |
+| Service count mismatch | major |
+
+---
+
+## Resolution in Phase 3.5 Quality Gate
+
+```yaml
+pass_2_cross_reference:
+  violations:
+    - type: version_mismatch
+      field: architecture.tech_stack[0].version
+      data_says: "15.0"
+      code_says: "15.0.1"
+      severity: minor
+      fix: "Update content-data to 15.0.1 (code is authoritative)"
+
+    - type: missing_entity
+      entity: "AuditLog"
+      in_code: true
+      in_data: false
+      severity: major
+      fix: |
+        Add to architecture.data_entities:
+        {"name": "AuditLog", "purpose": "Audit trail per NĐ 13/2023",
+         "storage_type": "PostgreSQL", "source": "prisma/schema.prisma"}
+```
+
+---
+
+## Auto-fix vs user decision
+
+### Auto-fix (no user input needed)
+
+- Version patch/minor mismatch → update content-data from code
+- Container image drift (docker-compose updated, docs not) → update
+- Missing entity trong data_entities → append with minimal info
+
+### User decision required
+
+- API coverage < 80% — user decides: document more APIs OR mark as intentional scope
+- Entity exists in code but docs intentionally exclude → user adds "excluded because X"
+- Version major mismatch — user decides: upgrade planned vs docs stale
+
+---
+
+## Output cho Phase 3.5
+
+```jsonc
+{
+  "cross_reference_validation": {
+    "ran_at": "2026-04-20T11:30:00Z",
+    "total_violations": 6,
+    "severity_breakdown": {"blocker": 0, "major": 2, "minor": 4},
+    "auto_fixable": 4,
+    "needs_user_decision": 2,
+
+    "violations": [...],
+
+    "coverage_metrics": {
+      "tech_stack_match_rate": 0.95,
+      "entity_coverage": 0.87,
+      "api_coverage": 0.92,
+      "container_fidelity": 1.0
+    }
+  }
+}
+```
+
+---
+
+## Integration flow
+
+```
+Phase 3 writes content-data.json
+Phase 3.5 Quality Gate runs this rule
+  → Identify violations
+  → Auto-fix safe ones
+  → Surface unsafe ones to user
+  → User accepts fixes via Composer
+  → Re-validate
+  → PASS → Phase 4
+```

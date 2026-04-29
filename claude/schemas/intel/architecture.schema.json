@@ -1,0 +1,218 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/architecture.schema.json",
+  "title": "Architecture",
+  "description": "Architectural design: 4 CPĐT 4.0 layers, logical components, design principles, 3 mandatory architecture models (overall + logical + physical per NĐ 45/2026 Đ13), API aggregates. Tier 2 cross-stage. Consumed by sa-pro/tech-lead (Cursor when designing solution boundaries) + tdoc-tkkt-writer §3-4-6 (entirely) + tdoc-tkcs-writer §3.3 (3 mô hình mandate) + tdoc-tkct-writer §2.1 (kế thừa kiến trúc). Justified by: TKCS §3.3 (Đ13 BẮT BUỘC 3 mô hình), TKCT §2.1 (kế thừa), TKKT §3 (4 tầng), §4 (components), §6 (apis_aggregate).",
+  "type": "object",
+  "required": ["schema_version", "components", "cpdt_layers", "design_principles"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "purpose": {
+      "type": ["string", "null"],
+      "description": "1-paragraph architectural mission statement. Source for TKKT §1.1 + TKCS §1.4."
+    },
+
+    "cpdt_layers": {
+      "type": "array",
+      "description": "4 layers per QĐ 292/2025 Khung KT CPĐT 4.0. MUST cover all 4 layers when project is gov IT system. Hard-stop in intel-validator if 'giao-dien' or 'nghiep-vu' missing.",
+      "items": {
+        "type": "object",
+        "required": ["layer", "description", "components"],
+        "properties": {
+          "layer": {
+            "type": "string",
+            "enum": ["giao-dien", "nghiep-vu", "du-lieu", "ha-tang"],
+            "description": "CPĐT 4.0 layer slug. giao-dien=UI/Presentation, nghiep-vu=Business, du-lieu=Data&Application, ha-tang=Infrastructure."
+          },
+          "display_name_vn": { "type": "string", "description": "Vietnamese display, e.g. 'Tầng giao diện người dùng'." },
+          "description": { "type": "string", "minLength": 50, "description": "Layer purpose + scope. Min 50 chars to prevent thin output." },
+          "components": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "components[].name belonging to this layer. Denormalization for quick layer-view in TKKT §3.2-3.5."
+          },
+          "key_technologies": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "tech_stack[].id keys aggregated for this layer. Cross-ref system-inventory.tech_stack[]."
+          }
+        }
+      }
+    },
+
+    "design_principles": {
+      "type": "array",
+      "minItems": 5,
+      "description": "Architecture principles guiding design decisions. Min 5 (TKKT §2 mandate ≥5 principles). Examples: tách lớp, modular, security-by-default, dùng nền tảng dùng chung (CT 34 §6), open standards.",
+      "items": {
+        "type": "object",
+        "required": ["title", "description"],
+        "properties": {
+          "title": { "type": "string", "description": "Vietnamese principle title." },
+          "description": { "type": "string", "minLength": 50, "description": "Why this principle, how it applies to this project." },
+          "legal_basis": { "type": ["string", "null"], "description": "Citation. Examples: 'CT 34/CT-TTg §6', 'QĐ 292/2025 Mục II'." }
+        }
+      }
+    },
+
+    "components": {
+      "type": "array",
+      "minItems": 3,
+      "description": "Logical phân hệ catalog. Min 3 (per tdoc-tkkt-writer Step 1 minimum). Components are LOGICAL groupings (NOT 1:1 with services). One service may host multiple components; one component may span services.",
+      "items": {
+        "type": "object",
+        "required": ["name", "cpdt_layer", "purpose"],
+        "properties": {
+          "name": { "type": "string", "description": "PascalCase or Vietnamese title-case component name. Example: 'QuanLyHoSo', 'AuthService'." },
+          "name_vn": { "type": ["string", "null"], "description": "Vietnamese display name for TKKT §4.2." },
+          "cpdt_layer": {
+            "type": "string",
+            "enum": ["giao-dien", "nghiep-vu", "du-lieu", "ha-tang"]
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 100,
+            "description": "≥100 chars Vietnamese description. Cite owned entities + integrations + business capability. Generic statements without entity names rejected by tdoc-tkkt-writer Step 5 diversity check."
+          },
+          "owned_entities": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "data-model.entities[].name owned by this component. Authoritative ownership."
+          },
+          "integrations_consumed": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "integrations[].id this component depends on."
+          },
+          "exposed_apis": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "api-spec.endpoints[].operation_id exposed by this component (top 5-10 most representative)."
+          },
+          "service_refs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "system-inventory.services[].id hosting this component."
+          },
+          "depends_on_components": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Other components[].name this component depends on. Used for dependency graphs."
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+          },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low", "manual"] },
+          "source_producers": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["from-code", "from-doc", "manual-interview", "intel-merger"] },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+
+    "models": {
+      "type": "object",
+      "description": "3 mandatory architecture models per NĐ 45/2026 Đ13 (TKCS §3.3). Each emits Mermaid source. ALL 3 required for TKCS export — block if any missing.",
+      "properties": {
+        "overall_diagram": {
+          "type": ["string", "null"],
+          "description": "Mermaid graph TD source. High-level architecture overview: external systems + main components + data flow direction. Used by TKCS §3.3 (mô hình tổng thể) + TKKT §3.1."
+        },
+        "logical_diagram": {
+          "type": ["string", "null"],
+          "description": "Mermaid graph LR source. Logical components grouped by domain/cpdt_layer. Used by TKCS §3.3 (mô hình lô-gic) + TKKT §4.1."
+        },
+        "physical_diagram": {
+          "type": ["string", "null"],
+          "description": "Mermaid graph TB source. Physical deployment view: zones + servers + network. Used by TKCS §3.3 (mô hình vật lý) + TKKT §8.1 + TKCT §6.1."
+        }
+      }
+    },
+
+    "apis_aggregate": {
+      "type": "array",
+      "description": "Aggregated API counts per module. TKKT §6.2 mandate (audience-profile bans listing paths). Pre-computed by from-code Phase 2; writers MUST NOT enumerate api-spec.endpoints[].path at TKKT writer level.",
+      "items": {
+        "type": "object",
+        "required": ["component_or_module", "total"],
+        "properties": {
+          "component_or_module": { "type": "string", "description": "components[].name or grouping label." },
+          "total": { "type": "integer", "minimum": 0 },
+          "public": { "type": "integer", "minimum": 0, "description": "Externally exposed endpoints." },
+          "internal": { "type": "integer", "minimum": 0 },
+          "webhook": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+
+    "external_systems_summary": {
+      "type": "array",
+      "description": "Aggregated view of external integrations for TKKT §3.1 overall diagram + TKCS §3.6 narrative. Pre-computed from integrations.json.",
+      "items": {
+        "type": "object",
+        "required": ["name", "purpose"],
+        "properties": {
+          "name": { "type": "string" },
+          "purpose": { "type": "string" },
+          "integration_id_ref": { "type": ["string", "null"], "description": "integrations.integrations[].id." }
+        }
+      }
+    },
+
+    "deployment_overview": {
+      "type": ["string", "null"],
+      "description": "1-2 paragraph deployment narrative for TKKT §8.2. AVOID Docker/K8s words (use tropes per audience-profile)."
+    },
+
+    "architectural_decisions": {
+      "type": "array",
+      "description": "ADR-style key decisions captured. Optional but recommended for non-trivial projects.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "decision"],
+        "properties": {
+          "id": { "type": "string", "description": "ADR id, e.g. 'ADR-001'." },
+          "title": { "type": "string" },
+          "context": { "type": "string", "description": "Why this decision was needed." },
+          "decision": { "type": "string", "description": "What was decided." },
+          "consequences": { "type": "string", "description": "Trade-offs accepted." },
+          "alternatives": { "type": "array", "items": { "type": "string" } },
+          "status": { "enum": ["proposed", "accepted", "deprecated", "superseded"] },
+          "date": { "type": ["string", "null"], "format": "date" },
+          "adr_file": { "type": ["string", "null"], "description": "Repo-relative path to full ADR markdown." }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": {
+            "type": "string",
+            "enum": [
+              "missing-cpdt-layer",
+              "missing-overall-diagram",
+              "missing-logical-diagram",
+              "missing-physical-diagram",
+              "thin-component-purpose",
+              "components-too-similar",
+              "orphan-component",
+              "missing-apis-aggregate",
+              "other"
+            ]
+          },
+          "message": { "type": "string" },
+          "component": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

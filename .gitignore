@@ -1,0 +1,30 @@
+# User secrets / per-machine state — never commit
+**/settings.local.json
+**/.credentials.json
+**/.env
+
+# Runtime data
+**/telemetry/
+**/cache/
+**/file-history/
+**/projects/
+**/worktrees/
+**/plans/
+**/snapshots/
+**/automations/
+**/ai-tracking/
+**/logs/
+**/shell-snapshots/
+**/todos/
+**/ide_state.json
+**/argv.json
+**/scheduled_tasks.lock
+
+# Python
+**/__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/feature-catalog.schema.json",
+  "title": "Feature Catalog",
+  "description": "Master list of system features with role-visibility tagging. Cross-references actor-registry, permission-matrix, sitemap. Feeds writers (TKKT/TKCS/TKCT/HDSD) and test-case generation.",
+  "type": "object",
+  "required": ["schema_version", "multi_role", "roles", "features"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "multi_role": { "type": "boolean" },
+    "roles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Role slugs — denormalized from actor-registry for quick filtering."
+    },
+    "services": {
+      "type": "array",
+      "description": "Optional grouping for monorepo / microservice layouts.",
+      "items": { "$ref": "#/definitions/service" }
+    },
+    "features": {
+      "type": "array",
+      "description": "Flat feature list. When 'services' is present, features are also nested per service for clarity.",
+      "items": { "$ref": "#/definitions/feature" }
+    }
+  },
+  "definitions": {
+    "service": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tech_stack": { "type": "array", "items": { "type": "string" } },
+        "feature_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "feature": {
+      "type": "object",
+      "required": ["id", "name", "status", "role_visibility", "description", "business_intent", "flow_summary", "acceptance_criteria"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^F-[0-9]{3,}$",
+          "description": "F-NNN format, stable across regenerations."
+        },
+        "name": { "type": "string", "description": "Vietnamese name.", "minLength": 5 },
+        "name_en": { "type": "string" },
+        "description": {
+          "type": "string",
+          "minLength": 200,
+          "description": "Vietnamese full description: WHAT the feature does (function), WHO uses it (actors), WHERE it lives (module/screen). Min 200 chars to prevent thin upstream output."
+        },
+        "business_intent": {
+          "type": "string",
+          "minLength": 100,
+          "description": "WHY this feature exists. Business goal, KPI it serves, regulation it satisfies, or pain point it solves. Min 100 chars. Producer MUST extract from doc-brief.md or ask user — never invent."
+        },
+        "flow_summary": {
+          "type": "string",
+          "minLength": 150,
+          "description": "HOW the feature works end-to-end: trigger → main steps → outcome. Tóm tắt luồng nghiệp vụ (3-7 bước). Min 150 chars. Source for HDSD section + test scenario derivation."
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "type": "string", "minLength": 30 },
+          "description": "Testable acceptance criteria (Given-When-Then or imperative). ≥ 3 items, mỗi item ≥ 30 chars. Anchor cho Cursor SDLC implementation + test case generation."
+        },
+        "business_rules": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 20 },
+          "description": "Rule-style invariants/constraints (validation rules, calculation formulas, state transitions). Optional but recommended for non-trivial features."
+        },
+        "user_stories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional 'As a {role}, I want {action}, so that {benefit}' statements."
+        },
+        "module": { "type": "string", "description": "Module/domain grouping." },
+        "service_id": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["proposed", "in_design", "in_development", "implemented", "deprecated"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "role_visibility": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "type": "object",
+            "required": ["role", "level"],
+            "properties": {
+              "role": { "type": "string", "description": "Role slug." },
+              "level": {
+                "type": "string",
+                "enum": ["full", "partial", "readonly", "none"]
+              },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "role_variants": {
+          "type": "object",
+          "description": "Per-role behavior overrides. Keyed by role slug. References sitemap.feature_overrides for UI specifics.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "entry_point": { "type": "string" },
+              "key_actions": { "type": "array", "items": { "type": "string" } },
+              "constraints": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "routes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Route paths from sitemap.routes[].path that implement this feature."
+        },
+        "entities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Domain entity ids touched by this feature."
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Other feature_ids this feature requires."
+        },
+        "test_case_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Cross-ref to xlsx test-case rows."
+        },
+        "test_evidence_ref": {
+          "type": ["string", "null"],
+          "description": "Path to test-evidence.json entry for this feature, e.g. docs/intel/test-evidence/{feature-id}.json. Populated by resume-feature QA stage; consumed by generate-docs Stage 3a/4f instead of re-running Playwright."
+        },
+        "implementation_evidence": {
+          "type": "object",
+          "description": "Captured by close-feature when sealing the feature. Cross-ref bridge between SDLC and docs.",
+          "properties": {
+            "commits": { "type": "array", "items": { "type": "string" }, "description": "Git commit shas (or branch name)." },
+            "test_files": { "type": "array", "items": { "type": "string" }, "description": "Relative paths to test files for this feature." },
+            "coverage_pct": { "type": ["number", "null"] },
+            "adrs": { "type": "array", "items": { "type": "string" }, "description": "ADR file paths created/updated by this feature." },
+            "manual_qa_passed": { "type": ["boolean", "null"] },
+            "closed_at": { "type": ["string", "null"], "format": "date-time" }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "manual"],
+          "description": "high=multi-source verified (code + doc agree); medium=single producer; low=inferred (e.g. controller name only); manual=user-confirmed via interview. Consumers (generate-docs Stage 4) MUST route by tier — see notepads/confidence-routing.md."
+        },
+        "source_producers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["doc-intel", "tdoc-researcher", "tdoc-actor-enum", "manual-interview", "intel-merger", "from-doc", "from-code"]
+          },
+          "uniqueItems": true
+        },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

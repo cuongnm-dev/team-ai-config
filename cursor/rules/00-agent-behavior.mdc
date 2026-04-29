@@ -1,0 +1,116 @@
+﻿---
+description: Universal agent behavioral boundaries — pipeline routing, execution path selection, PM context, MCP preference, universal guardrails. Active for all requests in this workspace.
+alwaysApply: true
+---
+
+<!-- Pipeline architecture, context bundles, agent roles → [AGENTS.md](mdc:.cursor/AGENTS.md) -->
+<!-- Workaround for Windows AGENTS.md load bug: mdc pointer ensures it is reachable by background agents.
+     Cost note: this rule (~1.2K tokens) + AGENTS.md (~2.9K tokens after 2026-04 slim) = ~4K tokens loaded
+     on every request via alwaysApply. Pre-slim it was ~10K. If reducing further is needed:
+       - Move SDLC-only sections (Path S/M/L details, dispatcher loop) out of AGENTS.md to ref-pm-rules.md
+         (already done in 2026-04 refactor) — keep AGENTS.md to mission + entry points + universal guardrails.
+       - DO NOT change alwaysApply: false — Windows bug means background agents won't auto-resolve the pointer.
+     Trade-off accepted: predictability over 4K tokens/request. -->
+
+# Agent Behavior
+
+## Universal Guardrails
+
+| # | Rule | Output format |
+|---|---|---|
+| G1 | Destructive action: state what / why / how to reverse → then proceed | — |
+| G2 | Missing inputs: list ALL gaps at once as `[GAP-NNN] missing — impact — question`. Never one-by-one. | `[GAP-001]\n[GAP-002]` |
+| G3 | Before handoff: confirm all inputs answered, nothing skipped silently | — |
+| G4 | Work outside role: refuse + name correct agent | — |
+| G5 | End with exact verdict label + one next action. Never open-ended. | JSON block (last output) |
+| G6 | Tiered routing: include `confidence: high\|medium\|low` + `escalate_recommended: true\|false` in verdict JSON. If recommended → add `escalation_reason` (1 sentence). Dispatcher routes to `{role}-pro` agent file (NOT call-time model override — Cursor Task tool doesn't support that). See dispatcher.md § Tiered Routing. | JSON fields |
+| G7 | Token usage breakdown: include `token_usage` block in verdict — break out cache reads, writes, reasoning, apply tokens. If platform doesn't expose a field → set to `null` (NOT 0). Telemetry uses this for real-cost computation. See `~/.cursor/agents/ref-pm-standards.md` § Token Usage Schema. | `token_usage: {...}` |
+
+## Traceability IDs
+
+| ID | Owner |
+|---|---|
+| `AC-NNN` | dev (status per AC), qa (every test refs AC), reviewer (list AC IDs explicitly) |
+| `BR-NNN` | dev (covered section), qa (rule-based tests) |
+| `W{N}-T{N}` | dev (maps to ACs), qa (test scope by wave) |
+| `TC-NNN` | reviewer (test adequacy) |
+
+---
+
+## Boundary 1 — Pipeline routing
+
+Locate active pipelines (resolution order):
+1. **`docs/feature-map.yaml`** → scan entries where `status` ≠ `done` (PRIMARY — fast, no glob)
+2. Fallback: glob `docs/features/**/_state.md`, `docs/hotfixes/**/_state.md`
+3. Monorepo fallback: `**/docs/features/**/_state.md`
+
+```
+IF request names a feature-id AND pipeline active (status ≠ done):
+  → "Pipeline [feature-id] active at {stage}. Continue with: /resume-feature {feature-id}"
+IF ambiguous + multiple pipelines active:
+  → list pipelines, ask user which one
+IF request is about a pipeline:
+  → do NOT write requirements/code/tests; route to skill
+IF unrelated to any pipeline:
+  → handle normally
+```
+
+## Boundary 2 — Execution path
+
+| Path | When |
+|---|---|
+| Answer directly | Questions, explanations, code lookups |
+| Invoke one specialist (Task) | Scoped to one agent's domain. Use `context: standalone — no active pipeline` |
+| Suggest a skill | Request matches an operational workflow |
+| Route to PM | Multi-stage work needing `_state.md` tracking |
+
+<!-- AUTO-VERIFY: this list is hand-maintained. Source of truth = `~/.cursor/skills/*/SKILL.md` frontmatter `name:` fields.
+     When adding/removing skills under ~/.cursor/skills/, update this list AND keep groupings sensible.
+     Sanity check (rerun if list feels stale): `ls ~/.cursor/skills/` should match the union below.
+     LAST_VERIFIED_BUMP: 2026-04-26 (kept in this comment so date does NOT enter LLM context — preserves alwaysApply cache). -->
+Available skills (24):
+- Project: `/new-workspace` `/new-project` `/configure-workspace` `/ui-catalog`
+- Pipeline: `/new-feature` `/hotfix` `/resume-feature` `/feature-status` `/close-feature`
+- Dev: `/plan` `/implement` `/code-change`
+- Architecture: `/spike` `/adr` `/arch-review`
+- Release: `/release`
+- Ops: `/incident` `/runbook`
+- Quality: `/quality` `/audit`
+- Docs: `/from-doc` `/generate-docs` `/strategic-critique` `/zip-disk`
+
+## Boundary 3 — PM session continuity
+
+```
+IF PM asked question AND user replied without tagging agent:
+  → "Responding to PM? Use /pm [your answer] to keep pipeline in sync."
+```
+
+---
+
+## Execution Principles
+
+- **MCP-first:** MCP before file reads or bash. IF MCP replaces 3+ reads → always use MCP.
+- **Plan before executing:** Non-trivial work → output `## Plan` (actions → outcomes) before starting. Skip for single-step tasks.
+- **Verify before done:** Run lint/test. No completion claim without evidence.
+
+---
+
+## Self-Check (every pipeline agent, before returning)
+
+- [ ] Artifacts written to `{docs-path}/` (not just shown in chat)
+- [ ] Verdict label matches valid labels in AGENTS.md Verdict Taxonomy
+- [ ] No open [AMBIGUITY] gaps — resolved or flagged as blocker
+- [ ] Handoff JSON block is FINAL output (nothing after it)
+- [ ] `_state.md` NOT modified (Dispatcher owns state)
+
+---
+
+## Pipeline State Integrity
+
+```
+IF _state.md exists AND status ≠ done:
+  WRITE artifacts to disk — do not summarize in chat
+  READ only files in Context Bundle (AGENTS.md) — flag missing files as Blocked
+  NEVER invent values for missing inputs — return Blocked immediately
+  IF resuming: check artifact exists → update incrementally, do not overwrite
+```

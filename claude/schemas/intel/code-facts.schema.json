@@ -1,0 +1,319 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/code-facts.schema.json",
+  "title": "Code Facts",
+  "description": "Normalized stack-agnostic facts extracted from a codebase by `from-code` skill (Phase 1 Static Harvest). Source for all downstream phases — they read ONLY this file, never adapter-specific outputs. Tier 1 cross-stage: consumed by sa/sa-pro/dev-pro/reviewer-pro (Cursor SDLC) + tdoc-researcher (generate-docs). Justified by TKCT §3.1 (module spec), TKCT §3.2 (component name), TKKT §4.2 (logical components), TKCS §3.3 (architecture mapping).",
+  "type": "object",
+  "required": ["schema_version", "meta", "services", "routes", "entities", "auth_rules", "integrations", "tests", "markers"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "meta": {
+      "type": "object",
+      "required": ["generated_at", "repo_path", "repo_type", "adapters_used"],
+      "properties": {
+        "generated_at": { "type": "string", "format": "date-time" },
+        "repo_path": { "type": "string", "description": "Absolute or workspace-relative path." },
+        "repo_type": { "enum": ["mono", "mini"], "description": "mono = monorepo with multiple services; mini = single-service repo." },
+        "adapters_used": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "confidence", "files_processed"],
+            "properties": {
+              "id": { "type": "string", "description": "Adapter id, e.g. 'nestjs', 'fastapi', 'aspnet-core'." },
+              "confidence": { "enum": ["high", "medium", "low", "none", "llm-fallback"] },
+              "version_detected": { "type": ["string", "null"] },
+              "files_processed": { "type": "integer", "minimum": 0 },
+              "errors": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+
+    "services": {
+      "type": "array",
+      "description": "Service inventory at code level. For mono: multiple entries. For mini: exactly one with id='root'.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "path", "kind"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "name": { "type": "string" },
+          "path": { "type": "string", "description": "Repo-root-relative path." },
+          "kind": { "enum": ["backend", "frontend", "worker", "shared-lib", "tool", "mobile", "unknown"] },
+          "language": { "type": "string", "description": "Primary language slug (typescript, python, csharp, go, ...)." },
+          "framework": { "type": ["string", "null"] },
+          "manifest_file": { "type": "string", "description": "package.json, *.csproj, pyproject.toml, ..." }
+        }
+      }
+    },
+
+    "routes": {
+      "type": "array",
+      "description": "All HTTP/RPC/MQ routes detected. Source for sitemap.routes[].",
+      "items": {
+        "type": "object",
+        "required": ["id", "service_id", "method", "path", "handler_symbol", "handler_file", "adapter", "confidence"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^R-[0-9]{3,}$" },
+          "service_id": { "type": "string" },
+          "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD", "ANY", "WS", "RPC", "MQ"] },
+          "path": { "type": "string", "description": "Normalized URL with path params as {name}." },
+          "handler_symbol": { "type": "string", "description": "Class.Method or function name." },
+          "handler_file": { "type": "string" },
+          "handler_line": { "type": "integer", "minimum": 1 },
+          "handler_loc": { "type": "integer", "minimum": 0, "description": "Lines of code; signal for completeness scoring." },
+          "cyclomatic": { "type": ["integer", "null"], "minimum": 0 },
+          "auth_scope": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Normalized vocabulary: 'anonymous' | 'authenticated' | 'role:X' | 'policy:X' | 'scope:X'."
+          },
+          "entities_touched": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Entity names referenced in handler body or DTOs."
+          },
+          "is_stub": { "type": "boolean", "description": "throw NotImplemented, TODO-only body, empty result." },
+          "has_error_handling": { "type": "boolean" },
+          "has_feature_flag": { "type": "boolean" },
+          "feature_flag_state": { "type": ["boolean", "null"] },
+          "adapter": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+
+    "entities": {
+      "type": "array",
+      "description": "Domain entities (ORM models, migrations, code-first attributes, manual). Aggregated source for data-model.json.",
+      "items": {
+        "type": "object",
+        "required": ["name", "service_id", "fields", "source", "source_file"],
+        "properties": {
+          "name": { "type": "string" },
+          "service_id": { "type": "string" },
+          "table_name": { "type": ["string", "null"] },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "type"],
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "type": "string" },
+                "nullable": { "type": "boolean" },
+                "unique": { "type": "boolean" },
+                "primary_key": { "type": "boolean" },
+                "foreign_key": {
+                  "type": ["object", "null"],
+                  "properties": {
+                    "target_entity": { "type": "string" },
+                    "target_field": { "type": "string" },
+                    "cardinality": { "enum": ["1:1", "1:N", "N:1", "N:N"] }
+                  }
+                },
+                "default": { "type": ["string", "number", "boolean", "null"] },
+                "is_pii": { "type": "boolean" },
+                "pii_category": { "enum": ["identity", "contact", "financial", "health", "location", "credentials", "other", null] }
+              }
+            }
+          },
+          "relationships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" },
+                "cardinality": { "enum": ["1:1", "1:N", "N:1", "N:N"] },
+                "via_field": { "type": "string" }
+              }
+            }
+          },
+          "state_machine": {
+            "type": ["object", "null"],
+            "properties": {
+              "field": { "type": "string" },
+              "states": { "type": "array", "items": { "type": "string" } },
+              "transitions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": { "type": "string" },
+                    "to": { "type": "string" },
+                    "trigger": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "source": { "enum": ["migration", "orm-model", "code-first-attribute", "sql-script", "manual"] },
+          "source_file": { "type": "string" },
+          "migration_version": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "auth_rules": {
+      "type": "array",
+      "description": "Auth enforcement rules detected from decorators / middleware / policy code.",
+      "items": {
+        "type": "object",
+        "required": ["scope", "applies_to", "source_file"],
+        "properties": {
+          "scope": { "type": "string", "description": "Normalized auth_scope vocabulary." },
+          "applies_to": { "type": "string", "description": "Route id, handler symbol, or class name." },
+          "source_file": { "type": "string" },
+          "source_line": { "type": "integer", "minimum": 1 },
+          "evidence": { "type": "string", "description": "Raw code snippet (truncate to 200 chars)." }
+        }
+      }
+    },
+
+    "integrations": {
+      "type": "array",
+      "description": "Code-level integration points. Aggregated to integrations.schema.json by from-code Phase 2.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "direction", "target", "source_file"],
+        "properties": {
+          "kind": { "enum": ["http-outbound", "http-inbound", "mq-producer", "mq-consumer", "cache", "storage", "auth-provider", "db", "scheduler", "webhook"] },
+          "direction": { "enum": ["in", "out", "bi"] },
+          "target": { "type": "string", "description": "Service name, URL template, queue name, table name, etc." },
+          "protocol": { "type": ["string", "null"] },
+          "config_key": { "type": ["string", "null"], "description": "Env var or config key providing the address." },
+          "classification": { "enum": ["core", "legacy", "planned", "unknown"], "default": "unknown" },
+          "source_file": { "type": "string" },
+          "source_line": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+
+    "i18n": {
+      "type": "object",
+      "description": "Internationalization snapshot. Used by HDSD writer + UI prose verification.",
+      "properties": {
+        "default_locale": { "type": ["string", "null"] },
+        "locales": { "type": "array", "items": { "type": "string" } },
+        "namespaces": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "tests": {
+      "type": "object",
+      "description": "Test file inventory. Cross-ref to test-evidence.test_cases[]. Source for TKCT §8.2 baseline.",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "kind"],
+            "properties": {
+              "path": { "type": "string" },
+              "kind": { "enum": ["unit", "integration", "e2e", "contract", "unknown"] },
+              "targets": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Handler symbols or entities tested (best-effort)."
+              },
+              "describe_blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": { "type": "string", "description": "Original string — preserve VN if present." },
+                    "line": { "type": "integer", "minimum": 1 },
+                    "test_count": { "type": "integer", "minimum": 0 },
+                    "skipped_count": { "type": "integer", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "coverage_map": {
+          "type": ["object", "null"],
+          "description": "If coverage artifacts exist (lcov, coverage.xml), map handler_symbol → coverage %."
+        }
+      }
+    },
+
+    "markers": {
+      "type": "array",
+      "description": "TODO/FIXME/HACK/NotImplemented occurrences. Used in feature status scoring.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "file", "line"],
+        "properties": {
+          "kind": { "enum": ["TODO", "FIXME", "HACK", "XXX", "NotImplemented", "Deprecated"] },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string" }
+        }
+      }
+    },
+
+    "di_graph": {
+      "type": "array",
+      "description": "Component dependency edges per service. Used for component diagrams (TKKT §4.1, TKCT diagrams).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "service_id": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "kind": { "enum": ["constructor-inject", "property-inject", "factory", "direct-import"] }
+        }
+      }
+    },
+
+    "configs": {
+      "type": "object",
+      "description": "Parsed config files surfaced for architecture reconstruction.",
+      "properties": {
+        "env_keys": { "type": "array", "items": { "type": "string" } },
+        "docker_compose_services": { "type": "array" },
+        "k8s_resources": { "type": "array" },
+        "feature_flags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "default_state": { "type": "boolean" },
+              "source_file": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "description": "Non-blocking issues surfaced by extractors.",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": { "type": "string" },
+          "message": { "type": "string" },
+          "file": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

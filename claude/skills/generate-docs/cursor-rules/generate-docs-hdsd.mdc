@@ -1,0 +1,95 @@
+---
+description: HDSD (Hướng dẫn Sử dụng) writing rules — step-by-step UI guide với screenshots
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# HDSD — Hướng dẫn Sử dụng
+
+Khi điền `services[].features[]` + `troubleshooting[]` fields.
+
+## Structure per feature
+
+```jsonc
+{
+  "id": "F-001",                          // Khớp với feature ID trong intel
+  "name": "Tạo yêu cầu xử lý",            // Tên nghiệp vụ, không technical
+  "description": "2-4 câu mô tả nghiệp vụ",
+  "actors": ["Cán bộ thụ lý"],            // VN actor names
+  "preconditions": "Đã đăng nhập với quyền Cán bộ",
+
+  "ui_elements": [
+    {"label": "Tiêu đề", "type": "Input text", "rules": "Bắt buộc, max 200 ký tự"}
+  ],
+
+  "steps": [
+    {
+      "no": 1,
+      "action": "Click menu Tác nghiệp > Tạo mới",
+      "screenshot": "F-001-step-01-initial.png",   // Canonical naming
+      "expected": "Hiển thị form tạo yêu cầu"
+    }
+  ],
+
+  "dialogs": [
+    {
+      "title": "Xác nhận lưu",
+      "components": [{"name": "Nút Đồng ý", "description": "Submit form"}]
+    }
+  ],
+
+  "error_cases": [
+    {"trigger_step": 2, "condition": "Tiêu đề rỗng", "message": "Hiển thị 'Tiêu đề bắt buộc'"}
+  ]
+}
+```
+
+## Step action — ngôn ngữ người dùng cuối
+
+**Đúng**: "Click menu Tác nghiệp > Tạo mới", "Nhập tiêu đề vào ô 'Tiêu đề'", "Click nút 'Lưu'"
+
+**Sai**: "Gọi POST /api/v1/requests", "Dispatch action CREATE_REQUEST", "Mount RequestForm component"
+
+Người dùng HDSD là cán bộ/nhân viên, KHÔNG phải dev.
+
+## Screenshot naming (canonical)
+
+`{feature-id}-step-{NN}-{state}.png`
+
+State vocab (không dùng slug/service prefix):
+- `initial` — state đầu của feature (form rỗng, list empty)
+- `filled` — đã nhập data, chưa submit
+- `success` — sau khi action thành công (confirmation, new row in list)
+- `error` — validation error hoặc server error
+- `loading` — spinner visible
+- `modal` — dialog/popup mở
+- `list` — list view
+- `detail` — detail view
+- `placeholder` — khi không có data
+
+Ví dụ: `F-001-step-03-success.png`.
+
+## Min/target counts per feature
+
+| Field | Min | Target |
+|---|---|---|
+| `description` | 1 câu | 2-4 câu |
+| `ui_elements` | 3 | 5-10 (mọi button/field/dropdown) |
+| `steps` | 2 | 3-6 (happy path) |
+| `error_cases` | 1 | 2-4 (validation, permission, network) |
+
+## Troubleshooting
+
+Min 3 items, cover:
+- Session/auth (JWT expired, SSO fail)
+- Permission denied
+- Network timeout / offline
+- Data validation errors
+
+## Path A fallback
+
+HDSD nội dung 100% lấy từ `doc-intel.features_from_docs[]` (từ BA/Designer specs). Nếu thiếu feature spec:
+
+- Placeholder feature: `{"id": "F-XXX", "name": "[CẦN BỔ SUNG: tên feature]", "description": "[CẦN BỔ SUNG: Từ BA spec]", ...}`
+- KHÔNG fabricate steps hoặc UI elements

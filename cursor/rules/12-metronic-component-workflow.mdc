@@ -1,0 +1,36 @@
+---
+description: Metronic component mapping workflow for FE development. Auto-attaches when editing React components in Metronic-based projects.
+globs: ["**/*.tsx", "**/*.jsx"]
+alwaysApply: false
+---
+
+## Metronic Component Implementation Workflow
+
+### Step 1 — Extract component list from designer report
+- Read the **Screen Compositions** table in `02-designer-report.md`
+- "Metronic components used" column = exact component names to implement (not a suggestion)
+- "Gaps" column = only items that may require custom code
+
+### Step 2 — Resolve import paths (do NOT guess)
+For each Metronic component name:
+```
+Grep: import.*{ComponentName} in src/apps/web/src/
+Glob: src/_metronic/components/**/{ComponentName}.*
+```
+- Use the project's existing import path exactly
+- If not found: check barrel re-exports via `libs/web/ui/index.ts`
+- If still not found: **ask before writing custom code**
+
+### Step 3 — Build implementation mapping (mandatory before coding)
+```
+| Screen element | Metronic Component (from designer) | Import path found      | Props / Variant       | Gap? |
+|----------------|------------------------------------|------------------------|-----------------------|------|
+| Data table     | DataTable                          | @/_metronic/components | columns, data, pag.   | No   |
+| Add button     | Button                             | @/_metronic/components | variant="primary"     | No   |
+| Custom chart   | —                                  | —                      | —                     | Yes  |
+```
+
+### Hard gates
+- Designer listed a Metronic component → **MUST use it**. No custom replacement.
+- Gap items only: implement custom code with explicit justification
+- No custom styling outside CSS variables/tokens provided by Metronic

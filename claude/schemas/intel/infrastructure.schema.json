@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/infrastructure.schema.json",
+  "title": "Infrastructure",
+  "description": "Deployment model, hardware catalog, network topology, environments. Tier 3 doc-only — resume-feature SKIPS (devops sources from terraform/k8s manifests, not this JSON). Producer: from-doc (interview-driven for hardware list + sizing). Consumed by tdoc-tkcs-writer §4 (entirely) + tdoc-tkct-writer §6. Hard-stop in from-doc Phase 8 if deployment_model.type empty OR hardware[] = 0 (when on-prem). Justified by: TKCS §4.1-4.3, TKCT §6.1-6.4.",
+  "type": "object",
+  "required": ["schema_version", "deployment_model"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "deployment_model": {
+      "type": "object",
+      "required": ["type"],
+      "description": "TKCS §4.1 + TKCT §6.4 source.",
+      "properties": {
+        "type": { "enum": ["on-premise", "cloud-public", "cloud-private", "hybrid", "edge"] },
+        "rationale": { "type": ["string", "null"], "minLength": 50, "description": "Why this model. Min 50 chars Vietnamese." },
+        "cloud_provider": { "type": ["string", "null"], "description": "When cloud: 'VNPT Cloud', 'Viettel Cloud', 'AWS', etc. Prefer VN providers per CT 34." },
+        "datacenter_location": { "type": ["string", "null"], "description": "Geographic location. VN-resident requirement for sensitive data." },
+        "datacenter_tier": { "enum": ["Tier-I", "Tier-II", "Tier-III", "Tier-IV", "unknown", null] }
+      }
+    },
+
+    "hardware": {
+      "type": "array",
+      "description": "TKCS §4.2 hardware catalog with cost. Each row maps to a line item in dự toán.",
+      "items": {
+        "type": "object",
+        "required": ["item_type", "spec", "quantity"],
+        "properties": {
+          "item_type": {
+            "type": "string",
+            "enum": [
+              "server-physical",
+              "server-vm",
+              "storage-san",
+              "storage-nas",
+              "storage-disk",
+              "network-switch",
+              "network-router",
+              "network-firewall",
+              "network-loadbalancer",
+              "ups",
+              "rack",
+              "workstation",
+              "mobile-device",
+              "peripheral",
+              "license-os",
+              "license-database",
+              "license-application",
+              "license-other",
+              "other"
+            ]
+          },
+          "name": { "type": "string", "description": "Display name." },
+          "spec": { "type": "string", "description": "Hardware specifications. Example: 'Intel Xeon Silver 4310, 64GB DDR4, 2x 1TB NVMe RAID 1'." },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "unit_price_vnd": { "type": ["integer", "null"], "minimum": 0 },
+          "total_price_vnd": { "type": ["integer", "null"], "minimum": 0 },
+          "vendor": { "type": ["string", "null"] },
+          "warranty_years": { "type": ["integer", "null"], "minimum": 0 },
+          "deployment_role": { "type": ["string", "null"], "description": "Free-form: 'app server', 'db primary', 'backup target', etc." },
+          "notes": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "servers": {
+      "type": "array",
+      "description": "TKCT §6.2 server config table. Logical servers (may map to physical hardware[] or VMs).",
+      "items": {
+        "type": "object",
+        "required": ["role", "cpu", "ram_gb", "storage"],
+        "properties": {
+          "role": { "type": "string", "description": "Server role. Example: 'Web Server', 'Application Server', 'Database Primary', 'Cache'." },
+          "hostname_pattern": { "type": ["string", "null"], "description": "Naming convention." },
+          "cpu": { "type": "string", "description": "Free-form. Example: '8 vCPU' or 'Intel Xeon 4310 @ 2.1GHz x2'." },
+          "ram_gb": { "type": "integer", "minimum": 1 },
+          "storage": { "type": "string", "description": "Free-form. Example: '500GB SSD + 4TB HDD'." },
+          "os": { "type": ["string", "null"], "description": "Operating system. Example: 'Ubuntu 22.04 LTS', 'Windows Server 2022'." },
+          "count": { "type": "integer", "minimum": 1, "default": 1, "description": "Number of instances of this server role." },
+          "deployed_services": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "system-inventory.services[].id deployed on this server."
+          },
+          "ha_strategy": { "enum": ["active-active", "active-passive", "single", "load-balanced", null] }
+        }
+      }
+    },
+
+    "network": {
+      "type": "object",
+      "description": "TKCS §4.3 + TKCT §6.3 source.",
+      "properties": {
+        "topology_diagram": { "type": ["string", "null"], "description": "Mermaid graph LR or path to diagram file." },
+        "zones": {
+          "type": "array",
+          "description": "Network zones. Cross-ref security-design.network_security.zones[] for security boundaries.",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "description": "DMZ | Internal | Database | Management | etc." },
+              "cidr": { "type": ["string", "null"], "description": "IPv4 CIDR." },
+              "cidr_v6": { "type": ["string", "null"], "description": "IPv6 CIDR." },
+              "purpose": { "type": "string" }
+            }
+          }
+        },
+        "vlans": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["vlan_id", "purpose"],
+            "properties": {
+              "vlan_id": { "type": "integer", "minimum": 1, "maximum": 4094 },
+              "purpose": { "type": "string" }
+            }
+          }
+        },
+        "ipv6_plan": { "type": ["string", "null"], "description": "IPv6 deployment plan. TKCS §3.5 mandate. Cross-ref security-design.ipv6_readiness." },
+        "internet_egress_policy": { "type": ["string", "null"] },
+        "bandwidth_internal_mbps": { "type": ["integer", "null"], "minimum": 0 },
+        "bandwidth_internet_mbps": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+
+    "environments": {
+      "type": "array",
+      "description": "TKCT §6.4 source. Cross-ref system-inventory.runtime_environments[] for runtime config.",
+      "items": {
+        "type": "object",
+        "required": ["name", "purpose"],
+        "properties": {
+          "name": { "type": "string", "description": "dev | staging | uat | prod | dr." },
+          "purpose": { "type": "string" },
+          "sizing_summary": { "type": ["string", "null"], "description": "Free-form: 'minimal — 2 servers', 'production-grade'." },
+          "access_control": { "type": ["string", "null"], "description": "Who can access this env." },
+          "data_isolation": { "enum": ["full", "anonymized-prod-copy", "synthetic", "shared", null] },
+          "url": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "high_availability": {
+      "type": ["object", "null"],
+      "description": "HA strategy at infra level. Cross-ref nfr-catalog availability NFRs.",
+      "properties": {
+        "strategy": { "type": ["string", "null"], "description": "Free-form summary." },
+        "rpo_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "rto_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "dr_site": { "type": ["string", "null"], "description": "DR site location and tier." },
+        "failover_method": { "type": ["string", "null"] }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": {
+            "type": "string",
+            "enum": [
+              "missing-deployment-model",
+              "missing-hardware",
+              "missing-network-topology",
+              "missing-ipv6-plan",
+              "missing-environments",
+              "missing-ha-strategy",
+              "datacenter-not-vn",
+              "other"
+            ]
+          },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

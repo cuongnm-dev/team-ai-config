@@ -1,0 +1,270 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/security-design.schema.json",
+  "title": "Security Design",
+  "description": "Security architecture: ATTT level (NĐ 85/2016), risk analysis, encryption, logging, incident response, IPv6 readiness. Tier 3 doc-only — resume-feature SKIPS (security agent MAY peek for threat verification, optional). Producer: from-doc (threat model + policy) + from-code (encryption/audit detection). Consumed by tdoc-tkcs-writer §3.5 + tdoc-tkct-writer §5 (entirely) + tdoc-tkkt-writer §10. Hard-stop in from-doc Phase 8 if attt_level empty OR risk_analysis < 3 threats. Justified by: TKCS §3.5 (Đ13 ATTT mandate), TKCT §5 (entirely), TKKT §10.",
+  "type": "object",
+  "required": ["schema_version", "attt_level", "ipv6_readiness", "risk_analysis"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "attt_level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "ATTT cấp độ per NĐ 85/2016/NĐ-CP. 1=public info | 2=internal | 3=confidential | 4=secret | 5=top-secret. TKCS §3.5 + TKKT §10.2 mandate."
+    },
+
+    "attt_level_rationale": {
+      "type": "string",
+      "minLength": 50,
+      "description": "Why this level was chosen (data sensitivity, stakeholder analysis, regulatory requirement)."
+    },
+
+    "ipv6_readiness": {
+      "type": "string",
+      "enum": ["ready", "partial", "planned", "not-supported"],
+      "description": "Per QĐ 292 + Đề án IPv6 Quốc gia. TKCS §3.5 + TKKT §10.6 mandate."
+    },
+
+    "ipv6_plan": {
+      "type": ["string", "null"],
+      "description": "If readiness != ready, narrative roadmap to full IPv6 support."
+    },
+
+    "risk_analysis": {
+      "type": "array",
+      "minItems": 3,
+      "description": "Threat model. Min 3 threats per from-doc Phase 8 hard-stop. TKCT §5.1 source.",
+      "items": {
+        "type": "object",
+        "required": ["id", "threat", "likelihood", "impact", "mitigation"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^TH-[0-9]{3,}$" },
+          "threat": { "type": "string", "minLength": 30, "description": "Vietnamese threat description." },
+          "category": {
+            "type": "string",
+            "enum": ["unauthorized-access", "data-breach", "data-tampering", "denial-of-service", "privilege-escalation", "account-takeover", "supply-chain", "insider-threat", "physical", "natural-disaster", "other"]
+          },
+          "likelihood": { "enum": ["very-high", "high", "medium", "low", "very-low"] },
+          "impact": { "enum": ["catastrophic", "major", "moderate", "minor", "negligible"] },
+          "mitigation": { "type": "string", "minLength": 30, "description": "Concrete countermeasures." },
+          "residual_risk": { "type": ["string", "null"], "enum": ["high", "medium", "low", null], "description": "Remaining risk after mitigation." },
+          "owner": { "type": ["string", "null"], "description": "Role/team responsible." }
+        }
+      }
+    },
+
+    "authentication": {
+      "type": "object",
+      "description": "Authentication design. TKCT §5.2 source.",
+      "properties": {
+        "primary_scheme": { "enum": ["jwt", "session", "oauth2", "oidc", "saml", "kerberos", "custom"] },
+        "mfa_required": { "type": "boolean" },
+        "mfa_methods": {
+          "type": "array",
+          "items": { "enum": ["totp", "sms-otp", "email-otp", "webauthn", "hardware-key", "biometric", "push-notification"] }
+        },
+        "sso": {
+          "type": ["object", "null"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "provider": { "type": "string", "description": "Provider name. Example: 'VNeID', 'Active Directory', 'Keycloak'." },
+            "protocol": { "enum": ["saml-2.0", "oidc", "oauth2", "ldap", "other"] }
+          }
+        },
+        "session_policy": {
+          "type": ["object", "null"],
+          "properties": {
+            "timeout_minutes": { "type": ["integer", "null"], "minimum": 1 },
+            "concurrent_sessions_allowed": { "type": ["integer", "null"], "minimum": 1 },
+            "remember_me": { "type": "boolean" }
+          }
+        },
+        "password_policy": {
+          "type": ["object", "null"],
+          "properties": {
+            "min_length": { "type": ["integer", "null"], "minimum": 1 },
+            "complexity_required": { "type": "boolean" },
+            "history_count": { "type": ["integer", "null"], "minimum": 0 },
+            "rotation_days": { "type": ["integer", "null"], "minimum": 0 }
+          }
+        }
+      }
+    },
+
+    "authorization": {
+      "type": "object",
+      "description": "Authorization model. TKCT §5.2. Cross-ref permission-matrix.json for the matrix itself.",
+      "properties": {
+        "model": { "enum": ["rbac", "abac", "acl", "hybrid"] },
+        "permission_matrix_ref": { "type": "string", "default": "docs/intel/permission-matrix.json", "description": "Pointer to canonical RBAC matrix." },
+        "principle_of_least_privilege": { "type": "boolean", "default": true },
+        "segregation_of_duties": { "type": "boolean" },
+        "approval_workflow_for_privileged_actions": { "type": "boolean" }
+      }
+    },
+
+    "encryption": {
+      "type": "object",
+      "description": "Encryption strategy. TKCT §5.3 source.",
+      "properties": {
+        "at_rest": {
+          "type": "object",
+          "properties": {
+            "method": { "type": ["string", "null"], "description": "Algorithm + mode. Example: 'AES-256-GCM', 'PostgreSQL TDE'." },
+            "scope": {
+              "type": "array",
+              "items": { "enum": ["full-disk", "database", "specific-tables", "specific-columns", "object-storage", "backups", "other"] }
+            },
+            "applied_to_pii": { "type": "boolean" }
+          }
+        },
+        "in_transit": {
+          "type": "object",
+          "properties": {
+            "method": { "type": ["string", "null"], "description": "Example: 'TLS 1.3', 'mTLS for service-to-service'." },
+            "min_tls_version": { "type": ["string", "null"], "description": "Example: '1.2', '1.3'." },
+            "cipher_suites": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "key_management": {
+          "type": "object",
+          "properties": {
+            "system": { "type": ["string", "null"], "description": "Example: 'HashiCorp Vault', 'AWS KMS', 'Custom HSM'." },
+            "rotation_policy": { "type": ["string", "null"], "description": "Free-form: 'every 90 days', 'on-demand'." },
+            "hsm_used": { "type": "boolean" }
+          }
+        }
+      }
+    },
+
+    "logging_and_audit": {
+      "type": "object",
+      "description": "TKCT §5.4 source.",
+      "properties": {
+        "log_categories": {
+          "type": "array",
+          "items": { "enum": ["authentication", "authorization", "data-access", "data-modification", "config-change", "admin-action", "error", "system-event", "integration-call"] }
+        },
+        "retention_days": { "type": ["integer", "null"], "minimum": 0 },
+        "centralization_tool": { "type": ["string", "null"], "description": "Example: 'ELK', 'Splunk', 'Loki'." },
+        "monitoring_tool": { "type": ["string", "null"] },
+        "alerts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["trigger", "channel"],
+            "properties": {
+              "trigger": { "type": "string", "description": "Vietnamese alert condition." },
+              "severity": { "enum": ["critical", "high", "medium", "low"] },
+              "channel": { "type": "string", "description": "How alert is delivered: 'email', 'sms', 'pager', 'webhook'." }
+            }
+          }
+        },
+        "siem_integration": { "type": "boolean" },
+        "tamper_protection": { "type": "boolean", "description": "Logs immutable / signed." }
+      }
+    },
+
+    "incident_response": {
+      "type": "object",
+      "description": "TKCT §5.5 source.",
+      "properties": {
+        "rpo_minutes": { "type": ["integer", "null"], "minimum": 0, "description": "Recovery Point Objective in minutes." },
+        "rto_minutes": { "type": ["integer", "null"], "minimum": 0, "description": "Recovery Time Objective in minutes." },
+        "playbook_doc_ref": { "type": ["string", "null"], "description": "Path to incident response playbook." },
+        "escalation_levels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["level", "criteria"],
+            "properties": {
+              "level": { "type": "string" },
+              "criteria": { "type": "string" },
+              "responders": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "tabletop_drill_frequency": { "type": ["string", "null"], "description": "Free-form: 'quarterly', 'annual'." },
+        "last_drill_date": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+
+    "network_security": {
+      "type": "object",
+      "description": "Network-layer protections. TKKT §10.1 + TKCT §6.3 source.",
+      "properties": {
+        "zones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "description": "DMZ | Internal | Restricted | Management | etc." },
+              "description": { "type": "string" },
+              "components": { "type": "array", "items": { "type": "string" }, "description": "architecture.components[].name in this zone." }
+            }
+          }
+        },
+        "firewall_strategy": { "type": ["string", "null"] },
+        "waf_used": { "type": "boolean" },
+        "ddos_protection": { "type": "boolean" },
+        "vpn_required_for_admin": { "type": "boolean" }
+      }
+    },
+
+    "compliance": {
+      "type": "object",
+      "description": "Compliance posture for TKKT §10.5 + audit trail.",
+      "properties": {
+        "certifications_held": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Examples: 'ISO/IEC 27001:2022', 'TCVN 11930:2017'."
+        },
+        "audits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "audit_type": { "type": "string" },
+              "audit_date": { "type": "string", "format": "date" },
+              "auditor": { "type": "string" },
+              "result": { "enum": ["passed", "passed-with-findings", "failed"] }
+            }
+          }
+        },
+        "data_protection_impact_assessment_done": { "type": "boolean", "description": "DPIA per NĐ 13/2023 (DLCN)." },
+        "dpia_doc_ref": { "type": ["string", "null"] }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": {
+            "type": "string",
+            "enum": [
+              "missing-attt-level",
+              "missing-attt-rationale",
+              "missing-ipv6-plan",
+              "thin-risk-analysis",
+              "encryption-gaps",
+              "no-mfa-on-admin",
+              "missing-incident-response",
+              "no-tamper-protection",
+              "missing-dpia-for-pii",
+              "other"
+            ]
+          },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

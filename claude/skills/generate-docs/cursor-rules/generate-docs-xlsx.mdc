@@ -1,0 +1,231 @@
+---
+description: Test Case xlsx writing rules — priority mapping, row types, test depth per feature
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# Test Cases xlsx (BM.QT.04.04)
+
+Khi điền `test_cases.ui[]` + `test_cases.api[]`.
+
+## 2 sheets
+
+- **UI tests** → `test_cases.ui[]` → sheet "Tên chức năng"
+- **API tests** → `test_cases.api[]` → sheet "Tên API"
+
+## Row types (per sheet)
+
+1. **FeatureGroupRow** — heading cho mỗi feature
+2. **SectionHeaderRow** — phân nhóm trong feature (Happy path / Validation / Permission)
+3. **TestCaseRow** — 1 test case
+
+Format sheet theo thứ tự: FeatureGroup → SectionHeader → TestCaseRows → (next FeatureGroup)...
+
+## TestCaseRow schema
+
+```jsonc
+{
+  "name": "Đăng nhập — happy path với credentials hợp lệ",   // Tên TC rõ ràng
+  "steps": [
+    {"no": 1, "action": "Truy cập /login"},
+    {"no": 2, "action": "Nhập email admin@etc.vn"},
+    {"no": 3, "action": "Nhập password ****"},
+    {"no": 4, "action": "Click nút 'Đăng nhập'"}
+  ],
+  "expected": [
+    {"no": 1, "expected": "Hiển thị form đăng nhập với 3 ô: email, password, submit"},
+    {"no": 2, "expected": "Ô email hiển thị 'admin@etc.vn'"},
+    {"no": 3, "expected": "Ô password hiển thị 4 dấu *"},
+    {"no": 4, "expected": "Redirect đến /dashboard, hiển thị welcome message"}
+  ],
+  "priority": "Rất cao",                  // VN enum — xem Priority Mapping
+  "preconditions": "User admin@etc.vn tồn tại trong DB",
+  "checklog": "Auth service log ghi 'login success' + timestamp",
+  "redirect": "/dashboard",
+  "notes": "Session TTL = 1h",
+  "feature_id": "F-001",                   // Link back to HDSD feature
+  "tc_id": "TC-001-001",                   // {feature}-{seq}
+  "labels": ["smoke", "auth"]
+}
+```
+
+## Priority mapping (CRITICAL)
+
+`test_cases.*.priority` PHẢI là 1 trong 4:
+- `"Rất cao"` → Critical — smoke test, blocker path
+- `"Cao"` → Major — core feature, 80% users touch
+- `"Trung bình"` → Normal — secondary feature
+- `"Thấp"` → Minor — edge case, nice-to-have
+
+Sai chính tả (`"Rat cao"`, `"Critical"`) → fill engine default `"Trung bình"` → mapping hỏng.
+
+## Accept alternatives (priority auto-normalize)
+
+Engine cho phép aliases nhưng tốt nhất dùng đúng VN:
+- `Critical/P1` → `"Rất cao"`
+- `Major/P2` → `"Cao"`
+- `Normal/P3` → `"Trung bình"`
+- `Minor/P4` → `"Thấp"`
+
+## Test depth per feature — DATA-DRIVEN SCALING (F2, replaces static min)
+
+**Old approach**: min 5 TC / feature → agent stop ở 5. Wrong, không scale với complexity.
+
+**New approach**: TC count = **function of feature properties**:
+
+```
+TC_count_per_feature(f) =
+  1                              # happy path (Rất cao)
+  + len(f.actors) × 2            # permission matrix (Rất cao + Cao)
+  + count_validations(f) × 3     # boundary × 3 (at-limit, just-below, just-above)
+  + len(f.error_cases)           # from HDSD error_cases
+  + 3                            # edge cases (từ @Notepads edge-case-tc-templates)
+
+Typical results:
+  Simple feature (1 actor, 2 validations, 1 error_case): 1+2+6+1+3 = 13 TCs
+  Medium feature (2 actors, 5 validations, 3 error_cases): 1+4+15+3+3 = 26 TCs
+  Complex (3 actors, 8 validations, 5 error_cases): 1+6+24+5+3 = 39 TCs
+```
+
+Data sources (agent must query):
+- `f.actors` → `doc-intel.features_from_docs[*].actors` (Path A) / `flow-report.features[*].actors` (Path B)
+- `count_validations(f)` → `code-facts.validation_constraints` filtered by feature scope
+- `f.error_cases` → `doc-intel.features_from_docs[*].error_cases`
+
+### TC quantity per API endpoint (F2 scaling)
+
+```
+TC_count_per_endpoint(ep) =
+  1                                # success (2xx)
+  + 1                              # validation error (400)
+  + 1                              # auth error (401)
+  + 1                              # authz error (403)
+  + 1 if ep has path param         # not-found (404)
+  + count_params(ep) × 2           # boundary per param (at-max, above-max)
+
+Typical: 5-12 TCs per endpoint (vs 3 min hiện tại).
+```
+
+### Backward compatible min (floor, not target)
+
+Vẫn giữ min rules để safety:
+- ≥ 5 UI TC / feature (absolute floor, actual target scaled up)
+- ≥ 3 API TC / endpoint (floor)
+
+Nhưng quality gate Pass 6 (mới) check **scaled target**, not min.
+
+### Impact expected
+
+| Repo scope | Before | After |
+|---|---|---|
+| 30 features average | 150 TCs (5 × 30) | 450-750 TCs (15-25 × 30) |
+| 45 API endpoints | 135 TCs (3 × 45) | 270-540 TCs (6-12 × 45) |
+| **Total TC** | **~285** | **~1000-1300** |
+
+3-5× more coverage, data-driven, không arbitrary.
+
+## Coverage requirements (E4 mandatory)
+
+Mỗi feature PHẢI có:
+- [x] ≥ 1 TC Rất cao (happy path smoke, blocker path)
+- [x] ≥ 2 TC Cao (validation + permission)
+- [x] ≥ 1 TC Trung bình (alternate flow)
+- [x] ≥ 1 TC per `error_case` declared in HDSD
+- [x] ≥ 1 TC boundary (nếu feature có numeric/length constraints)
+
+Mỗi API endpoint PHẢI có:
+- [x] ≥ 1 TC success (2xx happy)
+- [x] ≥ 1 TC validation error (4xx từ class-validator/Joi/Pydantic)
+- [x] ≥ 1 TC authz error (401/403)
+
+## E5 — Auto-gen TC từ validation constraints
+
+Parse `code-facts.validation_constraints[]` → auto-generate boundary TCs:
+
+### class-validator / Pydantic / Joi pattern → TC
+
+| Decorator | Auto-gen TC template |
+|---|---|
+| `@IsEmail()` | "Email 'not-an-email' → error 'Email không hợp lệ'" |
+| `@IsNotEmpty()` | "Field '{name}' rỗng → error 'Bắt buộc'" |
+| `@Length(min, max)` | 3 TCs: below min / at min / above max |
+| `@Min(N) / @Max(N)` | 2 TCs: N-1 fail / N+1 fail (for Max) |
+| `@IsIn([list])` | "Value 'invalid' → error; Value each enum → success" |
+| `@Matches(/regex/)` | "Value 'regex-fail' → error format" |
+| `@IsUUID()` | "Value '123' → error UUID format" |
+| `@IsDate()` | "Value '2026-99-99' → error date format" |
+
+### Example expansion
+
+From `code-facts`:
+```json
+{"field": "User.email", "decorator": "@IsEmail", "file": "src/users/dto/create.dto.ts"}
+{"field": "User.email", "decorator": "@IsNotEmpty", "file": "..."}
+{"field": "Request.title", "decorator": "@Length(1, 200)", "file": "..."}
+```
+
+Agent gen:
+```jsonc
+[
+  {
+    "name": "Tạo User — email rỗng → validation error",
+    "steps": [
+      {"no": 1, "action": "POST /api/v1/users với {email: '', password: 'xxx', fullName: 'A'}"}
+    ],
+    "expected": [{"no": 1, "text": "400 Bad Request với 'email should not be empty'"}],
+    "priority": "Cao",
+    "feature_id": "F-auth-001",
+    "tc_id": "TC-USR-001-validation-email-empty"
+  },
+  {
+    "name": "Tạo User — email sai format → validation error",
+    "steps": [{"no": 1, "action": "POST với {email: 'not-email'}"}],
+    "expected": [{"no": 1, "text": "400 với 'email must be an email'"}],
+    "priority": "Cao",
+    "tc_id": "TC-USR-002-validation-email-format"
+  },
+  {
+    "name": "Tạo Request — title 201 chars → boundary error",
+    "steps": [{"no": 1, "action": "POST /api/v1/requests với title 'A'*201"}],
+    "expected": [{"no": 1, "text": "400 với 'title must be shorter than or equal to 200'"}],
+    "priority": "Cao",
+    "tc_id": "TC-REQ-boundary-title-max"
+  }
+]
+```
+
+### Standard test scenarios per feature class
+
+Apart từ validation-driven, mỗi feature class có mandatory scenarios:
+
+**Auth features**:
+- Token expired → 401
+- Insufficient permission → 403
+- SSO login success + failure
+
+**Data CRUD features**:
+- Create valid → 201 + record in DB
+- Read non-existent → 404
+- Update owned → success
+- Update other's → 403
+- Delete → soft-delete record (audit trail)
+- List với pagination (empty / populated / edge page)
+
+**File upload features**:
+- Valid file type → success
+- Invalid MIME → 415
+- File too large → 413
+- Multiple file concurrent
+
+**Workflow features**:
+- Happy flow: state A → B → C
+- Skip step → error
+- Rollback from state → correct
+- Concurrent actor conflict
+
+## Steps + Expected — số lượng phải khớp
+
+`steps[].no` và `expected[].no` 1-1 correspondence. Nếu step 1 có expected thì `expected[0].no === 1`.
+
+Nếu step không có expected check → vẫn phải có entry `{"no": N, "text": ""}` để align.

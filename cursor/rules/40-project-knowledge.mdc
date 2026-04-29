@@ -1,0 +1,77 @@
+﻿---
+description: Accumulated project knowledge from delivered features. PM reads once per pipeline, selects relevant items per agent context bundle. Do NOT set alwaysApply — targeted injection only.
+globs: []
+alwaysApply: false
+---
+
+# Project Knowledge Base
+
+## Domain Conventions
+<!-- Relevant to: ba, sa -->
+<!-- Format: [FEAT-ID YYYY-MM-DD] Convention — why it matters -->
+
+_No entries yet._
+
+## Architectural Decisions (Standing)
+<!-- Relevant to: sa, tech-lead, dev, fe-dev, devops -->
+<!-- Format: [FEAT-ID YYYY-MM-DD] Decision — Rationale -->
+
+_No entries yet._
+
+## Coding Conventions & Anti-Patterns
+<!-- Relevant to: dev, fe-dev, reviewer -->
+<!-- Format: [FEAT-ID YYYY-MM-DD] Pattern — Where it applies -->
+
+_No entries yet._
+
+## Known Failure Modes
+<!-- Relevant to: qa, reviewer, security -->
+<!-- Format: [FEAT-ID YYYY-MM-DD] Failure — How to detect -->
+
+_No entries yet._
+
+## DevOps / Deployment Patterns
+<!-- Relevant to: devops, release-manager, sre-observability -->
+<!-- Format: [FEAT-ID YYYY-MM-DD] Pattern — Why it matters -->
+
+_No entries yet._
+
+---
+
+## PM Injection Guide
+
+| Agent | Sections to inject |
+|---|---|
+| ba | Domain Conventions |
+| sa | Domain Conventions, Architectural Decisions |
+| tech-lead, dev, fe-dev | Architectural Decisions, Coding Conventions |
+| qa | Coding Conventions, Known Failure Modes |
+| reviewer | Coding Conventions, Known Failure Modes |
+| security | Known Failure Modes |
+| devops, release-manager, sre-observability | DevOps Patterns |
+
+Injection format (append to agent context bundle):
+```
+## Project Conventions
+- [item 1]
+- [item 2]
+```
+
+Rules: Skip section if no entries. Cap 5 items per agent (most recently added first).
+
+---
+
+## Population Rules
+
+Trigger: after every `/retrospective` or `/close-feature`.
+
+| Observation | Target section |
+|---|---|
+| Domain convention that surprised the team | Domain Conventions |
+| Architectural decision affecting future features | Architectural Decisions |
+| Code pattern/anti-pattern found in review | Coding Conventions |
+| Bug class caught by QA/reviewer | Known Failure Modes |
+| Deployment lesson | DevOps Patterns |
+
+Do NOT add: one-time fixes, decisions already in ADRs (link instead), content belonging in code comments/README.
+Quality bar: each entry must change a future agent's behavior — if it can't, skip it.

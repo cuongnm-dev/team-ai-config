@@ -1,0 +1,84 @@
+# TKKT field map — outline theo QĐ 292/2025 (Khung KT CPĐT 4.0)
+# 5 reference models + deployment + security + NFR
+
+field_map:
+  # ── PHẦN 1: Tổng quan ──
+  - { match: "Mục tiêu kiến trúc",               kind: prose, expr: "{{ architecture.purpose }}" }
+  - { match: "Phạm vi và đối tượng",             kind: prose, expr: "{{ architecture.scope }}" }
+  - { match: "Nguyên tắc thiết kế",              kind: prose, expr: "{{ architecture.design_principles or '[CẦN BỔ SUNG: Nguyên tắc thiết kế]' }}" }
+  - { match: "Căn cứ và tiêu chuẩn",             kind: prose, expr: "{{ architecture.standards or '[CẦN BỔ SUNG: TCVN, ISO áp dụng]' }}" }
+
+  # ── PHẦN 2: Kiến trúc nghiệp vụ ──
+  - { match: "Mô hình nghiệp vụ tổng thể",       kind: prose_with_diagram,
+      expr: "{{ architecture.business_overview or architecture.system_overview }}",
+      diagram: "business" }
+  - { match: "Danh mục phân hệ và chức năng",    kind: table,
+      headers: ["STT", "Phân hệ", "Chức năng", "Mô tả", "Đối tượng"],
+      loop: "feat in all_features",
+      columns: ["{{ loop.index }}", "{{ feat.service_name }}", "{{ feat.name }}", "{{ feat.description }}", "{{ feat.actors|join(', ') }}"] }
+  - { match: "Đối tượng sử dụng và vai trò",     kind: prose, expr: "{{ architecture.actors_description or '[CẦN BỔ SUNG: Vai trò người dùng]' }}" }
+  - { match: "Quy trình nghiệp vụ chính",        kind: prose, expr: "{{ architecture.business_processes or '[CẦN BỔ SUNG: Quy trình nghiệp vụ trọng yếu]' }}" }
+
+  # ── PHẦN 3: Kiến trúc dữ liệu ──
+  - { match: "Mô hình dữ liệu tổng thể",         kind: prose_with_diagram,
+      expr: "{{ architecture.data_description }}",
+      diagram: "erd" }
+  - { match: "Danh mục thực thể dữ liệu",        kind: table,
+      headers: ["STT", "Thực thể", "Mục đích", "Loại lưu trữ"],
+      loop: "e in architecture.data_entities",
+      columns: ["{{ loop.index }}", "{{ e.name }}", "{{ e.purpose }}", "{{ e.storage_type or 'PostgreSQL' }}"] }
+  - { match: "Phân loại và lưu trữ dữ liệu",     kind: prose, expr: "{{ architecture.data_classification or '[CẦN BỔ SUNG: Phân loại dữ liệu, vòng đời]' }}" }
+  - { match: "Nguyên tắc quản trị dữ liệu",      kind: prose, expr: "{{ architecture.data_governance or '[CẦN BỔ SUNG: Data governance, master data]' }}" }
+
+  # ── PHẦN 4: Kiến trúc ứng dụng ──
+  - { match: "Mô hình ứng dụng tổng thể",        kind: prose_with_diagram,
+      expr: "{{ architecture.logical_description }}",
+      diagram: "component" }
+  - { match: "Danh mục thành phần ứng dụng",     kind: table,
+      headers: ["STT", "Thành phần", "Loại", "Mô tả"],
+      loop: "c in architecture.components",
+      columns: ["{{ loop.index }}", "{{ c.name }}", "{{ c.type }}", "{{ c.description }}"] }
+  - { match: "Tương tác giữa các thành phần",    kind: prose, expr: "{{ architecture.interaction_description }}" }
+  - { match: "Danh mục API và giao diện tích hợp", kind: table,
+      headers: ["STT", "Endpoint", "Phương thức", "Mô tả", "Xác thực"],
+      loop: "a in architecture.apis",
+      columns: ["{{ loop.index }}", "{{ a.path }}", "{{ a.method }}", "{{ a.description }}", "{{ a.auth or 'JWT' }}"] }
+  - { match: "Tích hợp với hệ thống ngoài",      kind: diagram_then_table,
+      diagram: "integration",
+      headers: ["STT", "Hệ thống ngoài", "Giao thức", "Mục đích"],
+      loop: "x in architecture.external_integrations",
+      columns: ["{{ loop.index }}", "{{ x.system }}", "{{ x.protocol }}", "{{ x.purpose }}"] }
+
+  # ── PHẦN 5: Kiến trúc kỹ thuật - công nghệ ──
+  - { match: "Kiến trúc hạ tầng kỹ thuật",       kind: prose_with_diagram,
+      expr: "{{ architecture.deployment_description }}",
+      diagram: "deployment" }
+  - { match: "Công nghệ và nền tảng sử dụng",    kind: table,
+      headers: ["Lớp", "Công nghệ", "Phiên bản", "Vai trò"],
+      loop: "t in architecture.tech_stack",
+      columns: ["{{ t.layer }}", "{{ t.technology }}", "{{ t.version or '-' }}", "{{ t.role }}"] }
+  - { match: "Phương án triển khai",             kind: table,
+      headers: ["STT", "Container", "Image", "Port", "Phụ thuộc"],
+      loop: "c in architecture.containers",
+      columns: ["{{ loop.index }}", "{{ c.name }}", "{{ c.image }}", "{{ c.port or '-' }}", "{{ c.depends_on|join(', ') if c.depends_on else '-' }}"] }
+  - { match: "Môi trường triển khai",            kind: table,
+      headers: ["Môi trường", "Hạ tầng", "Mục đích"],
+      loop: "env in architecture.environments",
+      columns: ["{{ env.name }}", "{{ env.infrastructure }}", "{{ env.purpose }}"] }
+
+  # ── PHẦN 6: Kiến trúc ATTT ──
+  - { match: "Nguyên tắc và chính sách bảo mật", kind: prose_with_diagram,
+      expr: "{{ architecture.security_description }}",
+      diagram: "security" }
+  - { match: "Xác thực và phân quyền",           kind: prose, expr: "{{ architecture.auth_description }}" }
+  - { match: "Bảo vệ dữ liệu",                   kind: prose, expr: "{{ architecture.data_protection or '[CẦN BỔ SUNG: Mã hóa at-rest, TLS, masking]' }}" }
+  - { match: "Giám sát và ứng phó sự cố",        kind: prose, expr: "{{ architecture.monitoring or '[CẦN BỔ SUNG: SIEM, alert, playbook]' }}" }
+
+  # ── PHẦN 7: NFR ──
+  - { match: "Hiệu năng và khả năng mở rộng",    kind: table,
+      headers: ["Tiêu chí", "Yêu cầu", "Phương án đáp ứng"],
+      loop: "n in architecture.nfr",
+      columns: ["{{ n.criterion }}", "{{ n.requirement }}", "{{ n.solution }}"] }
+  - { match: "Tính sẵn sàng",                    kind: prose, expr: "{{ architecture.availability or '[CẦN BỔ SUNG: SLA, HA, DR]' }}" }
+  - { match: "Khả năng tương thích",             kind: prose, expr: "{{ architecture.compatibility or '[CẦN BỔ SUNG: Trình duyệt, OS hỗ trợ]' }}" }
+  - { match: "Khả năng bảo trì",                 kind: prose, expr: "{{ architecture.maintainability or '[CẦN BỔ SUNG: Logging, versioning, CI/CD]' }}" }

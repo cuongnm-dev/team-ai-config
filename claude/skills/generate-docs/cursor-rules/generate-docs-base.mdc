@@ -1,0 +1,49 @@
+---
+description: Base rules for generate-docs content-data.json editing — văn phong hành chính, fabrication policy
+globs:
+  - "**/content-data.json"
+  - "**/intel/doc-intel.json"
+alwaysApply: false
+---
+
+# generate-docs — Base Rules
+
+Khi edit `content-data.json` hoặc `intel/doc-intel.json`, áp dụng:
+
+## Văn phong hành chính Việt Nam
+
+- Câu bị động, vô nhân xưng — KHÔNG dùng "tôi/mình/chúng ta"
+- Trang trọng, chính xác, không viết tắt ngoài bảng thuật ngữ
+- Mỗi section mở bằng căn cứ/bối cảnh, kết bằng tóm tắt/dẫn tiếp
+- Giữ nguyên tên sản phẩm (PostgreSQL, Next.js), mã tiêu chuẩn (ISO 27001), đơn vị đo (GB, Mbps)
+- Thuật ngữ VN: "máy chủ" thay "server", "cơ sở dữ liệu" thay "database"
+
+## Fabrication Policy (CẤM)
+
+- CẤM tuyệt đối sinh content fabricated cho blocks technical
+- Thiếu info → `[CẦN BỔ SUNG: <mô tả cụ thể>]` — đừng chỉ `[CẦN BỔ SUNG]`
+- Số liệu phải khớp intel/doc-intel thực tế — không thêm/bớt components
+- Tên technology + version: extract từ source — không đoán
+
+## Priority enum (test_cases)
+
+PHẢI là 1 trong 4 giá trị VN:
+- `"Rất cao"` (Critical)
+- `"Cao"` (Major)
+- `"Trung bình"` (Normal)
+- `"Thấp"` (Minor)
+
+Sai chính tả → fill engine default "Normal" → mapping lỗi.
+
+## Citation preservation
+
+Nếu source là `doc-intel.json` (Path A), mỗi prose field có `{value, source}` wrapper — khi merge vào content-data, giữ `value`, log `source` trong MEMORIES.
+
+## Reference formats (NĐ 30/2020)
+
+- Full citation: `Nghị định số XX/YYYY/NĐ-CP ngày dd tháng mm năm yyyy của Chính phủ...`
+- Short: `Nghị định số XX/YYYY/NĐ-CP`
+- Article ref: `theo quy định tại khoản Y Điều X Nghị định số...`
+- Tiền: `XXX.XXX.XXX đồng`
+- Ngày prose: `ngày dd tháng mm năm yyyy`
+- Ngày bảng: `dd/mm/yyyy`

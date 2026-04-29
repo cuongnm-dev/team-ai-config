@@ -1,0 +1,54 @@
+---
+description: UI template — project-specific config for designer and fe-dev agents. Loaded only when project has a UI template configured.
+alwaysApply: false
+---
+
+# UI Template
+
+Global placeholder. Project-specific config lives in the project's `.cursor/rules/30-ui-template.mdc`.
+
+## Fallback (no project config)
+
+```
+designer: standard Material Design / HTML conventions, no template components
+fe-dev:   vanilla HTML/CSS or framework-agnostic components
+NEVER assume Bootstrap / Tailwind / Metronic
+Flag output: "ui_template: none configured — using framework-agnostic patterns"
+```
+
+## Agent behavior with this config
+
+| Agent      | Use                                                           |
+| ---------- | ------------------------------------------------------------- |
+| `designer` | Reference component names when describing UI flows            |
+| `fe-dev`   | Use template components directly, follow token system         |
+| `ba`       | Match screen types (list/form/dashboard) to template patterns |
+
+## Project-level config template
+
+Create `.cursor/rules/30-ui-template.mdc` in project:
+
+```markdown
+---
+description: UI template config for this project
+alwaysApply: false
+---
+
+# UI Template: {Template Name}
+
+ui_template:
+name: {e.g. Metronic 9}
+version: {e.g. 9.2.0}
+framework: {React | Vue | Angular | HTML}
+component_library: {e.g. Tailwind + Radix | Bootstrap 5}
+icon_set: {e.g. Font Awesome 6 | Heroicons}
+theme_tokens_path: {path to CSS variables or token file}
+
+## Key Components
+
+- {ComponentName}: {when to use}
+
+## Anti-patterns (do NOT use)
+
+- {e.g. custom modal — use KTModal instead}
+```

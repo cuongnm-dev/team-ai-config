@@ -1,0 +1,8 @@
+---
+feature-id: { feature-id }
+document: { document-name }
+stage: architecture
+agent: sa
+verdict: { verdict }
+last-updated: { YYYY-MM-DD }
+---

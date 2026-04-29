@@ -1,0 +1,164 @@
+﻿---
+description: "Delivery pipeline quick reference — stage order (Path S/M/L), artifact paths, re-entry rules, skill routing, context resolution. AGENTS.md is authoritative; this is the lookup summary."
+alwaysApply: false
+---
+
+# Delivery Pipeline Framework
+
+## Pipeline Paths
+
+| Path | Risk | Stages |
+|---|---|---|
+| S | 1–2 | `ba → tech-lead → dev → reviewer (inline QA)` |
+| M | 3 | `ba → sa → [designer?] → tech-lead → dev → qa → reviewer` |
+| L | 4–5 | `ba → sa → [security-design?] → tech-lead → dev → [devops?] → qa → [security-review?] → reviewer` |
+
+`ba` handles both BA + domain modeling (no separate `domain-analyst` stage).
+`[]` = conditional stage. Stage gates, verdicts → AGENTS.md.
+
+---
+
+## Feature Location Convention
+
+| Repo type | Features root | feature-map.yaml |
+|---|---|---|
+| mini | `docs/features/` | Recommended |
+| mono — app | `{project-path}/docs/features/` | **Required** |
+| mono — service | `{project-path}/docs/features/` | **Required** |
+| mono — cross-cutting | `docs/features/` | **Required** |
+| hotfix (any) | `docs/hotfixes/` | Recommended |
+
+**`docs/feature-map.yaml`** at workspace root is the PRIMARY lookup index.
+All state writers (new-feature, from-doc, hotfix) create/update this file.
+All state readers (resume-feature, feature-status, close-feature, update-feature) read it FIRST.
+
+## Artifact Paths
+
+Root: `{docs-path}/` (from `_state.md` frontmatter)
+
+```
+_state.md
+ba/                               ← 00-lean-spec.md (ba output)
+sa/                               ← 00-lean-architecture.md
+02-designer-report.md             ← conditional (designer)
+04-tech-lead-plan.md
+05-dev-w{N}-{task-slug}.md
+05-fe-dev-w{N}-{task-slug}.md     ← if applicable
+06-devops-report.md               ← conditional
+06b-release-manager-report.md     ← conditional
+06c-security-report.md            ← conditional
+06d-sre-report.md                 ← conditional
+06e-data-governance-report.md     ← conditional
+07-qa-report.md
+08-review-report.md
+09-retrospective.md
+10-deploy-report.md               ← conditional
+```
+
+---
+
+## State Ownership
+
+- **Dispatcher** owns `_state.md` writes (current-stage, stages-queue, completed-stages, status, kpi)
+- **Skills** create initial `_state.md` (new-feature, from-doc, hotfix) and seal it (close-feature)
+- **Agents** return verdict JSON to Dispatcher — they do NOT write `_state.md` directly
+
+---
+
+## Changes-Requested Re-entry
+
+| Reviewer finding | Re-entry stage |
+|---|---|
+| Code defects only | `dev` (skip ba/sa/tech-lead) |
+| Scope drift / missing AC | `ba` → fast-track to dev |
+| Architecture flaw | `sa` → `tech-lead` → `dev` |
+| Security finding | `dev` with security guidance |
+
+Max 2 rework cycles before escalating to user.
+
+---
+
+## Key Constraints
+
+- Max 8 dev agents per wave; no overlapping ownership in same wave
+- Max 2 refinement loops per agent pair before escalating
+- Artifact language: English. Skills may override for user-facing responses.
+- `_state.md` schema: see contract at `.cursor/skills/from-doc/SKILL.md`
+
+---
+
+## Session Context Resolution
+
+```
+1. docs/feature-map.yaml → scan for active features (status ≠ done)
+2. IDE file open → walk up for docs/features/*/_state.md → read frontmatter
+3. No feature-map + no _state.md → match path: {project-path}/** → derive project
+4. git branch --show-current → parse {project}/{type}/{description}
+5. Last resort → ask user. NEVER write to shared global context file.
+```
+
+---
+
+## Skill Routing Block
+
+Every skill output ends with `## What's next` table or pseudo-code.
+
+**Format A — Table** (≤ 5 mutually-exclusive conditions):
+```
+| Condition | Action |
+|---|---|
+| Verdict = Approved | `→ /close-feature` |
+| Verdict = Blocked | `→ Stopped. Blocker: {description}` |
+```
+
+**Format B — Pseudo-code** (chained / compound criteria):
+```
+if severity in [P0, P1] AND confidence == "High":
+  → /release
+  After /release completes:
+  → Suggested: /postmortem
+```
+
+---
+
+## Artifact Contracts Between Skills
+
+| Producer | Artifact | Consumer |
+|---|---|---|
+| `/plan-feature` | `{project-path}/docs/plans/{slug}.md` | `/implement` |
+| `/breakdown` | `{project-path}/docs/plans/{slug}-tasks.md` | `/implement`, `/new-feature` |
+| `/spike` | `{project-path}/docs/spikes/{slug}.md` | `/adr`, `/plan-feature` |
+| `/fix-bug` | `{project-path}/docs/fixes/{slug}.md` | `/hotfix`, `/review-pr` |
+| `/arch-review` | `{project-path}/docs/architecture/review-{date}.md` | `/adr`, `/tech-debt` |
+| `/gen-tests` | test files in `{project-path}/src/` | `/review-pr` |
+| `/ui-catalog` | `docs/ui-library/{template}-catalog.md` | `designer`, `fe-dev` |
+
+---
+
+## Context Compression
+
+After every 3 completed stages: snapshot to `_state.md`.
+On `/resume-feature`: read snapshot — not full artifact history.
+Pass `docs-path` to agents (not full artifact content inline).
+
+---
+
+## Doc Generation Pipeline
+
+Separate pipeline for generating documentation from source code or description files.
+Uses `doc-*` agents, same Dispatcher, same `_state.md` schema with `pipeline-type: doc-generation`.
+
+| Stage | Agent | Trigger |
+|---|---|---|
+| `doc-intel` | `doc-intel` | Input is description files → extract semantic content. Via `/from-doc` |
+| `research` | `doc-researcher` | Scan codebase: stack, routes/APIs/DB, flows, FE. 4 phases |
+| `test-runner` | `doc-test-runner` | Playwright scripts → screenshots. Requires Docker |
+| `doc-gen-phase` | 5 parallel writers | Generate doc files from intel reports |
+| `doc-export` | `doc-exporter` | Fill Office templates (.xlsx, .docx) |
+
+Entry skills: `/from-doc` (Claude Code or Cursor), `/generate-docs`, `/export-docs`
+
+SDLC vs Doc pipeline:
+- SDLC: build code from requirements → `ba/`, `sa/`, `05-dev-*.md`
+- Doc: document existing code → `intel/*.json`, `output/*.md`
+- Both share Dispatcher and `_state.md` schema; distinguished by `pipeline-type` field

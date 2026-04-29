@@ -1,0 +1,68 @@
+---
+description: "Auto-attach when editing sitemap.json. Validates against canonical schema in @Notepads sitemap-schema. Checks role-feature consistency, menu_tree integrity, workflow_variants completeness."
+globs:
+  - "**/intel/sitemap.json"
+alwaysApply: false
+---
+
+# Sitemap Validation Rules
+
+Auto-attach this rule when editing `sitemap.json`. Reference canonical schema: `@Notepads sitemap-schema`.
+
+## Schema validation (per Role object)
+
+**Required**:
+- `slug`, `display` (must match `actor-registry.json`)
+- `auth.login_url`, `auth.post_login_redirect`
+- `workspace.entry_url`, `workspace.layout` (sidebar | topbar | mixed)
+- `workspace.dashboard.{title, summary, widgets[]}`
+- `workspace.menu_tree[]`
+
+## Cross-reference validation
+
+When editing sitemap.json, Cursor should check:
+
+1. **Slug consistency**: `sitemap.roles[].slug` ⊆ `actor-registry.roles[].slug`. Mismatch → error.
+
+2. **Feature linkage**: every `menu_tree[].items[].feature_id` MUST exist in `feature-catalog.json`. Orphan → error.
+
+3. **Coverage**: every feature with `role-visibility: ["admin"]` SHOULD appear in admin's menu_tree (or be flagged as deep-link only).
+
+4. **Workflow variants**: `feature_overrides[].workflow_variants[role]` only valid roles from registry; `available_actions[].from_state→to_state` must use canonical state vocab (`draft|submitted|approved|rejected|revising|closed|archived`).
+
+## Menu tree quality
+
+Per MenuGroup:
+- `id` unique within role
+- `label` = exact UI text (Vietnamese)
+- `items[]` non-empty (or it's a placeholder group)
+- `submenu` ≤ 1 level depth (flatten deeper hierarchy)
+
+Per MenuItem:
+- `url` starts with `/`
+- `feature_id` matches F-NNN pattern OR null
+- `icon` from controlled vocab if present
+
+## Dashboard widget quality
+
+Per Widget:
+- `type` from controlled vocab: `stats | activity-feed | chart | list | calendar | shortcut | banner | other`
+- `description` non-empty (HDSD writer needs this)
+
+## Confidence + warnings
+
+`confidence`: high (explicit menu config) | medium (inferred from guards) | low (best-guess)
+
+If `confidence: low` → consumer (HDSD writer) MUST emit `[CẦN BỔ SUNG]` markers in role chapter intros instead of fabricating menu structure.
+
+## Anti-patterns
+
+- ❌ `slug` not in actor-registry → orphan role
+- ❌ Menu item with `feature_id: "F-999"` not in feature-catalog → orphan link
+- ❌ `workflow_variants[role].available_actions[].action: "Approve"` (English) — must be Vietnamese ("Duyệt")
+- ❌ `states_visible: ["all"]` but `states_actionable` listing specific states — inconsistent
+- ❌ Empty `menu_tree[]` for a role marked as multi-role-active
+
+## When in doubt
+
+Reference `@Notepads sitemap-schema` for canonical examples (Minimal + Full).

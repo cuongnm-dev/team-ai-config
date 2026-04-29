@@ -1,0 +1,143 @@
+---
+description: Placeholder emission policy — when [CẦN BỔ SUNG] is ALLOWED vs REQUIRED to infer
+globs:
+  - "**/content-data.json"
+  - "**/intel/doc-intel.json"
+alwaysApply: false
+---
+
+# `[CẦN BỔ SUNG]` Emission Policy
+
+## Core principle
+
+Placeholder is **last resort**, NOT default. Agent MUST exhaust:
+1. **Bậc 1**: Hard evidence (package.json, docker-compose, schema files, code-facts.json)
+2. **Bậc 2**: Soft evidence (README, ARCHITECTURE, ADR, docs/*, feature specs)
+3. **Bậc 3**: Informed inference from stack (prefix "Dựa trên <evidence>...")
+
+**Only emit `[CẦN BỔ SUNG]` cho business-only fields** (in whitelist below) HOẶC sau 3 bậc cạn.
+
+---
+
+## ALLOWED placeholder fields (whitelist)
+
+### TKCS business-only (max 15 placeholders)
+- `tkcs.total_budget` — total investment VND
+- `tkcs.budget_detail` — breakdown by category
+- `tkcs.opex` — annual operating cost
+- `tkcs.warranty` — warranty terms (business decision)
+- `tkcs.pm_form` — BQL chuyên trách | kiêm nhiệm
+- `tkcs.stakeholders` — relationships table
+- `tkcs.pm_method` — PM methodology chosen
+- `tkcs.milestones` — mốc chính (unless roadmap docs exist)
+- `tkcs.schedule` — Gantt (unless roadmap docs exist)
+- `tkcs.location` — triển khai địa điểm
+- `tkcs.scale` — quy mô
+- `tkcs.legal_basis` (only if docs/legal missing)
+
+### Architecture (max 3 placeholders)
+- `architecture.nfr[].solution` (chỉ nếu docs/nfr.md missing AND stack không infer được)
+
+### TKCT (max 8 placeholders)
+- Column-level DB detail (nếu không được phép đọc schema code)
+- Specific API param examples
+
+---
+
+## REQUIRED to fill (no placeholder)
+
+### Overview (0 placeholders allowed)
+- `overview.purpose` — MUST extract từ README hoặc infer từ project name
+- `overview.scope` — MUST extract hoặc infer
+- `overview.system_description` — MUST infer từ architecture
+
+### Services / Features (0 placeholders allowed — substance)
+- `feature.name` — MUST extract từ BA spec hoặc route name
+- `feature.description` — MUST write từ AC hoặc infer từ controller
+- `feature.steps` — từ BA spec hoặc controller flow
+- `feature.actors` — từ RBAC config hoặc BA spec
+
+Nếu feature hoàn toàn không có data → **EXCLUDE** feature khỏi content-data, KHÔNG placeholder.
+
+### Architecture facts (0 placeholders — must extract code-facts)
+- `architecture.tech_stack` — 100% từ `code-facts.tech_stack`
+- `architecture.components` — từ `code-facts.docker.services`
+- `architecture.data_entities` — từ `code-facts.entities`
+- `architecture.apis` — từ `code-facts.routes`
+- `architecture.containers` — từ `code-facts.docker.services`
+
+### Test cases (0 placeholders — must generate)
+- Generate từ features + code validation constraints
+- If feature có 0 steps → SKIP generating TC, emit warning
+
+---
+
+## Bậc 3 Inference REQUIRED patterns
+
+Trước khi emit `[CẦN BỔ SUNG]` cho các field dưới đây, agent PHẢI try infer:
+
+| Field | Infer from | Template |
+|---|---|---|
+| `architecture.availability` | replicas + healthcheck trong docker-compose | "Active-active {N} replicas với healthcheck 30s → uptime SLA 99.5%" |
+| `architecture.compatibility` | `tsconfig.target`, `.browserslistrc` | "Chrome/Firefox/Safari/Edge 2 phiên bản mới nhất (theo browserslist {stack-default})" |
+| `architecture.maintainability` | CI/CD files, eslint, jest config | "CI/CD tự động qua {platform} với {N} workflows: lint + test + security scan trước merge" |
+| `architecture.monitoring` | logger lib + healthcheck endpoint + Prometheus dep | "Structured logging JSON ({logger}), health endpoint /health, metrics Prometheus via {lib}" |
+| `architecture.data_classification` | entity fields email/phone/cccd | "Dữ liệu cá nhân theo NĐ 13/2023 — {N} PII fields ({list}): cần mã hóa at-rest + TLS in-transit" |
+| `architecture.data_governance` | audit_log table, createdBy fields, RBAC decorators | "Audit trail đầy đủ qua bảng {table}, {N} RBAC roles: {roles}" |
+| `architecture.design_principles` | README, ADR, codebase structure | "Dựa trên {N} ADRs: {principles}. Codebase {structure-pattern}" |
+| `tkcs.software_arch_pattern` | docker-compose services count + type | "1 service → Monolith; ≥3 services + queue → Event-driven microservice; {N} services → {pattern}" |
+| `tkcs.dbms_choice` | docker-compose image | "{Image} — {rationale from tech characteristics}" |
+| `tkcs.os_choice` | Dockerfile FROM | "{base image}, {reason: Alpine for small footprint / Ubuntu LTS for stability}" |
+| `tkcs.standards` | auth method + encryption + logging | "TCVN 11930:2017 ATTT cấp {level infer from auth}, ISO/IEC 27001, OWASP ASVS" |
+
+**Prefix bắt buộc**: "Dựa trên {evidence}, suy ra {value}."
+
+Ví dụ đúng:
+> Dựa trên docker-compose.yml có api service với replicas: 2 và healthcheck interval 30s, hệ thống đạt availability 99.5% uptime theo mô hình active-active 2 replicas.
+
+Ví dụ sai (không có evidence):
+> Hệ thống đạt uptime 99.5%. ← Where from?
+
+---
+
+## Budget check
+
+Sau Phase 3 write, count placeholders per section:
+
+```python
+COUNTS = {section: count_placeholders(data[section]) for section in SECTIONS}
+
+if COUNTS["architecture"] > 3: FAIL("Architecture placeholder overshoot, re-scan Bậc 1+2")
+if COUNTS["tkcs"] > 15: WARN("TKCS placeholders high — expected, business-only fields")
+if COUNTS["services"] > 0: FAIL("HDSD services KHÔNG được placeholder — exclude feature thay vì placeholder")
+if COUNTS["test_cases"] > 0: FAIL("Test cases KHÔNG được placeholder — generate hoặc skip feature")
+```
+
+FAIL = Phase 3.5 quality gate block export.
+
+---
+
+## Anti-patterns
+
+❌ Blanket placeholder khi agent "lười":
+```
+"architecture.maintainability": "[CẦN BỔ SUNG]"
+```
+→ Wrong, phải infer từ CI/CD configs hoặc prefix "Dựa trên...".
+
+❌ Placeholder cho feature description:
+```
+"feature.description": "[CẦN BỔ SUNG: BA fill]"
+```
+→ Wrong, extract từ controller code comments hoặc AC.md, hoặc exclude feature.
+
+❌ Placeholder không có hint:
+```
+"[CẦN BỔ SUNG]"
+```
+→ Wrong, phải là `"[CẦN BỔ SUNG: <describe what>]"` để BA/PM biết fill gì.
+
+✅ Correct placeholder (business-only với hint):
+```
+"tkcs.total_budget": "[CẦN BỔ SUNG: Tổng mức đầu tư (đồng) — lấy từ Phòng Tài chính]"
+```

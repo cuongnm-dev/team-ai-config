@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/handover-plan.schema.json",
+  "title": "Handover Plan",
+  "description": "Training, deliverables, warranty, maintenance. Tier 3 doc-only — resume-feature SKIPS entirely. Producer: from-doc (interview). Consumed by tdoc-tkct-writer §9 only. Hard-stop in from-doc Phase 8 if training[] empty OR warranty.period_months empty. Justified by: TKCT §9.1-9.3 Đ14 (đào tạo, tài liệu chuyển giao, bảo hành/bảo trì).",
+  "type": "object",
+  "required": ["schema_version", "training", "deliverables", "warranty"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "training": {
+      "type": "array",
+      "minItems": 1,
+      "description": "TKCT §9.1 source. Min 1 training plan.",
+      "items": {
+        "type": "object",
+        "required": ["audience_role", "topics", "hours"],
+        "properties": {
+          "audience_role": { "type": "string", "description": "Role slug or display name. Cross-ref actor-registry.roles[].slug when applicable." },
+          "audience_count": { "type": ["integer", "null"], "minimum": 1 },
+          "topics": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "hours": { "type": "integer", "minimum": 1 },
+          "method": {
+            "type": "string",
+            "enum": ["in-person", "online-live", "online-recorded", "hands-on-lab", "train-the-trainer", "mixed"]
+          },
+          "delivery_phase": { "type": ["string", "null"], "description": "When in project lifecycle: 'pre-go-live', 'post-go-live', 'continuous'." },
+          "materials_provided": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Examples: 'HDSD docx', 'video tutorials', 'lab exercises'."
+          }
+        }
+      }
+    },
+
+    "deliverables": {
+      "type": "array",
+      "description": "TKCT §9.2 source. Documents/artifacts handed to operator.",
+      "items": {
+        "type": "object",
+        "required": ["type", "format"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "user-manual",
+              "admin-manual",
+              "operations-runbook",
+              "tkkt-doc",
+              "tkcs-doc",
+              "tkct-doc",
+              "test-report",
+              "source-code",
+              "build-artifacts",
+              "deployment-guide",
+              "api-documentation",
+              "training-materials",
+              "data-migration-report",
+              "uat-signoff",
+              "warranty-certificate",
+              "license-keys",
+              "other"
+            ]
+          },
+          "name": { "type": "string", "description": "Specific deliverable name." },
+          "format": {
+            "type": "string",
+            "enum": ["docx", "pdf", "xlsx", "video", "source-code", "binary", "physical-document", "online-portal", "other"]
+          },
+          "audience": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Roles/teams this deliverable serves."
+          },
+          "delivery_milestone": { "type": ["string", "null"], "description": "When delivered. Example: 'go-live', 'final acceptance'." }
+        }
+      }
+    },
+
+    "warranty": {
+      "type": "object",
+      "required": ["period_months"],
+      "description": "TKCT §9.3 source.",
+      "properties": {
+        "period_months": { "type": "integer", "minimum": 1, "description": "Warranty period from acceptance." },
+        "scope": { "type": ["string", "null"], "description": "What is covered (bugs, defects, security patches)." },
+        "exclusions": { "type": "array", "items": { "type": "string" }, "description": "What is NOT covered." },
+        "sla": {
+          "type": ["object", "null"],
+          "properties": {
+            "support_hours": { "type": ["string", "null"], "description": "Free-form: '8x5', '24x7'." },
+            "response_time_critical_hours": { "type": ["number", "null"], "minimum": 0 },
+            "response_time_high_hours": { "type": ["number", "null"], "minimum": 0 },
+            "resolution_time_critical_hours": { "type": ["number", "null"], "minimum": 0 },
+            "channel": { "type": "array", "items": { "enum": ["phone", "email", "ticket-portal", "chat", "on-site"] } }
+          }
+        },
+        "support_tier": {
+          "type": ["string", "null"],
+          "enum": ["L1", "L1+L2", "L1+L2+L3", "full-stack", null]
+        }
+      }
+    },
+
+    "maintenance": {
+      "type": ["object", "null"],
+      "description": "Post-warranty maintenance arrangement (optional).",
+      "properties": {
+        "scope": { "type": ["string", "null"] },
+        "schedule": { "type": ["string", "null"], "description": "Free-form: 'monthly patches', 'quarterly review'." },
+        "annual_cost_vnd": { "type": ["integer", "null"], "minimum": 0 },
+        "renewal_terms": { "type": ["string", "null"] }
+      }
+    },
+
+    "knowledge_transfer": {
+      "type": ["object", "null"],
+      "description": "Long-term capability building beyond initial training.",
+      "properties": {
+        "approach": { "type": ["string", "null"], "description": "Free-form: 'shadow operations 2 months', 'embedded engineer'." },
+        "duration_months": { "type": ["integer", "null"], "minimum": 1 },
+        "exit_criteria": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

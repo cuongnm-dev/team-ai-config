@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/_meta.schema.json",
+  "title": "Intel Layer Meta",
+  "description": "Provenance, TTL, staleness, and lock registry for all intel artifacts. Single arbiter for reuse decisions across from-doc, from-code, generate-docs.",
+  "type": "object",
+  "required": ["schema_version", "workspace_slug", "artifacts"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "workspace_slug": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "artifacts": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z-]+\\.json$": { "$ref": "#/definitions/artifactMeta" }
+      },
+      "additionalProperties": false
+    },
+    "reuse_policy": {
+      "type": "object",
+      "properties": {
+        "from_doc_to_generate_docs": { "$ref": "#/definitions/reuseMode" },
+        "from_code_to_generate_docs": { "$ref": "#/definitions/reuseMode" },
+        "generate_docs_to_from_doc": { "$ref": "#/definitions/reuseMode" },
+        "generate_docs_to_from_code": { "$ref": "#/definitions/reuseMode" },
+        "from_doc_from_code_merge": { "$ref": "#/definitions/reuseMode" }
+      }
+    },
+    "lock_file": {
+      "type": "object",
+      "description": "Optional cooperative lock when multiple skills write concurrently.",
+      "properties": {
+        "held_by": { "type": "string" },
+        "acquired_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "definitions": {
+    "artifactMeta": {
+      "type": "object",
+      "required": ["producer", "produced_at", "ttl_days"],
+      "properties": {
+        "producer": {
+          "type": "string",
+          "enum": [
+            "doc-intel",
+            "tdoc-researcher",
+            "tdoc-actor-enum",
+            "code-harvester",
+            "manual-interview",
+            "intel-merger"
+          ]
+        },
+        "produced_at": { "type": "string", "format": "date-time" },
+        "ttl_days": { "type": "integer", "minimum": 1, "maximum": 365 },
+        "checksum_sources": {
+          "type": "string",
+          "description": "sha256 of concatenated source files at produce-time. Mismatch = stale."
+        },
+        "source_evidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths to source files (docs or code) that fed this artifact."
+        },
+        "merged_from": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Producer tags of contributors when artifact is multi-producer."
+        },
+        "stale": { "type": "boolean", "default": false },
+        "stale_reason": { "type": "string" },
+        "stale_since": { "type": "string", "format": "date-time" },
+        "auto_regen_eligible": { "type": "boolean", "default": true },
+        "manual_edits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["edited_at", "fields"],
+            "properties": {
+              "edited_at": { "type": "string", "format": "date-time" },
+              "edited_by": { "type": "string" },
+              "fields": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "locked_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "JSONPath expressions producers must NOT overwrite (e.g. '$.roles[*].display')."
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "validated_at": { "type": "string", "format": "date-time" },
+            "validator_version": { "type": "string" },
+            "errors": { "type": "array", "items": { "type": "string" } },
+            "warnings": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "reuseMode": {
+      "type": "string",
+      "enum": ["reuse_if_fresh", "reuse_with_verify", "merge", "regenerate", "never_reuse"]
+    }
+  }
+}

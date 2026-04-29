@@ -1,0 +1,264 @@
+---
+description: Prose quality enforcement — ban generic phrases, require specificity metrics
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# Prose Quality Rules
+
+## Banned phrases (STRICT in Hiện trạng + Giải pháp sections)
+
+Agent MUST NOT use các cụm sau trong prose unless paired với specific data:
+
+### Banned adjectives (không có metric)
+- `hiện đại`, `tiên tiến`, `lạc hậu`, `lỗi thời`
+- `mạnh mẽ`, `yếu kém`
+- `đồng bộ`, `thiếu đồng bộ`
+- `đầy đủ`, `chưa đầy đủ`, `thiếu`
+- `toàn diện`, `chưa toàn diện`
+
+### Banned quantifiers (không có số)
+- `tương đối`, `khá`, `hơi`, `rất`, `cực kỳ`
+- `đa số`, `một số`, `hầu hết`, `nhiều`, `ít`, `vài`, `phần lớn`
+
+### Banned time expressions (không có năm)
+- `thời gian tới`, `thời gian qua`
+- `trong thời gian gần đây`
+- `giai đoạn trước`, `giai đoạn sau`
+- `trước đây`, `hiện nay`, `sắp tới`
+
+### Banned process (không có step)
+- `từng bước`, `dần dần`, `dần hoàn thiện`
+- `đi vào chiều sâu`, `tiến tới`, `hướng tới`
+- `cần tiếp tục nghiên cứu`, `có thể xem xét`
+- `dự kiến sẽ`, `kế hoạch sẽ`, `nếu có điều kiện`
+
+### Banned filler structures (script-padding patterns)
+
+Detected via regex — common LLM/script padding tropes:
+
+- `đảm bảo tính linh hoạt`
+- `phù hợp xu hướng (công nghệ )?(hiện đại|tiên tiến)`
+- `đáp ứng nhu cầu thực tiễn`
+- `linh động và (mở rộng|hiệu quả)`
+- `tối ưu hóa hiệu suất` (without metric number)
+- `giải pháp toàn diện`
+- `hiệu quả cao và bền vững`
+- `đảm bảo .{1,40}, đáp ứng .{1,40}, phù hợp` (3-clause filler)
+- Repeated 3-grams in same section (signal of formulaic padding)
+
+---
+
+## ★ ANTI-PADDING RULE (read first)
+
+> Word counts dưới đây là **indicative targets**, KHÔNG phải hard floor để pad filler.
+> Khi prose ngắn hơn target: **NEVER pad** với câu chuyển tiếp/câu lặp/câu chung chung.
+
+Decision tree khi section ngắn:
+
+```
+Section.word_count < target?
+├── YES → Re-scan intel artifacts (actor-registry, feature-catalog, sitemap, code-facts, doc-brief)
+│   ├── Có thêm data thực không?
+│   │   ├── YES → Expand WITH specifics (numbers, names, citations)
+│   │   └── NO  → Emit [CẦN BỔ SUNG: <gap cụ thể>] + log to intel/expansion-gaps.md
+│   └── NEVER pad with: "đảm bảo tính linh hoạt", "phù hợp xu hướng", lặp ý cũ với synonyms
+└── NO → OK
+```
+
+**Reviewer checks**: filler prose nhìn ra sau 30s đọc. Padding làm document **xấu hơn** so với honest `[CẦN BỔ SUNG]`.
+
+**Validator behavior**: Stage 5b detects banned phrases + low specificity density. Padding-suspect sections (đủ word count, thấp density) bị reject → re-write từ intel hoặc emit placeholder.
+
+## Word count — indicative targets per section
+
+Đây là **targets cho substantive content** — đạt nó nghĩa là section có đủ data thực, KHÔNG phải nghĩa là agent phải tiến tới đó bằng filler.
+
+### Overview
+| Path | Min words |
+|---|---|
+| `overview.purpose` | 200 |
+| `overview.scope` | 200 |
+| `overview.system_description` | 300 |
+| `overview.conventions` | 150 |
+
+### TKCS (heaviest prose)
+| Path | Min words |
+|---|---|
+| `tkcs.legal_basis` | 400 |
+| `tkcs.current_state` | 800 |
+| `tkcs.necessity` | 500 |
+| `tkcs.objectives` | 400 |
+| `tkcs.architecture_compliance` | 300 |
+| `tkcs.technology_rationale` | 600 |
+| `tkcs.functional_design` | 1000 |
+| `tkcs.db_design_summary` | 400 |
+| `tkcs.integration_design_summary` | 400 |
+| `tkcs.security_plan` | 500 |
+| `tkcs.operations_plan` | 400 |
+| `tkcs.timeline` | 300 |
+
+### Architecture (TKKT)
+| Path | Min words |
+|---|---|
+| `architecture.system_overview` | 400 |
+| `architecture.scope_description` | 300 |
+| `architecture.business_overview` | 500 |
+| `architecture.design_principles` | 400 |
+| `architecture.logical_description` | 400 |
+| `architecture.data_description` | 300 |
+| `architecture.integration_description` | 400 |
+| `architecture.deployment_description` | 400 |
+| `architecture.security_description` | 500 |
+| `architecture.auth_description` | 300 |
+| `architecture.data_protection` | 300 |
+
+### TKCT
+| Path | Min words |
+|---|---|
+| `tkct.system_description` | 400 |
+| `tkct.db_description` | 300 |
+| `tkct.api_description` | 300 |
+| `tkct.modules[].flow_description` (per module) | 200 |
+| `tkct.modules[].business_rules` (per rule) | 150 |
+
+### HDSD services
+| Path | Min |
+|---|---|
+| `feature.description` | 50 words |
+| `feature` total (desc + steps + ui_elements + error_cases) | 300 words |
+
+---
+
+## NO token budget ceiling
+
+Skill cũ có "content-data ~28K tokens target" — đây là **sai mindset**. Đổi thành:
+- **Floor**: đạt tất cả min word count trên
+- **Ceiling**: không có. Content-data 60K-100K tokens cho 30 features là EXPECTED, không phải bloat.
+
+Substance > size. Nếu agent lo "tốn tokens" → đó là wrong signal.
+
+---
+
+## Required specificity metrics (per 500 words)
+
+Agent prose MUST meet thresholds:
+
+| Metric | Required per 500 words | What counts |
+|---|---|---|
+| **Numbers** | ≥ 5 | Digits + unit (1.500 cán bộ, 150GB, 99.5%, 500ms) |
+| **Named entities** | ≥ 3 | Tên đơn vị, tên sản phẩm, tên hệ thống (Sở Tài chính, PostgreSQL, UBND huyện X) |
+| **Dates/periods** | ≥ 1 | Năm, Quý, dd/mm/yyyy (2024, Q4/2025, 15/3/2026) |
+| **Citations** | ≥ 1 per legal context | Văn bản pháp lý số (NĐ 45/2026/NĐ-CP) |
+
+Thấp hơn threshold 30% → Quality Gate Phase 3.5 flags "prose hời hợt".
+
+---
+
+## Replacement templates
+
+### Vague time → Specific timeline
+
+```
+BEFORE: "Sẽ triển khai trong thời gian tới"
+AFTER:  "Triển khai Q1/2026 (pilot 3 tháng), Q2-Q3/2026 (rollout 50% đơn vị), Q4/2026 (100%)"
+
+BEFORE: "Hệ thống cũ"
+AFTER:  "Hệ thống A (triển khai 2014, 12 năm tuổi)"
+
+BEFORE: "Dần dần hoàn thiện"
+AFTER:  "Hoàn thiện qua 3 giai đoạn: [Q1/26 feature X], [Q2/26 feature Y], [Q3/26 feature Z]"
+```
+
+### Vague quantifier → Specific number
+
+```
+BEFORE: "Nhiều cán bộ sử dụng hệ thống"
+AFTER:  "1.500 cán bộ và 200 lãnh đạo sử dụng hệ thống daily"
+
+BEFORE: "Đa số request đến từ mobile"
+AFTER:  "52% request đến từ mobile (theo Google Analytics Q3/2025)"
+
+BEFORE: "Hầu hết chức năng"
+AFTER:  "18/22 chức năng (82%)"
+```
+
+### Vague adjective → Specific metric
+
+```
+BEFORE: "Hệ thống hiện đại"
+AFTER:  "Hệ thống built trên Next.js 15 (2024), NestJS 10, Kubernetes 1.28 — stack phát hành ≤ 12 tháng"
+
+BEFORE: "Hiệu năng tốt"
+AFTER:  "API p95 < 500ms, database query p95 < 100ms, throughput 1000 req/s peak"
+
+BEFORE: "Bảo mật đầy đủ"
+AFTER:  "TCVN 11930:2017 cấp 3, TLS 1.3, AES-256-GCM at-rest, JWT RS256 auth, WAF Cloudflare"
+```
+
+### Generic rationale → Stack-specific
+
+```
+BEFORE: "Công nghệ phù hợp với yêu cầu dự án"
+AFTER:  "Next.js 15 Server Components giảm bundle client 40%, cải thiện TTI từ 2.1s xuống 0.8s
+         (Lighthouse mobile). NestJS DI container hỗ trợ modular monolith, dễ scale khi cần tách
+         microservice. PostgreSQL 16 với logical replication phục vụ read replica khi load tăng."
+```
+
+---
+
+## Section-specific rules
+
+### Section 3 (Hiện trạng) — STRICTEST
+
+MUST contain:
+- Năm triển khai hệ thống hiện tại
+- Số lượng user / record / transaction
+- Performance metrics (uptime, response time)
+- EOL dates của tech stack cũ
+- Cost metrics (nếu có)
+
+Banned phrases = BLOCKER. Score penalty cao nhất.
+
+### Section 5 (Giải pháp) — STRICT
+
+MUST contain:
+- Tên cụ thể công nghệ + version
+- KPI / metric target của solution
+- Reference đến DEDUP platform nếu applicable
+
+### Section 6 (Kinh phí) — STRICTEST
+
+MUST contain:
+- Breakdown theo TT 04/2020 format
+- Man-months × unit cost × coefficient
+- Hardware/infra cost line items
+- Tổng = sum components (consistency check)
+
+### Section 1 (Mở đầu) — LOOSE
+
+Có thể có vague language mức vừa phải — đây là context-setting, không cần specifics.
+
+---
+
+## Violation handling
+
+Phase 3.5 Quality Gate Pass 4 detect banned phrases:
+
+```yaml
+pass_4_banned_prose:
+  violations:
+    - section: "tkcs.technology_rationale"
+      phrase: "hiện đại"
+      occurrences: 3
+      severity: major
+      fix: |
+        Thay "Công nghệ hiện đại, mạnh mẽ, đồng bộ..."
+        Bằng: "Next.js 15 (SSR + Server Components), NestJS 10.3 (DI + modular),
+        PostgreSQL 16 (JSONB + logical replication) — stack released ≤12 tháng."
+```
+
+Score penalty: -10 per banned phrase occurrence (capped at -30).
+
+Score < 80 → User prompt: "Prose quality below threshold. Re-generate with stricter prompt? (y/n)"

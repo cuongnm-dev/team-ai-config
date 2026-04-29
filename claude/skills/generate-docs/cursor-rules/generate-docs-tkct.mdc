@@ -1,0 +1,88 @@
+---
+description: TKCT (Thiết kế Chi tiết) writing rules — modules, db_tables, api_details, screens
+globs:
+  - "**/content-data.json"
+alwaysApply: false
+---
+
+# TKCT — Thiết kế Chi tiết
+
+Khi điền `tkct.*` fields.
+
+## 8 sections
+
+| Section | Field(s) |
+|---|---|
+| 1. Tổng quan thiết kế | `system_description`, `architecture_reference` |
+| 2. Thiết kế chức năng | `modules[]` → `ModuleDesign` (name, flow, rules, I/O) |
+| 3. Thiết kế CSDL | `db_description`, `db_tables[]` → columns chi tiết |
+| 4. Thiết kế API | `api_description`, `api_details[]` → parameters |
+| 5. Thiết kế giao diện | `ui_guidelines`, `ui_layout`, `screens[]` |
+| 6. Thiết kế tích hợp | `integration_design` |
+| 7. Thiết kế bảo mật | `security_design` |
+| 8. Ma trận truy xuất | `traceability_description` |
+
+## Field detail requirements
+
+**`modules[]`**: 1 module = 1 business domain, không chia nhỏ theo technical layer
+```jsonc
+{
+  "name": "Tác nghiệp",
+  "description": "...",
+  "flow_description": "...",
+  "business_rules": ["BR-001: ...", "BR-002: ..."],
+  "input_spec": {...},
+  "output_spec": {...},
+  "flow_diagram": "module-tac-nghiep-flow.png"  // optional Mermaid
+}
+```
+
+**`db_tables[]`**: Field-level detail, KHÔNG summary
+```jsonc
+{
+  "name": "requests",
+  "description": "Lưu trữ yêu cầu xử lý",
+  "columns": [
+    {"name": "id", "type": "uuid", "nullable": false, "description": "Khóa chính"},
+    {"name": "title", "type": "varchar(200)", "nullable": false, "description": "Tiêu đề yêu cầu"}
+  ],
+  "indexes": [...],
+  "foreign_keys": [...]
+}
+```
+
+**`api_details[]`**: Parameters + request/response schema
+```jsonc
+{
+  "path": "/api/v1/requests",
+  "method": "POST",
+  "description": "Tạo yêu cầu mới",
+  "parameters": [
+    {"name": "title", "location": "body", "type": "string", "required": true, "description": "..."}
+  ],
+  "response_schema": {...},
+  "error_codes": [...]
+}
+```
+
+## Path A fallback
+
+`tkct` fields yêu cầu detail kỹ thuật mà docs thường không có đủ:
+- `db_tables[].columns` — chi tiết column-level thường thiếu trong ERD docs
+- `api_details[].parameters` — docs API thường list paths, không list params
+
+Nếu Path A và doc-intel thiếu → emit `[CẦN BỔ SUNG: <detail cụ thể>]`, **KHÔNG** scan code.
+
+User muốn detail code-level → re-run `--force-code-scan` (Path B).
+
+## Diagrams
+
+4 diagram fields trong tkct:
+- `architecture_overview_diagram`
+- `db_erd_diagram`
+- `ui_layout_diagram`
+- `integration_diagram`
+
++ mỗi `modules[]` có `flow_diagram` riêng.
+
+Nếu đưa Mermaid source, etc-docgen MCP tự render PNG khi export (mmdc in container).

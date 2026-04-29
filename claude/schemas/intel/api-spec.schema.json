@@ -1,0 +1,263 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/api-spec.schema.json",
+  "title": "API Specification",
+  "description": "OpenAPI-style endpoint catalog with request/response schemas, auth, examples. Tier 2 cross-stage. sitemap.routes[] has path+method but lacks payload spec — api-spec.endpoints[] fills the gap. Consumed by sa-pro/dev (Cursor when adding endpoint), qa (contract testing) + tdoc-tkct-writer §7.1 (Danh mục API). Justified by TKCT §7.1 — TKKT §6 reads only aggregate counts (audience-profile bans listing paths).",
+  "type": "object",
+  "required": ["schema_version", "endpoints"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "openapi_version": {
+      "type": ["string", "null"],
+      "description": "If exported from existing OpenAPI spec, version reference (e.g. '3.0.3', '3.1.0'). When null, this artifact IS the source of truth."
+    },
+
+    "base_paths": {
+      "type": "array",
+      "description": "Base URL prefixes per service. Cross-ref system-inventory.services[].id.",
+      "items": {
+        "type": "object",
+        "required": ["service_id", "base_path"],
+        "properties": {
+          "service_id": { "type": "string" },
+          "base_path": { "type": "string", "description": "Prefix path, e.g. '/api/v1', '/v2/users'." },
+          "external": { "type": "boolean", "description": "True if exposed externally (vs internal-only)." }
+        }
+      }
+    },
+
+    "endpoints": {
+      "type": "array",
+      "description": "Flat endpoint list. Each endpoint references sitemap.routes[].path + method via FK.",
+      "items": {
+        "type": "object",
+        "required": ["operation_id", "method", "path"],
+        "properties": {
+          "operation_id": { "type": "string", "description": "Unique operation id (camelCase). Example: 'createApprovalRequest'. Used as TC trace anchor." },
+          "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"] },
+          "path": { "type": "string", "description": "Full path including base. Cross-ref sitemap.routes[].path." },
+          "service_id": { "type": ["string", "null"], "description": "Owning service. Cross-ref system-inventory.services[].id." },
+          "feature_id": { "type": ["string", "null"], "description": "Cross-ref feature-catalog.features[].id." },
+          "summary": { "type": "string", "description": "1-line purpose. Vietnamese for TKCT §7.1 table." },
+          "description": { "type": "string", "description": "Multi-line detail. Used in TKCT module spec (§3.1)." },
+
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Grouping tags. TKKT §6.2 aggregates count by tag."
+          },
+
+          "auth": {
+            "type": "object",
+            "properties": {
+              "required": { "type": "boolean" },
+              "scheme": { "enum": ["jwt", "session", "api-key", "oauth2", "oidc", "basic", "mtls", "anonymous"] },
+              "roles_allowed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Cross-ref actor-registry.roles[].slug. Verbatim slugs."
+              },
+              "scopes_required": { "type": "array", "items": { "type": "string" } },
+              "permission_check": { "type": ["string", "null"], "description": "Format: '{resource_id}:{action}'. Cross-ref permission-matrix." }
+            }
+          },
+
+          "request": {
+            "type": "object",
+            "properties": {
+              "headers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "required": { "type": "boolean" },
+                    "type": { "type": "string" },
+                    "description": { "type": "string" }
+                  }
+                }
+              },
+              "path_params": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "type"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "type": { "type": "string" },
+                    "description": { "type": "string" },
+                    "format_pattern": { "type": ["string", "null"] }
+                  }
+                }
+              },
+              "query_params": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "type"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "type": { "type": "string" },
+                    "required": { "type": "boolean" },
+                    "default": { "type": ["string", "number", "boolean", "null"] },
+                    "description": { "type": "string" },
+                    "valid_values": { "type": "array", "items": { "type": ["string", "number"] } }
+                  }
+                }
+              },
+              "body": {
+                "type": ["object", "null"],
+                "properties": {
+                  "content_type": { "type": "string", "default": "application/json" },
+                  "schema_ref": { "type": ["string", "null"], "description": "Reference to schemas[].id when reusable; otherwise inline." },
+                  "schema_inline": { "type": ["object", "null"], "description": "JSON Schema draft-07 fragment for one-off body shapes." },
+                  "required_fields": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          },
+
+          "responses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["status_code"],
+              "properties": {
+                "status_code": { "type": "integer", "minimum": 100, "maximum": 599 },
+                "description": { "type": "string" },
+                "content_type": { "type": ["string", "null"], "default": "application/json" },
+                "schema_ref": { "type": ["string", "null"] },
+                "schema_inline": { "type": ["object", "null"] },
+                "headers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string" },
+                      "description": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name"],
+              "properties": {
+                "name": { "type": "string" },
+                "request_example": { "description": "Free-form example value." },
+                "response_example": { "description": "Free-form example value." },
+                "notes": { "type": "string" }
+              }
+            }
+          },
+
+          "rate_limit": {
+            "type": ["object", "null"],
+            "properties": {
+              "requests_per_minute": { "type": "integer", "minimum": 0 },
+              "scope": { "enum": ["per-user", "per-ip", "per-api-key", "global"] }
+            }
+          },
+
+          "deprecation": {
+            "type": ["object", "null"],
+            "properties": {
+              "since": { "type": "string", "format": "date" },
+              "sunset": { "type": ["string", "null"], "format": "date" },
+              "replacement_operation_id": { "type": ["string", "null"] }
+            }
+          },
+
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+          },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low", "manual"] },
+          "source_producers": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["from-code", "from-doc", "manual-interview", "intel-merger"] },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+
+    "schemas": {
+      "type": "array",
+      "description": "Reusable DTO schemas (OpenAPI components). Referenced by endpoints[].request.body.schema_ref and responses[].schema_ref.",
+      "items": {
+        "type": "object",
+        "required": ["id", "schema"],
+        "properties": {
+          "id": { "type": "string", "description": "Schema id (PascalCase). Example: 'UserCreateRequest', 'PaginatedUserList'." },
+          "description": { "type": "string" },
+          "schema": { "type": "object", "description": "JSON Schema draft-07 fragment defining the shape." },
+          "entity_ref": { "type": ["string", "null"], "description": "data-model.entities[].name when this schema is the wire format of an entity." }
+        }
+      }
+    },
+
+    "aggregate_stats": {
+      "type": "object",
+      "description": "Pre-computed aggregates for TKKT §6 (audience-profile bans listing paths). Producer MUST emit; writer MUST NOT recompute via path enumeration.",
+      "properties": {
+        "by_service": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["service_id", "total"],
+            "properties": {
+              "service_id": { "type": "string" },
+              "total": { "type": "integer", "minimum": 0 },
+              "public": { "type": "integer", "minimum": 0 },
+              "internal": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "by_tag": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tag", "total"],
+            "properties": {
+              "tag": { "type": "string" },
+              "total": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "auth_distribution": {
+          "type": "object",
+          "properties": {
+            "anonymous": { "type": "integer", "minimum": 0 },
+            "authenticated": { "type": "integer", "minimum": 0 },
+            "role_restricted": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": {
+            "type": "string",
+            "enum": ["missing-request-schema", "missing-response-schema", "missing-auth", "missing-summary", "deprecated-no-replacement", "sitemap-orphan", "feature-orphan", "other"]
+          },
+          "message": { "type": "string" },
+          "operation_id": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,240 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/system-inventory.schema.json",
+  "title": "System Inventory",
+  "description": "Tech stack + runtime + service catalog with versions and licenses. Tier 1 cross-stage. Consumed by sa-pro/dev-pro/devops/sre (Cursor SDLC) for tech decisions + tdoc-tkkt-writer/tdoc-tkcs-writer/tdoc-tkct-writer for tech tables. Justified by TKCS §3.4 (Giải pháp công nghệ), TKCT §2.3 (Công nghệ sử dụng), TKKT §11 (Bảng công nghệ theo tầng).",
+  "type": "object",
+  "required": ["schema_version", "services", "tech_stack"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "services": {
+      "type": "array",
+      "description": "Service-level inventory. Cross-ref code-facts.services[].id (when from-code participates).",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "Stable service id (kebab-case)." },
+          "name": { "type": "string", "description": "Display name (Vietnamese OK)." },
+          "kind": {
+            "type": "string",
+            "enum": ["backend", "frontend", "worker", "shared-lib", "tool", "mobile", "infrastructure", "database", "cache", "messaging", "search", "unknown"]
+          },
+          "description": { "type": "string", "description": "1-2 sentence purpose summary." },
+          "language": {
+            "type": "string",
+            "description": "Primary language slug. Examples: 'typescript', 'python', 'csharp', 'go', 'java', 'php'."
+          },
+          "language_version": { "type": ["string", "null"], "description": "Language runtime version, e.g. 'TypeScript 5.4', 'Python 3.12', '.NET 8'." },
+          "framework": { "type": ["string", "null"], "description": "Primary framework slug, e.g. 'nestjs', 'fastapi', 'aspnet-core', 'next.js'." },
+          "framework_version": { "type": ["string", "null"] },
+          "runtime": {
+            "type": ["string", "null"],
+            "description": "Execution runtime, e.g. 'Node.js 20.x', 'JVM 17', 'Python 3.12'."
+          },
+          "deployment_target": {
+            "type": ["string", "null"],
+            "enum": ["docker-container", "kubernetes-pod", "vm", "bare-metal", "serverless", "managed-service", null]
+          },
+          "repo_path": { "type": ["string", "null"], "description": "Repo-relative path; null for external services." },
+          "manifest_file": { "type": ["string", "null"], "description": "package.json, *.csproj, pyproject.toml, etc." },
+          "tech_stack_refs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "tech_stack[].id values used by this service. Denormalized for quick lookup."
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Free-form tags: 'public-facing', 'internal-only', 'pii-handling', 'high-traffic', etc."
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low", "manual"],
+            "description": "high=detected from manifest+code; medium=manifest only; low=inferred; manual=user-curated."
+          },
+          "source_producers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["from-code", "from-doc", "manual-interview", "intel-merger"]
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+
+    "tech_stack": {
+      "type": "array",
+      "description": "Layered technology catalog. Min 5 entries (per from-code Phase 8 hard-stop). Must cover all 4 CPĐT 4.0 layers when project is government IT system.",
+      "items": {
+        "type": "object",
+        "required": ["id", "layer", "category", "name"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "Stable id, e.g. 'pg-15', 'redis-7', 'react-18'." },
+          "layer": {
+            "type": "string",
+            "enum": ["giao-dien", "nghiep-vu", "du-lieu", "ha-tang"],
+            "description": "CPĐT 4.0 layer per QĐ 292/2025: giao-dien (UI) | nghiep-vu (business) | du-lieu (data+app) | ha-tang (infrastructure)."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "language", "framework", "runtime",
+              "database", "cache", "search-engine", "messaging",
+              "frontend-framework", "ui-library", "state-management", "build-tool",
+              "auth-provider", "api-gateway", "load-balancer",
+              "container-runtime", "orchestrator", "infrastructure-as-code",
+              "monitoring", "logging", "tracing",
+              "ci-cd", "secrets-manager", "object-storage",
+              "external-service", "other"
+            ]
+          },
+          "name": { "type": "string", "description": "Product name. Examples: 'PostgreSQL', 'Redis', 'React', 'Next.js', 'Kubernetes'." },
+          "version": { "type": ["string", "null"], "description": "Exact or range. Example: '15.4', '>=18.0', 'latest'." },
+          "license": {
+            "type": ["string", "null"],
+            "description": "License slug per SPDX. Examples: 'MIT', 'Apache-2.0', 'GPL-3.0', 'commercial', 'proprietary'."
+          },
+          "license_type": {
+            "type": "string",
+            "enum": ["open-source-permissive", "open-source-copyleft", "commercial-paid", "commercial-free-tier", "proprietary-internal", "unknown"],
+            "description": "Aggregated license category for cost+compliance analysis."
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Why this technology was chosen. Used in TKKT §11.2 'Lý do chọn' column."
+          },
+          "alternatives_considered": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tech alternatives evaluated and rejected. Source for TKKT §11.1 standards rationale."
+          },
+          "vendor": { "type": ["string", "null"], "description": "Vendor or maintainer. Examples: 'Microsoft', 'PostgreSQL Global Development Group', 'Vercel'." },
+          "support_status": {
+            "type": "string",
+            "enum": ["active-stable", "active-lts", "maintenance", "deprecated", "end-of-life", "unknown"],
+            "description": "Lifecycle status. EOL/deprecated triggers warning in tdoc-tkkt-writer."
+          },
+          "support_eol_date": { "type": ["string", "null"], "format": "date", "description": "End-of-life date if known. Triggers QĐ 292 §11.3 future-tech roadmap discussion." },
+          "tcvn_compliance": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Vietnamese standards this tech complies with. Examples: 'TCVN 11930:2017', 'TCVN 12603:2018'."
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low", "manual"]
+          },
+          "source_producers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["from-code", "from-doc", "manual-interview", "intel-merger"]
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+
+    "runtime_environments": {
+      "type": "array",
+      "description": "Deployment runtime environments observed (dev/staging/prod). Optional — populated when CI/CD config detected.",
+      "items": {
+        "type": "object",
+        "required": ["name", "purpose"],
+        "properties": {
+          "name": { "type": "string", "description": "Environment slug: 'dev', 'staging', 'uat', 'prod'." },
+          "purpose": { "type": "string" },
+          "url": { "type": ["string", "null"] },
+          "deployed_services": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "services[].id deployed in this environment."
+          },
+          "config_overrides_file": { "type": ["string", "null"], "description": "Path to env-specific config, e.g. '.env.production'." }
+        }
+      }
+    },
+
+    "package_managers": {
+      "type": "array",
+      "description": "Package managers used per service. Source for SBOM + dependency audit.",
+      "items": {
+        "type": "object",
+        "required": ["service_id", "manager"],
+        "properties": {
+          "service_id": { "type": "string" },
+          "manager": { "enum": ["npm", "yarn", "pnpm", "pip", "poetry", "uv", "nuget", "maven", "gradle", "go-modules", "composer", "cargo", "other"] },
+          "lockfile": { "type": ["string", "null"], "description": "Path to lockfile, e.g. 'package-lock.json', 'poetry.lock'." },
+          "dependency_count": { "type": ["integer", "null"], "minimum": 0, "description": "Total direct + transitive dependencies." },
+          "outdated_count": { "type": ["integer", "null"], "minimum": 0, "description": "Dependencies with available updates." },
+          "vulnerability_count": {
+            "type": ["object", "null"],
+            "properties": {
+              "critical": { "type": "integer", "minimum": 0 },
+              "high": { "type": "integer", "minimum": 0 },
+              "medium": { "type": "integer", "minimum": 0 },
+              "low": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+
+    "compliance": {
+      "type": "object",
+      "description": "Compliance posture relevant to government IT projects. Used in TKKT §10 + TKCS §3.5.",
+      "properties": {
+        "ipv6_readiness": {
+          "type": "string",
+          "enum": ["ready", "partial", "planned", "not-supported", "unknown"],
+          "description": "Per QĐ 292 + Đề án IPv6 Quốc gia. TKCS §3.5 mandate."
+        },
+        "ipv6_evidence_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Config files showing IPv6 listen/dual-stack: nginx.conf, kubernetes service, etc."
+        },
+        "open_standards_used": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Open standards adopted. Examples: 'OpenAPI 3.x', 'OAuth 2.0', 'OIDC', 'SAML 2.0', 'JSON Schema'."
+        },
+        "qd_2568_alignment_notes": {
+          "type": ["string", "null"],
+          "description": "Free-form notes on alignment with QĐ 2568/QĐ-BTTTT. TKKT §11.1 source."
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": {
+            "type": "string",
+            "enum": ["eol-tech", "deprecated-version", "license-conflict", "security-vulnerability", "ipv6-not-ready", "missing-version", "missing-license", "other"]
+          },
+          "message": { "type": "string" },
+          "tech_id": { "type": ["string", "null"], "description": "tech_stack[].id when applicable." },
+          "service_id": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

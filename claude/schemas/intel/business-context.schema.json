@@ -1,0 +1,242 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/business-context.schema.json",
+  "title": "Business Context",
+  "description": "Project metadata, legal basis, pain points, objectives, scope, expected benefits, recommendations. Tier 3 doc-only — resume-feature SKIPS this schema entirely (BA agent uses feature-brief.md prose narrative). Producer: from-doc (interview-driven). Consumed by tdoc-tkcs-writer §1, §2.4, §7, §8 + tdoc-tkct-writer §1.2-1.3 + tdoc-tkkt-writer §1. Hard-stop in from-doc Phase 8 if project.name empty, legal_basis empty, or objectives.specific < 3.",
+  "type": "object",
+  "required": ["schema_version", "project", "legal_basis", "objectives", "scope"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+
+    "project": {
+      "type": "object",
+      "required": ["name", "owner"],
+      "description": "Project identity. TKCS §1.1 source.",
+      "properties": {
+        "name": { "type": "string", "minLength": 5, "description": "Official project name (Vietnamese)." },
+        "name_en": { "type": ["string", "null"] },
+        "code": { "type": ["string", "null"], "description": "Project code if assigned by parent program." },
+        "owner": {
+          "type": "object",
+          "required": ["organization"],
+          "properties": {
+            "organization": { "type": "string", "description": "Investing/owning agency. Example: 'Sở Thông tin và Truyền thông tỉnh X'." },
+            "department": { "type": ["string", "null"] },
+            "contact_person": { "type": ["string", "null"] },
+            "contact_email": { "type": ["string", "null"] }
+          }
+        },
+        "implementing_unit": {
+          "type": ["object", "null"],
+          "description": "Unit executing the project (may differ from owner).",
+          "properties": {
+            "organization": { "type": "string" },
+            "role": { "type": ["string", "null"] }
+          }
+        },
+        "investment_amount_vnd": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Total investment in VND. Drives investment_group classification per NĐ 45/2026 Đ9."
+        },
+        "investment_group": {
+          "type": ["string", "null"],
+          "enum": ["A", "B", "C", null],
+          "description": "NĐ 45/2026 Đ9: A (>1.600 tỷ) | B (90-1.600 tỷ) | C (<90 tỷ). TKCS §1.1 must declare."
+        },
+        "approving_authority": {
+          "type": ["string", "null"],
+          "description": "Per Đ9 group: A=Bộ TTTT; B=Bộ chủ quản/HĐND; C=Sở/Ban/Ngành."
+        },
+        "location": { "type": ["string", "null"], "description": "Geographic scope: tỉnh/thành/khu vực." },
+        "duration_months": { "type": ["integer", "null"], "minimum": 1 },
+        "expected_start_date": { "type": ["string", "null"], "format": "date" },
+        "expected_end_date": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+
+    "legal_basis": {
+      "type": "array",
+      "minItems": 3,
+      "description": "Legal references grounding this project. Min 3 (per from-doc Phase 8 hard-stop). TKCS §1.2 source. Use KB-driven canonical refs (kb_query 'legal').",
+      "items": {
+        "type": "object",
+        "required": ["ref_code", "title"],
+        "properties": {
+          "ref_code": { "type": "string", "description": "Citation. Example: 'Nghị định số 45/2026/NĐ-CP', 'Quyết định số 749/QĐ-TTg'." },
+          "title": { "type": "string", "description": "Full Vietnamese title." },
+          "issue_date": { "type": ["string", "null"], "format": "date" },
+          "issuing_authority": { "type": ["string", "null"] },
+          "applicability": { "type": "string", "description": "Why this ref applies to THIS project." }
+        }
+      }
+    },
+
+    "current_state": {
+      "type": "object",
+      "description": "TKCS §2 Hiện trạng. Optional — populated when project replaces/migrates existing system.",
+      "properties": {
+        "infrastructure_summary": { "type": ["string", "null"], "description": "TKCS §2.1 narrative source." },
+        "applications_summary": { "type": ["string", "null"], "description": "TKCS §2.2 narrative source." },
+        "human_resources": {
+          "type": ["object", "null"],
+          "description": "TKCS §2.3 source.",
+          "properties": {
+            "total_count": { "type": ["integer", "null"], "minimum": 0 },
+            "skills_summary": { "type": ["string", "null"] },
+            "training_needs": { "type": ["string", "null"] }
+          }
+        },
+        "swot": {
+          "type": ["object", "null"],
+          "description": "TKCS §2.4 SWOT.",
+          "properties": {
+            "strengths": { "type": "array", "items": { "type": "string" } },
+            "weaknesses": { "type": "array", "items": { "type": "string" } },
+            "opportunities": { "type": "array", "items": { "type": "string" } },
+            "threats": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "pain_points": {
+      "type": "array",
+      "minItems": 3,
+      "description": "Current state pain points motivating this project. Min 3 (per from-doc hard-stop). TKCS §1.3 + §2.4 source.",
+      "items": {
+        "type": "object",
+        "required": ["title", "description"],
+        "properties": {
+          "title": { "type": "string", "description": "Short label." },
+          "description": { "type": "string", "minLength": 50, "description": "Vietnamese ≥50 chars." },
+          "severity": { "enum": ["critical", "high", "medium", "low"] },
+          "evidence_refs": { "type": "array", "items": { "type": "string" }, "description": "Source documents/incidents." }
+        }
+      }
+    },
+
+    "objectives": {
+      "type": "object",
+      "required": ["overall", "specific"],
+      "description": "TKCS §1.4 source. Hard-stop if specific < 3.",
+      "properties": {
+        "overall": { "type": "string", "minLength": 100, "description": "Strategic goal in 1 paragraph." },
+        "specific": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["title", "description"],
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string", "minLength": 50 },
+              "measurable_target": { "type": ["string", "null"], "description": "Quantifiable outcome." },
+              "deadline": { "type": ["string", "null"], "format": "date" }
+            }
+          }
+        }
+      }
+    },
+
+    "scope": {
+      "type": "object",
+      "required": ["in_scope"],
+      "description": "TKCS §1.5 + TKCT §1.2 source.",
+      "properties": {
+        "in_scope": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "out_of_scope": { "type": "array", "items": { "type": "string" } },
+        "boundaries": { "type": ["string", "null"], "description": "Free-form prose on system boundaries." },
+        "phasing": { "type": ["string", "null"], "description": "If multi-phase, summary here; full plan in project-plan.json." }
+      }
+    },
+
+    "expected_benefits": {
+      "type": "object",
+      "description": "TKCS §7 source.",
+      "properties": {
+        "economic": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "description"],
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "estimated_value_vnd_per_year": { "type": ["integer", "null"], "minimum": 0 },
+              "calculation_method": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "social": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "description"],
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "beneficiary_group": { "type": ["string", "null"] },
+              "estimated_reach": { "type": ["string", "null"], "description": "E.g. '~500K citizens served annually'." }
+            }
+          }
+        }
+      }
+    },
+
+    "recommendations": {
+      "type": "array",
+      "description": "TKCS §8 Kiến nghị source. Free-form recommendations to approver.",
+      "items": {
+        "type": "object",
+        "required": ["recommendation"],
+        "properties": {
+          "recommendation": { "type": "string", "minLength": 30 },
+          "addressed_to": { "type": ["string", "null"], "description": "Audience: 'Chủ đầu tư', 'Cấp thẩm định', etc." }
+        }
+      }
+    },
+
+    "references": {
+      "type": "array",
+      "description": "TKCT §1.3 Tài liệu tham chiếu source. Cross-references to other artifacts (TKCS, NCKT, standards).",
+      "items": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string" },
+          "type": { "enum": ["internal-doc", "legal-ref", "standard", "study", "other"] },
+          "version": { "type": ["string", "null"] },
+          "path_or_url": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "glossary": {
+      "type": "array",
+      "description": "TKCT §1.4 Thuật ngữ + viết tắt source.",
+      "items": {
+        "type": "object",
+        "required": ["term", "definition"],
+        "properties": {
+          "term": { "type": "string" },
+          "abbreviation": { "type": ["string", "null"] },
+          "definition": { "type": "string" }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "category": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

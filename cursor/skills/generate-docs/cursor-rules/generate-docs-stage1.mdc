@@ -1,0 +1,76 @@
+---
+description: "Auto-attach when editing Stage 1 Discovery artifacts (actor-registry.json, system-inventory.json, domain-skeleton.json). Validates role-first principle, schema correctness, multi-role flag consistency."
+globs:
+  - "**/intel/actor-registry.json"
+  - "**/intel/system-inventory.json"
+  - "**/intel/domain-skeleton.json"
+alwaysApply: false
+---
+
+# Stage 1 Discovery — Validation Rules
+
+This rule auto-attaches when editing Stage 1 outputs. Inject these checks via Cursor's rule system.
+
+## actor-registry.json (★ canonical role catalog)
+
+**Schema reference**: `@Notepads sitemap-schema` § Role object.
+
+**Required fields**:
+- `multi-role`: boolean — must be computed correctly (≥ 2 roles with distinct access on same entity)
+- `rbac-mode`: enum `decorator-based | middleware-based | enum-only | data-driven | implicit | single-role`
+- `roles[]`: array of Role objects, NON-empty
+- `evidence[]`: array of `{file, pattern, count}` proving the detection
+
+**Per-role validation**:
+- `slug`: lowercase ASCII kebab-case, no spaces, unique within registry
+- `display`: Vietnamese name, NEVER raw technical (`admin` / `staff` / `user` etc.)
+- `credentials_ref`: integer index OR null
+- `login_url`, `post_login_redirect`: populated lazily in Stage 2.3 (null OK at Stage 1)
+- `source`: file:line citation + decorator usage count
+
+**Anti-patterns**:
+- ❌ `display: "admin"` — technical name in display
+- ❌ Empty `roles[]` while `multi-role: true`
+- ❌ `multi-role: false` but `roles[]` has 2+ entries with different access
+- ❌ `slug` containing space, uppercase, or special chars
+
+## system-inventory.json
+
+**Required fields**:
+- `primary_language`: string
+- `stacks[]`: array of `{role, framework, version, path}`
+- `services[]`: array of `{name, port, type}`
+- `databases[]`: array of `{name, type, schema-source}`
+
+**Anti-patterns**:
+- ❌ Hardcoded version like `"1.0.0"` when actual version is unknown — use null + warning
+- ❌ Service entry without `port` — must extract from docker-compose.yml or env
+
+## domain-skeleton.json
+
+**Required fields**:
+- `modules[]`: array of `{id, name, service, feature_count_estimate}`
+- `feature_names_estimate[]`: array of strings (verb + entity, e.g., "Tạo người dùng")
+- `complexity`: enum `S | M | L`
+- `estimated_total_features`: integer
+
+**Anti-patterns**:
+- ❌ Deep feature data here (descriptions, steps, actors) — that's Stage 2.2 territory
+- ❌ Module without VN name — translate via mapping table
+- ❌ `complexity` mismatch with `estimated_total_features` (e.g., L for 5 features)
+
+## Cross-file consistency
+
+When user edits any Stage 1 file, verify:
+
+1. `actor-registry.roles[].slug` ⊂ all slugs referenced in domain-skeleton or feature-catalog
+2. `system-inventory.services[].name` referenced consistently in domain-skeleton.modules[].service
+3. `multi-role: true` IMPLIES future Stage 2.3 must produce non-empty sitemap.json with `roles[]` matching
+
+## Composer Gate 1 reminder
+
+Before advancing to Stage 2, verify Composer Gate 1 ran:
+- All 3 files (actor-registry, system-inventory, domain-skeleton) accepted by user
+- User-edited values preserved (not overwritten by re-extraction)
+
+If editing post-Gate 1 → mark `_route.json.gate1_overridden: true` so Stage 2 knows discovery was modified.

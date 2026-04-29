@@ -1,0 +1,395 @@
+# Audience Profile — xlsx Test Cases — DOMAIN-AGNOSTIC
+# Persona: QA tester executing manual UI tests. Business-aware, NOT API-aware.
+#
+# CD-10 Quy tắc 14-18 ENFORCEMENT:
+#   - Stage 4f Primary path: ASSEMBLE test_cases[] from test-evidence/{feature-id}.json (Cursor QA pass)
+#   - Stage 4f Fallback: rich synthesis with ISTQB + VN-gov dimensions when evidence empty
+#   - Output schema covers BOTH paths (executed + proposed)
+
+audience_id: xlsx
+display_name: "Kịch bản kiểm thử (Test Cases)"
+
+persona:
+  reader: "QA tester / Tester nghiệp vụ"
+  level: "Manual test executor — clicks UI, fills forms, verifies outcomes"
+  technical_familiarity: "low-mid"
+  reading_purpose: "Execute test cases by following UI navigation steps; sign off readiness for production"
+
+vocabulary:
+  required_voice: "imperative_active_VN"
+  preferred_terms:
+    - "vào màn hình, mở menu, nhấn nút, nhập trường, chọn"
+    - "kết quả mong đợi, hệ thống hiển thị, dữ liệu hiển thị"
+    - "trạng thái, thông báo lỗi, thông báo thành công"
+    - "audit log, nhật ký hệ thống"
+  test_action_verbs:
+    - "Vào, Mở, Nhấn, Chọn, Nhập, Kéo, Thả, Tải lên, Tải về"
+    - "Xác minh, Kiểm tra, Đối chiếu, Quan sát"
+
+vocabulary_banned:
+  literal:
+    - "API call, endpoint, REST request, JSON payload"
+    - "HTTP 2xx, HTTP 4xx, HTTP 5xx, status code"
+    - "Postman, curl, axios, fetch"
+    - "mint token, dev token, JWT, bearer"
+    - "controller, DTO, schema validation, ORM"
+  regex:
+    - '/api/[\w/:\-]+'                   # API path used as TC name → BAD
+    - 'HTTP\s*[1-5]\d{2}'                # status codes
+    - '(?:GET|POST|PUT|DELETE|PATCH)\s+/' # HTTP method + path
+    - '\b[a-z]+(?:[A-Z][a-z]+)+\b'       # camelCase identifiers in TC name
+
+# ─── Intel sources (allow/deny gating) ───
+intel_sources:
+  test_evidence:                          # PRIMARY source per CD-10 Quy tắc 17
+    file: "docs/intel/test-evidence/*.json"
+    allow_fields:
+      - "feature_id"
+      - "feature_name"
+      - "module"
+      - "test_cases[].id"
+      - "test_cases[].name"
+      - "test_cases[].title"
+      - "test_cases[].role_slug"
+      - "test_cases[].priority"
+      - "test_cases[].preconditions"
+      - "test_cases[].steps[]"
+      - "test_cases[].expected"
+      - "test_cases[].expected_result"
+      - "test_cases[].labels"
+      - "test_cases[].source"
+      - "test_cases[].execution"
+      - "test_cases[].screenshot_refs"
+    deny_fields:
+      - "auth.session_storage"
+      - "auth.cookies"
+      - "capture.har"
+
+  feature_catalog:
+    file: "docs/intel/feature-catalog.json"
+    filter: { "feature.status": "done" }
+    allow_fields:
+      - "id"
+      - "name"
+      - "module"
+      - "business_intent"
+      - "acceptance_criteria"
+      - "roles"
+      - "dialogs"
+      - "error_cases"
+      - "validation_constraints"
+      - "workflow_variants"
+      - "test_evidence_ref"
+      - "qa_status"
+    deny_fields:
+      - "routes"
+      - "fe_routes"
+      - "api_module"
+      - "entities"
+
+  hdsd_output:                            # cross-pollinate khi fallback
+    file: "docs/output/content-data.json"
+    path: "services[].features[]"
+    allow_fields:
+      - "id"
+      - "name"
+      - "actors"
+      - "steps[]"
+      - "ui_elements[]"
+      - "dialogs[]"
+      - "error_cases[]"
+    deny_fields: []
+
+  sitemap:
+    file: "docs/intel/sitemap.json"
+    path: "services.*.route_groups"
+    allow_fields: ["title", "id"]
+    deny_fields: ["routes[].path"]
+
+  actor_registry:
+    file: "docs/intel/actor-registry.json"
+    allow_fields: ["roles[].slug", "roles[].display_name"]
+    deny_fields: ["auth_mode", "permissions"]
+
+# ─── Pre-computed metrics (briefing_builder resolves; see formula spec below) ───
+precomputed_metrics:
+  - { id: features_in_scope,     compute: "count(feature_catalog.features WHERE status='done')" }
+  - { id: roles_user_facing,     compute: "count(actor_registry.roles WHERE slug != 'system' AND slug != 'ADMIN')" }
+  - { id: features_with_evidence, compute: "count(feature_catalog.features WHERE test_evidence_ref != null)" }
+  - { id: features_without_evidence, compute: "count(feature_catalog.features WHERE test_evidence_ref == null)" }
+  - { id: total_executed_tcs,    compute: "sum_over_evidence(test_cases WHERE execution.status='passed')" }
+  - { id: tc_per_feature_target, compute: "per_feature(min_tc_formula)" }
+  - { id: total_tc_target,       compute: "sum(tc_per_feature_target)" }
+
+# Min-TC formula (CD-10 Quy tắc 15)
+min_tc_formula: |
+  max(5,
+      len(feature.acceptance_criteria) * 2 +
+      len(feature.roles) * 2 +
+      len(feature.dialogs) * 2 +
+      len(feature.error_cases) +
+      3)  # 3 edge cases baseline (audit, diacritics, concurrent)
+
+# ─── Tropes (technical → user-language transforms; some hard-block) ───
+tropes:
+  - { pattern_type: regex, pattern: '/api/[\w/:\-]+',     output: '<UI navigation step required>', enforcement: hard_block }
+  - { pattern_type: regex, pattern: 'HTTP\s*2\d{2}',     output: 'Hệ thống hiển thị thành công' }
+  - { pattern_type: regex, pattern: 'HTTP\s*401',         output: 'Hệ thống chuyển về trang đăng nhập' }
+  - { pattern_type: regex, pattern: 'HTTP\s*403',         output: 'Hệ thống thông báo "Không đủ quyền"' }
+  - { pattern_type: regex, pattern: 'HTTP\s*4\d{2}',     output: 'Hệ thống hiển thị thông báo lỗi nhập liệu' }
+  - { pattern_type: regex, pattern: 'HTTP\s*5\d{2}',     output: 'Hệ thống thông báo lỗi tạm thời, thử lại sau' }
+  - { pattern_type: literal, pattern: 'tenant_id',        output: 'đơn vị công tác' }
+  - { pattern_type: literal, pattern: 'JWT',              output: 'phiên đăng nhập' }
+
+# ─── ISTQB design heuristics (deterministic synthesis when fallback) ───
+tc_design_heuristics:
+  - id: bva
+    name: "Boundary Value Analysis"
+    when: "ui_element has min/max OR string has length limit OR number has range"
+    generates_per_constraint: 5
+    pattern: |
+      Per constraint (e.g. @Length(1, 200)):
+        TC1: empty input → validation error
+        TC2: just-below-min (0 chars) → validation error
+        TC3: at-min (1 char) → success
+        TC4: at-max (200 chars) → success
+        TC5: above-max (201 chars) → validation error
+
+  - id: ep
+    name: "Equivalence Partition"
+    when: "input has discrete categories (enum, type, role, status)"
+    generates_per_partition: 1
+    pattern: |
+      Per equivalence class:
+        1 representative TC verifying class behavior
+
+  - id: dt
+    name: "Decision Table"
+    when: "output depends on combination of multiple inputs/conditions"
+    generates_per_combo: 1
+    pattern: |
+      Build truth table of (cond1, cond2, ...) → action.
+      Generate 1 TC per row.
+
+  - id: st
+    name: "State Transition"
+    when: "feature.workflow_variants exists OR entity has lifecycle states"
+    generates_per_transition: 2
+    pattern: |
+      Per (from_state, action, to_state, allowed_role):
+        TC-positive: allowed role performs → state changes
+        TC-negative: forbidden role attempts → blocked
+
+  - id: eg
+    name: "Error Guessing"
+    when: "always (5 standard errors per feature)"
+    generates_per_feature: 5
+    pattern: |
+      Network failure mid-submit
+      Browser back-button after partial submit
+      Concurrent edit by 2 users
+      Session expires mid-workflow
+      Refresh page during loading
+
+# ─── VN government mandatory dimensions (per CD-10 Quy tắc 18) ───
+domain_mandatory_dimensions:
+  - id: audit_log
+    description: "Mỗi action by role → 1 entry audit log queryable"
+    generates_per_feature: 1
+    template: |
+      Bước cuối: Đăng nhập với vai trò {LANH_DAO}, vào Nhật ký hệ thống.
+      Kết quả mong đợi: Có bản ghi log với actor=tester_role, action={action_name},
+                          target={entity_id}, timestamp khớp.
+
+  - id: pii_masking
+    description: "PII (CCCD, SĐT, mã DN) ẩn với role không phận sự"
+    generates_per_feature: 1
+    template: |
+      Đăng nhập role không có quyền xem chi tiết → mở entity →
+      KIỂM TRA: CCCD/SĐT/MST hiển thị dưới dạng masked (***-***-1234).
+
+  - id: concurrent_edit
+    description: "2 actors cùng modify 1 entity"
+    generates_per_feature: 1
+    template: |
+      Tab1: actor A mở entity, sửa field X.
+      Tab2: actor B mở cùng entity, sửa field Y, lưu trước.
+      Tab1: actor A nhấn Lưu →
+      Kết quả: hệ thống thông báo conflict + offer reload OR merge.
+
+  - id: vn_diacritics
+    description: "Input tiếng Việt có dấu (NFC/NFD) lưu + tìm kiếm chính xác"
+    generates_per_feature: 1
+    template: |
+      Nhập tên/địa chỉ có dấu: "Nguyễn Văn Đỗ — số 1, đường Lê Lợi, Q. 3, TP.HCM"
+      Lưu → reload → Kiểm tra hiển thị chính xác.
+      Tìm kiếm "Lê Lợi" → entity xuất hiện trong kết quả.
+
+  - id: sla_timeout
+    description: "Workflow có deadline → hệ thống cảnh báo/escalate khi quá hạn"
+    generates_per_feature_when: "workflow_variants exists"
+    template: |
+      Tạo entity với SLA = 2h.
+      Đợi 2h05m (hoặc set system clock).
+      Kết quả: entity status chuyển 'overdue', notification gửi cho LANH_DAO.
+
+# ─── Few-shot examples (BAD vs GOOD; abstract domain — User Mgmt) ───
+fewshot_examples:
+  - bad: |
+      Test name: POST /api/orders/:id/approve
+      Bước 1: Gọi POST /api/orders/:id/approve với body {...}
+      Expected: HTTP 2xx; lỗi có message chi tiết.
+    good: |
+      ID: TC-ORDER-APPROVE-HAPPY-001
+      Tên: Phê duyệt đơn hàng thành công (Cán bộ duyệt, đơn hàng hợp lệ)
+      Vai trò: Cán bộ duyệt
+      Mức ưu tiên: Rất cao
+      Tiền điều kiện: Đã đăng nhập với vai trò "Cán bộ duyệt"; có 1 đơn hàng ở trạng thái "Chờ duyệt".
+
+      Bước 1: Vào menu **Đơn hàng** → mục **Chờ duyệt**.
+        Mong đợi: Danh sách đơn hàng chờ duyệt hiển thị, có ít nhất 1 dòng.
+      Bước 2: Tìm đơn hàng theo mã đơn hàng (ô tìm kiếm phía trên).
+        Mong đợi: Đơn hàng cần duyệt xuất hiện ở dòng đầu kết quả.
+      Bước 3: Nhấn nút **[Phê duyệt]** trên dòng đơn hàng.
+        Mong đợi: Hộp thoại "Xác nhận phê duyệt" mở ra.
+      Bước 4: Nhập **lý do phê duyệt** (≥10 ký tự) và nhấn **[Xác nhận]**.
+        Mong đợi: Hộp thoại đóng, toast "Phê duyệt thành công" hiển thị, trạng thái đơn hàng chuyển "Đã duyệt".
+      Bước 5: Đăng nhập role Lãnh đạo, vào Nhật ký hệ thống.
+        Mong đợi: Bản ghi log với actor=Cán bộ duyệt, action=APPROVE, target=ord-id.
+
+      Labels: smoke, happy-path, audit, role-CB-DUYET
+
+  - bad: |
+      Bước 1: Đăng nhập/ mint token dev nếu cần.
+      Bước 2: Điều hướng tới các màn hình module M01.
+      Expected: Không lỗi 401/403; UI render được.
+    good: |
+      ID: TC-USER-MGMT-RBAC-DENIED-001
+      Tên: Cán bộ thường KHÔNG truy cập được Quản lý người dùng
+      Vai trò: Cán bộ thường (NOT visible_role of User Management)
+      Mức ưu tiên: Rất cao
+      Labels: rbac, security, access-denied
+      Tiền điều kiện: Đã đăng nhập với vai trò "Cán bộ thường".
+
+      Bước 1: Quan sát menu chính sau khi đăng nhập.
+        Mong đợi: KHÔNG có mục "Quản lý người dùng" trong menu.
+      Bước 2: Truy cập trực tiếp URL trang quản lý người dùng (gõ URL hoặc dán bookmark).
+        Mong đợi: Hệ thống thông báo "Không đủ quyền" hoặc redirect về trang chủ.
+      Bước 3: Đăng nhập role Lãnh đạo, vào Nhật ký hệ thống.
+        Mong đợi: Có bản ghi log "ACCESS_DENIED" cho actor=cán bộ thường, target=user-management.
+
+# ─── Validation gates (server enforce; CD-10 Quy tắc 17) ───
+validation:
+  banned_jargon_block_render: true
+  tc_id_pattern: '^TC-[A-Z0-9]+(-[A-Z0-9]+)*-\d{3,}$'
+  tc_required_fields:
+    - id
+    - name
+    - feature_id
+    - role
+    - priority
+    - preconditions
+    - steps
+    - expected
+    - labels
+    - source
+  tc_steps_min: 3                          # navigate + action + verify
+  tc_step_must_be_ui_action: true
+  tc_step_action_first_word_in: ["Vào", "Mở", "Nhấn", "Chọn", "Nhập", "Kéo", "Thả", "Tải", "Xác", "Kiểm", "Đối", "Quan", "Đăng"]
+  forbid_api_path_in_tc_name: true
+  priority_enum: ["Rất cao", "Cao", "Trung bình", "Thấp"]
+  priority_distribution_target:
+    "Rất cao":     {min: 0.20, max: 0.35}   # smoke, security, P0
+    "Cao":         {min: 0.35, max: 0.50}   # validation, RBAC
+    "Trung bình":  {min: 0.15, max: 0.30}   # boundary, alternate
+    "Thấp":        {min: 0.00, max: 0.15}   # cosmetic, edge
+  source_enum:
+    - "cursor-qa/executed"               # PRIMARY (healthy project)
+    - "from-doc/synthesized"             # seeds at extraction
+    - "from-code/extracted"              # parsed from test files
+    - "generate-docs/fallback-synthesized" # fallback ONLY
+
+# ─── Token budget ───
+token_budget:
+  briefing_total: 8000
+  per_feature_facts: 350
+
+# ─── Writer output schema (full set, gap-free) ───
+writer_output_schema:
+  block: "test_cases.ui"
+
+  # Per-feature service grouping (xlsx feature_group rows for visual scan)
+  service_structure_rule:
+    when: "len(roles_user_facing) > 1 AND len(features) > 1"
+    primary: "group_by_module"             # Default: 1 row block per module (audit-friendly, sequential test execution)
+    alternate: "group_by_role"             # Alt for sign-off pass: filter by role
+    feature_group_naming: "{module_id}. {module_lexicon[module_id]}"
+
+  required_fields:
+    # ─── Identity & traceability ───
+    - "id"                                 # TC-{module}-{dim}-{NNN} or TC-{module}-{role}-{dim}-{NNN}
+    - "name"                               # human-readable VN, NOT API path
+    - "feature_id"                         # FK to feature-catalog.features[].id
+    - "feature_module"                     # FK to feature.module (for xlsx grouping)
+    - "source"                             # enum: cursor-qa/executed | from-doc/synthesized | from-code/extracted | generate-docs/fallback-synthesized
+    # ─── Test design metadata ───
+    - "role"                               # display_name (NOT slug); null if cross-cutting
+    - "priority"                           # 4-VN-enum (auto-mapped to Critical/Major/Normal/Minor on render)
+    - "labels"                             # ["smoke", "rbac", "boundary", "dialog", "workflow", "audit", "edge", ...]
+    - "design_technique"                   # bva | ep | dt | st | eg | domain (per tc_design_heuristics)
+    # ─── Execution prerequisites ───
+    - "preconditions"                      # explicit data state + auth state
+    - "data_set"                           # optional: parameterized inputs for boundary TCs
+    # ─── Steps & expectations ───
+    - "steps[].no"
+    - "steps[].action"                     # first word ∈ test_action_verbs
+    - "steps[].expected"                   # 1:1 with action; per-step verification
+    - "expected_overall"                   # final outcome summary
+    # ─── Cross-references (HDSD↔xlsx integrity) ───
+    - "dialog_id"                          # FK to feature.dialogs[].id when dialog-trigger TC; null otherwise
+    - "error_case_id"                      # FK to feature.error_cases[].id; null otherwise
+    - "transition"                         # "{from_state} → {to_state}" for workflow TCs; null otherwise
+    - "expected_evidence"                  # audit log assertion / API trace / screenshot to capture
+    # ─── Execution result (filled when source=cursor-qa/executed) ───
+    - "execution.status"                   # passed | failed | skipped | not-executed
+    - "execution.executed_at"
+    - "execution.executed_by"
+    - "execution.duration_ms"
+    - "execution.screenshot_refs"          # paths to screenshots/{id}-step-NN-{state}.png
+    - "execution.playwright_script"        # path to playwright/{feature-id}.spec.ts
+    - "execution.notes"                    # free-text limitations / known issues
+
+  # ─── Hints for writer when constructing each field ───
+  field_construction_hints:
+    id: |
+      Format: TC-{module_upper}-{dim}-{NNN}, e.g. TC-M02-PHANCONG-HAPPY-001.
+      Multi-role: include role slug: TC-M02-LANH_DAO-APPROVE-001.
+      Sequence per (module, dim) starting at 001.
+
+    role: |
+      Use actor_registry.roles[].display_name (NOT slug).
+      null when TC is cross-cutting (audit, perf, integration).
+
+    priority: |
+      Rất cao: smoke happy-path per role, RBAC denied (security), audit log
+      Cao: validation boundary, error cases, dialog confirm/cancel
+      Trung bình: alternate flows, edge cases, workflow transitions
+      Thấp: cosmetic (Vietnamese diacritics display, browser back behavior)
+
+    preconditions: |
+      MUST specify: auth state ("Đã đăng nhập với vai trò X") + data state ("có 1 entity ở trạng thái Y").
+      For multi-role TCs, name the role explicitly.
+
+    steps: |
+      Min 3 steps: navigate (Vào/Mở menu) + action (Nhấn/Nhập) + verify (Kiểm tra/Đối chiếu).
+      Each step has matching expected — describe what tester observes.
+      Last step typically: audit log verification (Vào Nhật ký hệ thống → kiểm tra entry).
+
+    expected_evidence: |
+      For audit dimension: "Audit log entry actor=X action=Y timestamp matches"
+      For Playwright re-run: "Screenshot screenshots/{id}-step-NN-{state}.png matches"
+
+    labels: |
+      ALWAYS include 1+ from: smoke | rbac | boundary | dialog | workflow | audit | edge | integration
+      Plus role-{slug} when role-scoped.
+      Plus design-{technique} for heuristic-derived (bva/ep/dt/st/eg).

@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/actor-registry.schema.json",
+  "title": "Actor Registry",
+  "description": "Canonical roles + auth + RBAC for the system. Single source of truth across from-doc, from-code, generate-docs. NIST RBAC vocabulary.",
+  "type": "object",
+  "required": ["schema_version", "multi_role", "rbac_mode", "roles"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "multi_role": {
+      "type": "boolean",
+      "description": "Whether the system supports multiple distinct roles."
+    },
+    "rbac_mode": {
+      "type": "string",
+      "enum": ["rbac", "abac", "acl", "hybrid", "implicit"],
+      "description": "NIST 800-162 access-control model. rbac=role-based, abac=attribute-based, acl=per-resource list, hybrid=mix, implicit=undocumented."
+    },
+    "rbac_implementation": {
+      "type": "array",
+      "description": "How RBAC is enforced in code/doc. Multiple values allowed when both producers contribute.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "decorator-based",
+          "middleware-based",
+          "enum-only",
+          "data-driven",
+          "policy-engine",
+          "explicit-from-doc",
+          "implicit"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "$ref": "#/definitions/role" }
+    },
+    "role_hierarchy_diagram": {
+      "type": "string",
+      "description": "Optional Mermaid graph snippet showing inheritance, useful for docs."
+    }
+  },
+  "definitions": {
+    "role": {
+      "type": "object",
+      "required": ["slug", "display", "type", "confidence"],
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "kebab-case identifier, stable across regenerations."
+        },
+        "display": {
+          "type": "string",
+          "description": "Vietnamese display name."
+        },
+        "display_en": {
+          "type": "string",
+          "description": "English display name for technical docs."
+        },
+        "description": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["internal", "external", "system", "service"]
+        },
+        "inherits_from": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Slugs of parent roles. Permissions are union of self + inherited."
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "login_url": { "type": ["string", "null"] },
+            "post_login_redirect": { "type": ["string", "null"] },
+            "credentials_ref": {
+              "type": ["string", "null"],
+              "description": "Reference key (NEVER inline secret). Format: 'secrets://{slug}' or 'env://{VAR_NAME}'."
+            },
+            "session_strategy": {
+              "type": "string",
+              "enum": ["jwt", "session", "sso", "api-key", "oauth2", "unknown"]
+            },
+            "mfa_required": { "type": "boolean" }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidence" },
+          "description": "Polymorphic — discriminated by 'kind'. Multiple kinds allowed per role."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "manual"],
+          "description": "high=multi-source verified; medium=single producer; low=inferred; manual=user-entered."
+        },
+        "source_producers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["doc-intel", "tdoc-researcher", "tdoc-actor-enum", "manual-interview", "intel-merger"]
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["kind"],
+      "oneOf": [
+        {
+          "properties": {
+            "kind": { "const": "code" },
+            "file": { "type": "string" },
+            "line": { "type": "integer", "minimum": 1 },
+            "pattern": { "type": "string" },
+            "count": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["kind", "file"]
+        },
+        {
+          "properties": {
+            "kind": { "const": "doc" },
+            "source_id": { "type": "string", "description": "e.g. 'img-12' or 'page-3' or section anchor" },
+            "indicator": { "type": "string" },
+            "page": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["kind", "source_id"]
+        },
+        {
+          "properties": {
+            "kind": { "const": "ui" },
+            "screenshot": { "type": "string" },
+            "selector": { "type": "string" },
+            "url": { "type": "string" }
+          },
+          "required": ["kind"]
+        },
+        {
+          "properties": {
+            "kind": { "const": "interview" },
+            "question_id": { "type": "string" },
+            "answered_at": { "type": "string", "format": "date-time" }
+          },
+          "required": ["kind"]
+        }
+      ]
+    }
+  }
+}

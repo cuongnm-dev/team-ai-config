@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://etc.local/schemas/intel/sitemap.schema.json",
+  "title": "Sitemap",
+  "description": "Single source of truth for navigation, routes, workflow variants per role, and Playwright automation hints. Absorbs frontend-report.json from older designs.",
+  "type": "object",
+  "required": ["schema_version", "roles", "routes"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "base_url": { "type": "string", "description": "Production base URL, e.g. https://etc.example.vn." },
+    "dev_base_url": { "type": "string", "description": "Local dev URL for Playwright runs." },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/roleNavigation" }
+    },
+    "routes": {
+      "type": "array",
+      "description": "Flat route list. Used by tdoc-test-runner for Playwright automation.",
+      "items": { "$ref": "#/definitions/route" }
+    },
+    "feature_overrides": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/featureOverride" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "definitions": {
+    "roleNavigation": {
+      "type": "object",
+      "required": ["role", "entry_url"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Must match actor-registry.roles[].slug."
+        },
+        "entry_url": { "type": "string" },
+        "menu_tree": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/menuNode" }
+        },
+        "dashboard_widgets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "feature_id": { "type": "string" },
+              "size": { "type": "string", "enum": ["small", "medium", "large", "full"] },
+              "position": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "menuNode": {
+      "type": "object",
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string", "description": "Vietnamese display label." },
+        "label_en": { "type": "string" },
+        "icon": { "type": "string" },
+        "url": { "type": "string" },
+        "feature_id": { "type": "string" },
+        "permission_check": {
+          "type": "string",
+          "description": "Format: '{resource_id}:{action}'. Cross-ref permission-matrix."
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/menuNode" }
+        },
+        "order": { "type": "integer" }
+      }
+    },
+    "route": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "URL pattern. Examples: '/dashboard', '/approval/:id', '/api/users/:userId/roles'."
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "ANY"],
+          "default": "GET"
+        },
+        "component": { "type": "string", "description": "Frontend component name (when known)." },
+        "feature_id": { "type": "string" },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "required": { "type": "boolean" },
+            "allowed_roles": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Convenience denormalization. Authoritative source = permission-matrix."
+            },
+            "permission_check": { "type": "string" }
+          }
+        },
+        "playwright_hints": {
+          "type": "object",
+          "description": "Automation hints for tdoc-test-runner. Replaces frontend-report.json.",
+          "properties": {
+            "wait_for_selector": { "type": "string" },
+            "wait_for_url": { "type": "string" },
+            "wait_for_network_idle": { "type": "boolean" },
+            "form_selectors": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "submit_selector": { "type": "string" },
+            "success_indicator": { "type": "string" },
+            "screenshot_full_page": { "type": "boolean" }
+          }
+        },
+        "i18n_keys": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "actor-registry.schema.json#/definitions/evidence" }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "manual"],
+          "description": "Route extraction confidence. high=multi-source (code router + doc menu agree); medium=single producer; low=inferred (e.g. component name only). Consumers route by tier."
+        },
+        "source_producers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["doc-intel", "tdoc-researcher", "manual-interview", "intel-merger", "from-doc", "from-code"]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "featureOverride": {
+      "type": "object",
+      "required": ["feature_id"],
+      "properties": {
+        "feature_id": { "type": "string" },
+        "workflow_variants": {
+          "type": "object",
+          "description": "Per-role UI workflow. Keyed by role slug.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "states_visible": { "type": "array", "items": { "type": "string" } },
+              "states_actionable": { "type": "array", "items": { "type": "string" } },
+              "available_actions": { "type": "array", "items": { "type": "string" } },
+              "hidden_fields": { "type": "array", "items": { "type": "string" } },
+              "readonly_fields": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
