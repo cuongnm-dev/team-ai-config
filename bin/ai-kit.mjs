@@ -30,14 +30,37 @@ const T = {
 };
 
 // ─── marked-terminal setup ─────────────────────────────────────────────
-marked.use(markedTerminal({
-  reflowText: true,
-  width: Math.min(process.stdout.columns || 100, 100),
-  heading: (text, level) => {
-    const colors = ['\x1b[1;36m', '\x1b[1;35m', '\x1b[1;33m', '\x1b[1m'];
-    return `\n${colors[level - 1] || '\x1b[1m'}${'#'.repeat(level)} ${text}\x1b[0m\n`;
-  },
-}));
+const _cols = () => Math.min(process.stdout.columns || 100, 100);
+marked.use(markedTerminal({reflowText: true, width: _cols()}, {useNewRenderer: true}));
+// Override heading + code renderers using marked's new {tokens,depth} API
+marked.use({
+  renderer: {
+    heading({tokens, depth}) {
+      const text = this.parser.parseInline(tokens);
+      const plain = text.replace(/\x1b\[[0-9;]*m/g, '');
+      const w = _cols();
+      if (depth === 1) {
+        const bar = '═'.repeat(Math.min(plain.length + 2, w - 4));
+        return `\n\x1b[1;36m  ${text}\x1b[0m\n\x1b[2;36m  ${bar}\x1b[0m\n\n`;
+      }
+      if (depth === 2) {
+        const bar = '─'.repeat(Math.min(plain.length + 2, w - 4));
+        return `\n\x1b[1;35m  ${text}\x1b[0m\n\x1b[2;35m  ${bar}\x1b[0m\n\n`;
+      }
+      if (depth === 3) return `\n\x1b[1;33m  ${text}\x1b[0m\n`;
+      return `\n\x1b[1m  ${text}\x1b[0m\n`;
+    },
+    code({text, lang}) {
+      const w = _cols();
+      const bar = '─'.repeat(w - 6);
+      const header = lang
+        ? `\x1b[2m  ┌─ ${lang} ${'─'.repeat(Math.max(2, w - lang.length - 9))}┐\x1b[0m`
+        : `\x1b[2m  ┌─${bar}─┐\x1b[0m`;
+      const body = text.trimEnd().split('\n').map(l => `\x1b[2m  │\x1b[0m \x1b[33m${l}\x1b[0m`).join('\n');
+      return `${header}\n${body}\n\x1b[2m  └─${bar}─┘\x1b[0m\n\n`;
+    },
+  }
+});
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
@@ -86,6 +109,12 @@ const Row = ({icon, label, value, color}) => h(Box, null,
 const Ok = ({children}) => h(Text, {color: T.success}, '✓ ', children);
 const Err = ({children}) => h(Text, {color: T.danger}, '✗ ', children);
 const Warn = ({children}) => h(Text, {color: T.warn}, '⚠ ', children);
+
+const DocItem = ({item}) => h(Box, {paddingLeft: 2},
+  h(Text, {color: T.dim}, '  › '),
+  h(Text, {color: T.primary}, item.name.padEnd(24)),
+  h(Text, {color: T.dim}, item.title || '')
+);
 
 // ─── Commands ──────────────────────────────────────────────────────────
 
@@ -256,128 +285,125 @@ const Doctor = () => {
   );
 };
 
-const DocViewer = ({file}) => {
+const renderDoc = (file) => {
   const content = fs.readFileSync(file, 'utf8');
   const stripped = stripFm(content);
-  // Use glow if available — render via subprocess
   if (cmdAvail('glow')) {
-    try {
-      execaSync('glow', ['-p', file], {stdio: 'inherit'});
-      process.exit(0);
-    } catch {}
+    try { execaSync('glow', ['-p', file], {stdio: 'inherit'}); return; } catch {}
   }
-  // Fallback: marked-terminal renders to ANSI string
-  const rendered = marked.parse(stripped);
-  return h(Box, {flexDirection: 'column'}, h(Text, null, rendered.trimEnd()));
+  const w = _cols();
+  const bar = '─'.repeat(w - 4);
+  const relPath = path.relative(REPO_DIR, file);
+  const titleM = content.match(/^title:\s*(.+)$/m);
+  const docTitle = titleM ? titleM[1].replace(/^["']|["']$/g, '') : path.basename(file, '.md');
+  const out = process.stdout;
+  out.write('\n');
+  out.write(`  \x1b[2m${relPath}\x1b[0m\n`);
+  out.write(`  \x1b[2m${bar}\x1b[0m\n\n`);
+  out.write(marked.parse(stripped).trimEnd());
+  out.write('\n\n');
+  out.write(`  \x1b[2m${bar}\x1b[0m\n`);
+  out.write(`  \x1b[90mai-kit doc  ·  ai-kit doc --search <term>\x1b[0m\n\n`);
 };
 
-const DocsIndex = () => {
+
+// ─── Plain-stdout doc renderers (no Ink — avoids ANSI-stripping + wrap bugs) ──
+
+const S = {
+  reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
+  cyan: '\x1b[36m', bcyan: '\x1b[1;36m',
+  magenta: '\x1b[35m', bmagenta: '\x1b[1;35m',
+  gray: '\x1b[90m', white: '\x1b[97m',
+};
+
+const printDivider = (title, count) => {
+  const w = _cols();
+  const label = count != null ? `${title} (${count})` : title;
+  const lineLen = Math.max(2, w - label.length - 9);
+  process.stdout.write(`\n${S.gray}  ── ${S.reset}${S.bmagenta}${label}${S.reset} ${S.gray}${'─'.repeat(lineLen)}${S.reset}\n`);
+};
+
+const printItem = (name, title, nameWidth = 24) => {
+  const n = name.length > nameWidth ? name.slice(0, nameWidth - 1) + '…' : name.padEnd(nameWidth);
+  process.stdout.write(`  ${S.gray}›${S.reset} ${S.cyan}${n}${S.reset}  ${S.gray}${title || ''}${S.reset}\n`);
+};
+
+const readDocItems = (dir) => {
+  if (!exists(dir)) return [];
+  return fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().map(f => {
+    const c = fs.readFileSync(path.join(dir, f), 'utf8');
+    const m = c.match(/^title:\s*(.+)$/m);
+    return {name: f.replace(/\.md$/, ''), title: (m ? m[1].replace(/^["']|["']$/g, '') : f).slice(0, 58)};
+  });
+};
+
+const printDocsIndex = () => {
   ensureRepo();
   const docsDir = path.join(REPO_DIR, 'docs');
-  const list = (subdir) => {
-    const dir = path.join(docsDir, subdir);
-    if (!exists(dir)) return [];
-    return fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().map(f => {
-      const c = fs.readFileSync(path.join(dir, f), 'utf8');
-      const m = c.match(/^title:\s*(.+)$/m);
-      return {
-        name: f.replace(/\.md$/, ''),
-        title: (m ? m[1].replace(/^["']|["']$/g, '') : f).slice(0, 60)
-      };
-    });
-  };
-  const root = fs.readdirSync(docsDir).filter(f => f.endsWith('.md') && f !== 'README.md').sort()
-    .map(f => {
-      const c = fs.readFileSync(path.join(docsDir, f), 'utf8');
-      const m = c.match(/^title:\s*(.+)$/m);
-      return {name: f.replace(/\.md$/, ''), title: (m ? m[1].replace(/^["']|["']$/g, '') : f).slice(0, 60)};
-    });
-  const workflows = list('workflows');
-  const reference = list('reference');
-
-  const Item = ({item}) => h(Box, null,
-    h(Text, {color: T.primary}, '  ' + item.name.padEnd(28)),
-    h(Text, {color: T.dim}, item.title)
-  );
-
-  return h(Box, {flexDirection: 'column', padding: 1},
-    h(Header, {title: 'Documentation Hub', subtitle: 'ai-kit doc <topic>   |   ai-kit doc --search <term>'}),
-    h(Section, {title: 'Top-level'}, ...root.map((it, i) => h(Item, {key: i, item: it}))),
-    h(Section, {title: 'Workflows'}, ...workflows.map((it, i) => h(Item, {key: i, item: it}))),
-    h(Section, {title: 'Reference'}, ...reference.map((it, i) => h(Item, {key: i, item: it}))),
-    h(Section, {title: 'Auto-generated indexes'},
-      h(Box, null, h(Text, {color: T.primary}, '  ' + 'skills'.padEnd(28)), h(Text, {color: T.dim}, 'List Claude + Cursor skills (--brief for short)')),
-      h(Box, null, h(Text, {color: T.primary}, '  ' + 'agents'.padEnd(28)), h(Text, {color: T.dim}, 'List Claude + Cursor agents (--brief for short)'))
-    )
-  );
+  const root = readDocItems(docsDir).filter(it => it.name !== 'README');
+  const workflows = readDocItems(path.join(docsDir, 'workflows'));
+  const reference = readDocItems(path.join(docsDir, 'reference'));
+  const out = process.stdout;
+  out.write(`\n${S.bcyan}  Documentation Hub${S.reset}\n`);
+  out.write(`${S.gray}  ai-kit doc <topic>   ·   ai-kit doc --search <term>${S.reset}\n`);
+  printDivider('General', root.length);
+  root.forEach(it => printItem(it.name, it.title));
+  printDivider('Workflows', workflows.length);
+  workflows.forEach(it => printItem(it.name, it.title));
+  printDivider('Reference', reference.length);
+  reference.forEach(it => printItem(it.name, it.title));
+  printDivider('Auto-indexes');
+  printItem('skills', 'Claude + Cursor skills  (--brief for compact)');
+  printItem('agents', 'Claude + Cursor agents  (--brief for compact)');
+  out.write(`\n${S.gray}  Tip: ${S.reset}ai-kit doc --search <term>${S.gray} — full-text search across all docs + agents${S.reset}\n\n`);
 };
 
-const SkillsIndex = ({brief}) => {
+const printSkillsIndex = (brief) => {
   ensureRepo();
-  const claudeSkills = path.join(REPO_DIR, 'claude', 'skills');
-  const cursorSkills = path.join(REPO_DIR, 'cursor', 'skills');
-  const list = (dir) => {
+  const readSkills = (dir) => {
     if (!exists(dir)) return [];
     return fs.readdirSync(dir, {withFileTypes: true}).filter(e => e.isDirectory()).map(e => {
-      const skillMd = path.join(dir, e.name, 'SKILL.md');
-      if (!exists(skillMd)) return {name: e.name, desc: '(no SKILL.md)'};
-      const c = fs.readFileSync(skillMd, 'utf8');
+      const md = path.join(dir, e.name, 'SKILL.md');
+      if (!exists(md)) return {name: e.name, title: '(no SKILL.md)'};
+      const c = fs.readFileSync(md, 'utf8');
       const m = c.match(/^description:\s*(.+)$/m);
-      return {name: e.name, desc: cleanDesc(m ? m[1] : '')};
+      return {name: e.name, title: cleanDesc(m ? m[1] : '').slice(0, 66)};
     });
   };
-  const cs = list(claudeSkills);
-  const cu = list(cursorSkills);
-
-  const Group = ({title, items}) => h(Box, {flexDirection: 'column', marginBottom: 1},
-    h(Text, {bold: true, color: T.accent}, title),
-    h(Newline),
-    ...items.map((it, i) => brief
-      ? h(Box, {key: i}, h(Text, {color: T.primary}, `  /${it.name}`.padEnd(28)), h(Text, null, it.desc.slice(0, 90)))
-      : h(Box, {key: i, flexDirection: 'column', marginBottom: 1},
-          h(Text, {bold: true, color: T.primary}, `  /${it.name}`),
-          h(Box, {marginLeft: 4}, h(Text, null, it.desc))
-        )
-    )
-  );
-
-  return h(Box, {flexDirection: 'column', padding: 1},
-    h(Header, {title: 'Skills (auto-extracted)', subtitle: 'For curated catalog: ai-kit doc skills'}),
-    h(Group, {title: `Claude Skills (~/.claude/skills/) — ${cs.length}`, items: cs}),
-    h(Group, {title: `Cursor Skills (~/.cursor/skills/) — ${cu.length}`, items: cu})
-  );
+  const cs = readSkills(path.join(REPO_DIR, 'claude', 'skills'));
+  const cu = readSkills(path.join(REPO_DIR, 'cursor', 'skills'));
+  const out = process.stdout;
+  out.write(`\n${S.bcyan}  Skills Catalog${S.reset}\n`);
+  printDivider('Claude Skills  (~/.claude/skills/)', cs.length);
+  if (brief) cs.forEach(it => printItem(`/${it.name}`, it.title));
+  else cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}/${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  printDivider('Cursor Skills  (~/.cursor/skills/)', cu.length);
+  if (brief) cu.forEach(it => printItem(`/${it.name}`, it.title));
+  else cu.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}/${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  out.write('\n');
 };
 
-const AgentsIndex = ({brief}) => {
+const printAgentsIndex = (brief) => {
   ensureRepo();
-  const list = (dir) => {
+  const readAgents = (dir) => {
     if (!exists(dir)) return [];
     return fs.readdirSync(dir).filter(f => f.endsWith('.md') && !f.startsWith('ref-')).sort().map(f => {
       const c = fs.readFileSync(path.join(dir, f), 'utf8');
       const m = c.match(/^description:\s*(.+)$/m);
-      return {name: f.replace(/\.md$/, ''), desc: cleanDesc(m ? m[1] : '')};
+      return {name: f.replace(/\.md$/, ''), title: cleanDesc(m ? m[1] : '').slice(0, 66)};
     });
   };
-  const cs = list(path.join(REPO_DIR, 'claude', 'agents'));
-  const cu = list(path.join(REPO_DIR, 'cursor', 'agents'));
-
-  const Group = ({title, items}) => h(Box, {flexDirection: 'column', marginBottom: 1},
-    h(Text, {bold: true, color: T.accent}, title),
-    h(Newline),
-    ...items.map((it, i) => brief
-      ? h(Box, {key: i}, h(Text, {color: T.primary}, `  ${it.name}`.padEnd(32)), h(Text, null, it.desc.slice(0, 90)))
-      : h(Box, {key: i, flexDirection: 'column', marginBottom: 1},
-          h(Text, {bold: true, color: T.primary}, `  ${it.name}`),
-          h(Box, {marginLeft: 4}, h(Text, null, it.desc))
-        )
-    )
-  );
-
-  return h(Box, {flexDirection: 'column', padding: 1},
-    h(Header, {title: 'Agents (auto-extracted)', subtitle: 'For curated catalog: ai-kit doc agents'}),
-    h(Group, {title: `Claude Agents — ${cs.length}`, items: cs}),
-    h(Group, {title: `Cursor Agents — ${cu.length}`, items: cu})
-  );
+  const cs = readAgents(path.join(REPO_DIR, 'claude', 'agents'));
+  const cu = readAgents(path.join(REPO_DIR, 'cursor', 'agents'));
+  const out = process.stdout;
+  out.write(`\n${S.bcyan}  Agents Catalog${S.reset}\n`);
+  printDivider('Claude Agents  (~/.claude/agents/)', cs.length);
+  if (brief) cs.forEach(it => printItem(it.name, it.title));
+  else cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  printDivider('Cursor Agents  (~/.cursor/agents/)', cu.length);
+  if (brief) cu.forEach(it => printItem(it.name, it.title));
+  else cu.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  out.write('\n');
 };
 
 // Render a static component then immediately unmount so Ink doesn't keep stdin open
@@ -394,7 +420,7 @@ const docCommand = (args) => {
   const flag = args[1];
 
   if (!sub || sub === 'index' || sub === '--toc' || sub === '-l' || sub === '--list') {
-    renderStaticLater(h(DocsIndex));
+    printDocsIndex();
     return;
   }
   if (sub === '--search' || sub === '-s') {
@@ -425,12 +451,25 @@ const docCommand = (args) => {
       ...search(path.join(REPO_DIR, 'claude', 'agents')),
       ...search(path.join(REPO_DIR, 'cursor', 'agents')),
     ].slice(0, 50);
-    console.log(`\x1b[1;36mSearch: "${term}" (${results.length} hits)\x1b[0m\n`);
-    results.forEach(r => console.log(`\x1b[2m${r.path}:${r.line}\x1b[0m  ${r.text}`));
+    const w = _cols();
+    const bar = '─'.repeat(w - 4);
+    const out = process.stdout;
+    out.write(`\n  \x1b[1;36mSearch results\x1b[0m  \x1b[90m"${term}"  ·  ${results.length} hit${results.length !== 1 ? 's' : ''}\x1b[0m\n`);
+    out.write(`  \x1b[2m${bar}\x1b[0m\n\n`);
+    let lastFile = '';
+    results.forEach(r => {
+      if (r.path !== lastFile) {
+        if (lastFile) out.write('\n');
+        out.write(`  \x1b[35m${r.path}\x1b[0m\n`);
+        lastFile = r.path;
+      }
+      out.write(`  \x1b[90m:${String(r.line).padStart(4)}\x1b[0m  ${r.text}\n`);
+    });
+    out.write(`\n  \x1b[2m${bar}\x1b[0m\n\n`);
     return;
   }
-  if (sub === 'skills') { renderStaticLater(h(SkillsIndex, {brief: flag === '--brief'})); return; }
-  if (sub === 'agents') { renderStaticLater(h(AgentsIndex, {brief: flag === '--brief'})); return; }
+  if (sub === 'skills') { printSkillsIndex(flag === '--brief'); return; }
+  if (sub === 'agents') { printAgentsIndex(flag === '--brief'); return; }
 
   // Resolve doc page
   const candidates = [
@@ -453,11 +492,11 @@ const docCommand = (args) => {
     file = all[0];
   }
   if (!file) {
-    console.error(`\x1b[31m  ✗ Topic not found: ${sub}\x1b[0m`);
-    renderStaticLater(h(DocsIndex));
+    process.stderr.write(`\x1b[31m  ✗ Topic not found: ${sub}\x1b[0m\n`);
+    printDocsIndex();
     process.exit(1);
   }
-  renderStaticLater(h(DocViewer, {file}));
+  renderDoc(file);
 };
 
 // ─── Imperative commands (side-effect heavy) ──────────────────────────
@@ -509,10 +548,12 @@ const cmdUpdate = () => {
   }
   ok('CLI refreshed');
 
-  // npm install if package.json present
-  if (exists(path.join(REPO_DIR, 'package.json'))) {
-    info('Installing Node deps (omit dev)');
-    sh('npm', ['install', '--omit=dev', '--silent'], {cwd: REPO_DIR});
+  // Install Node deps into AI_KIT_HOME so ESM resolution from bin/ finds them
+  const pkgSrc = path.join(REPO_DIR, 'package.json');
+  if (exists(pkgSrc)) {
+    info('Installing Node deps into ~/.ai-kit');
+    fs.copyFileSync(pkgSrc, path.join(AI_KIT_HOME, 'package.json'));
+    sh('npm', ['install', '--omit=dev', '--silent'], {cwd: AI_KIT_HOME});
   }
 
   // Deploy configs to ~/.claude + ~/.cursor (simple rsync/copy)
