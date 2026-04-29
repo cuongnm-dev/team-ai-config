@@ -46,17 +46,70 @@ function Resolve-DirtyRepo {
   exit 1
 }
 
-# Pre-flight
-foreach ($cmd in @('git','docker')) {
-  if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
-    Write-Err "Required: $cmd (not found in PATH). Install it and re-run."
-    exit 1
+$AutoInstall = ($args -contains '--auto-install') -or ($env:AI_KIT_AUTO_INSTALL -eq '1')
+
+function Hint-Install($tool) {
+  switch ($tool) {
+    'git'    { 'winget install --id Git.Git -e' }
+    'docker' { 'Download Docker Desktop: https://www.docker.com/products/docker-desktop/  (or: winget install --id Docker.DockerDesktop -e)' }
+    'python' { 'winget install --id Python.Python.3.12 -e' }
+    'curl'   { 'Built-in on Windows 10+; install via winget if missing: winget install --id curl.curl -e' }
+    default  { "winget install $tool" }
   }
 }
-docker info *> $null
-if ($LASTEXITCODE -ne 0) {
-  Write-Err "Docker daemon not running. Start Docker Desktop and re-run."
-  exit 1
+
+function Auto-Install($tool) {
+  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    Write-Err 'winget not found. Install App Installer from Microsoft Store, then re-run.'
+    return $false
+  }
+  switch ($tool) {
+    'git'    { winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements; return ($LASTEXITCODE -eq 0) }
+    'python' { winget install --id Python.Python.3.12 -e --accept-source-agreements --accept-package-agreements; return ($LASTEXITCODE -eq 0) }
+    'docker' { Write-Err 'Docker Desktop auto-install too risky (needs admin + reboot for WSL2). Install manually:'; Write-Host "  $(Hint-Install 'docker')"; return $false }
+    default  { winget install $tool; return ($LASTEXITCODE -eq 0) }
+  }
+}
+
+# ─── env check ─────────────────────────────────────────────────────────
+Write-Info 'Checking environment'
+$missing = @()
+foreach ($t in @('git','docker','python','curl')) {
+  $bin = $t
+  if ($t -eq 'python') { $bin = 'python' }
+  if (Get-Command $bin -ErrorAction SilentlyContinue) {
+    Write-Ok "$t found"
+  } else {
+    Write-Err "$t MISSING — Install: $(Hint-Install $t)"
+    $missing += $t
+  }
+}
+# Docker daemon
+if (Get-Command docker -ErrorAction SilentlyContinue) {
+  docker info *> $null
+  if ($LASTEXITCODE -eq 0) { Write-Ok 'docker daemon running' }
+  else { Write-Err 'docker daemon NOT running — Start Docker Desktop and re-run'; $missing += 'docker-daemon' }
+}
+
+if ($missing.Count -gt 0) {
+  Write-Host ''
+  if ($AutoInstall) {
+    Write-Info 'Auto-installing missing tools (--auto-install)'
+    foreach ($t in $missing) {
+      if ($t -eq 'docker-daemon') { continue }
+      Write-Info "  Installing $t..."
+      if (Auto-Install $t) { Write-Ok "$t installed (may need terminal restart)" }
+      else { Write-Err "$t install failed — install manually + re-run"; exit 1 }
+    }
+    Write-Host ''
+    Write-Err 'Auto-install completed. Open a NEW terminal and re-run bootstrap (PATH/daemon refresh needed).'
+    exit 0
+  } else {
+    Write-Err "Missing $($missing.Count) required tool(s). Install above + re-run, or use --auto-install:"
+    Write-Err '  irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex; ai-kit-bootstrap --auto-install'
+    Write-Err '  (or save script + run: .\bootstrap.ps1 --auto-install)'
+    exit 1
+  }
 }
 
 # Clone or update
