@@ -104,10 +104,16 @@ function DoUpdate {
 
   Write-Info "Refreshing MCP image (stop -> pull -> start)"
   Push-Location (Join-Path $RepoDir 'mcp\etc-platform')
-  docker compose down 2>$null | Out-Null
-  docker compose pull --quiet
-  docker compose up -d
-  Pop-Location
+  try {
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    docker compose down *>&1 | Out-Null
+    docker compose pull --quiet
+    docker compose up -d
+  } finally {
+    $ErrorActionPreference = $prevEAP
+    Pop-Location
+  }
   Write-Ok "MCP refreshed"
 }
 
@@ -173,7 +179,12 @@ function DoMcp {
       'stop'    { docker compose down }
       'restart' { docker compose restart }
       'logs'    { docker compose logs -f etc-platform }
-      'pull'    { docker compose down 2>$null | Out-Null; docker compose pull; docker compose up -d }
+      'pull'    {
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { docker compose down *>&1 | Out-Null; docker compose pull; docker compose up -d }
+        finally { $ErrorActionPreference = $prevEAP }
+      }
       'status'  { docker compose ps }
       'ps'      { docker compose ps }
       default   { Write-Err "Unknown mcp verb: $verb"; Write-Host "  Use: start | stop | restart | logs | pull | status"; exit 1 }
@@ -202,8 +213,23 @@ function DoUninstall {
   Write-Warn "Your ~\.claude and ~\.cursor stay (already deployed)."
   $yn = Read-Host "Continue? (y/N)"
   if ($yn -notmatch '^[Yy]') { Write-Host "Aborted."; exit 0 }
-  Push-Location (Join-Path $RepoDir 'mcp\etc-platform') -ErrorAction SilentlyContinue
-  if ($?) { docker compose down 2>$null; Pop-Location }
+
+  # Stop MCP container — wrap docker call to avoid PS NativeCommandError on stderr
+  $mcpDir = Join-Path $RepoDir 'mcp\etc-platform'
+  if (Test-Path $mcpDir) {
+    Push-Location $mcpDir
+    try {
+      $prevEAP = $ErrorActionPreference
+      $ErrorActionPreference = 'Continue'
+      docker compose down *>&1 | Out-Null
+    } finally {
+      $ErrorActionPreference = $prevEAP
+      Pop-Location
+    }
+  }
+
+  # Move out of $AiKitHome before deleting (cwd may be inside it)
+  Set-Location $env:USERPROFILE
   Remove-Item -Recurse -Force $AiKitHome
   Write-Ok "Removed $AiKitHome"
   Write-Ok "Restore previous ~\.claude / ~\.cursor from latest backup at ~\ai-config-backup-* if needed."
