@@ -172,5 +172,5 @@ ai-kit uninstall
 
 ## Liên quan
 
-- [maintainer-publish workflow](../workflows/maintainer-publish.md)
+- [maintainer guide](../maintainer.md)
 - [troubleshooting](../troubleshooting.md)

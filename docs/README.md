@@ -27,11 +27,20 @@ ai-kit doctor        # diagnose nếu vấn đề
 
 ## Tài liệu
 
-### Workflows (task-oriented)
-- [`new-feature`](workflows/new-feature.md) — Thêm feature mới qua SDLC pipeline
-- [`from-doc-to-docs`](workflows/from-doc-to-docs.md) — Sinh tài liệu từ SRS / BRD
-- [`from-code-to-docs`](workflows/from-code-to-docs.md) — Sinh tài liệu từ codebase hiện có
-- [`maintainer-publish`](workflows/maintainer-publish.md) — Maintainer cập nhật team config + MCP image
+### Workflows — Skills 1:1 (task-oriented)
+
+**SDLC pipeline (Cursor):**
+- [`new-feature`](workflows/new-feature.md) — Khởi tạo 1 feature mới (interactive interview)
+- [`resume-feature`](workflows/resume-feature.md) — Chạy SDLC pipeline (ba → sa → dev → qa → reviewer)
+- [`close-feature`](workflows/close-feature.md) — Đóng feature, sync canonical intel + evidence
+
+**Doc generation (Claude):**
+- [`from-doc`](workflows/from-doc.md) — Phân tích SRS/BRD → seed feature-catalog + sitemap
+- [`from-code`](workflows/from-code.md) — Reverse-engineer codebase → canonical intel
+- [`generate-docs`](workflows/from-doc.md#3-sinh-tài-liệu-office-claude-code) — Render Office files (TKKT/TKCS/HDSD/test-cases)
+
+**Maintainer (anh):**
+- [`maintainer`](maintainer.md) — Update team config + MCP image rollout
 
 ### Reference
 - [`ai-kit`](reference/ai-kit.md) — Tất cả 16 commands

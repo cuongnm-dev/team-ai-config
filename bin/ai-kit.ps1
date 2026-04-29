@@ -506,52 +506,63 @@ function Docs-ResolveTopic {
   return $null
 }
 
+function Docs-CleanDesc([string]$desc) {
+  return ($desc -replace '^"','' -replace '"$','' -replace "^'",'' -replace "'$",'' -replace '^\[[^\]]+\]\s*','')
+}
+
+function Docs-PrintItem {
+  param([string]$Name, [string]$Desc, [string]$Mode = 'full', [int]$NameWidth = 30)
+  if ($Mode -eq 'brief') {
+    $short = if ($Desc.Length -gt 90) { $Desc.Substring(0, 87) + '...' } else { $Desc }
+    ("  {0,-$NameWidth} {1}" -f $Name, $short) | Write-Host
+  } else {
+    Write-Host ("  $Name") -ForegroundColor White
+    Write-Host ("      $Desc")
+    Write-Host ''
+  }
+}
+
 function Docs-SkillsIndex {
+  param([string]$Mode = 'full')
   Ensure-Repo
   Write-Host "Claude Skills  (~/.claude/skills/)" -ForegroundColor White
   Write-Host ''
   Get-ChildItem -Path (Join-Path $RepoDir 'claude\skills') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
     $skillMd = Join-Path $_.FullName 'SKILL.md'
-    if (Test-Path $skillMd) {
-      $desc = (Select-String -Path $skillMd -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
-      $desc = $desc -replace '^"','' -replace '"$','' -replace "^'",'' -replace "'$",'' -replace '^\[[^\]]+\]\s*',''
-      $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
-      "  {0,-25} {1}" -f "/$($_.Name)", $short | Write-Host
-    } else {
-      "  {0,-25} (no SKILL.md)" -f "/$($_.Name)" | Write-Host
-    }
+    if (-not (Test-Path $skillMd)) { return }
+    $desc = (Select-String -Path $skillMd -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
+    $desc = Docs-CleanDesc $desc
+    Docs-PrintItem -Name "/$($_.Name)" -Desc $desc -Mode $Mode -NameWidth 25
   }
   Write-Host ''
   Write-Host "Cursor Skills  (~/.cursor/skills/)" -ForegroundColor White
   Write-Host ''
   Get-ChildItem -Path (Join-Path $RepoDir 'cursor\skills') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
     $skillMd = Join-Path $_.FullName 'SKILL.md'
-    if (Test-Path $skillMd) {
-      $desc = (Select-String -Path $skillMd -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
-      $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
-      "  {0,-25} {1}" -f "/$($_.Name)", $short | Write-Host
-    }
+    if (-not (Test-Path $skillMd)) { return }
+    $desc = (Select-String -Path $skillMd -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
+    $desc = Docs-CleanDesc $desc
+    Docs-PrintItem -Name "/$($_.Name)" -Desc $desc -Mode $Mode -NameWidth 25
   }
 }
 
 function Docs-AgentsIndex {
+  param([string]$Mode = 'full')
   Ensure-Repo
   Write-Host "Claude Agents  (~/.claude/agents/)" -ForegroundColor White
   Write-Host ''
   Get-ChildItem -Path (Join-Path $RepoDir 'claude\agents') -Filter '*.md' -ErrorAction SilentlyContinue | ForEach-Object {
     $desc = (Select-String -Path $_.FullName -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
-    $desc = $desc -replace '^"','' -replace '"$','' -replace "^'",'' -replace "'$",'' -replace '^\[[^\]]+\]\s*',''
-    $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
-    "  {0,-30} {1}" -f $_.BaseName, $short | Write-Host
+    $desc = Docs-CleanDesc $desc
+    Docs-PrintItem -Name $_.BaseName -Desc $desc -Mode $Mode -NameWidth 30
   }
   Write-Host ''
   Write-Host "Cursor Agents  (~/.cursor/agents/)" -ForegroundColor White
   Write-Host ''
   Get-ChildItem -Path (Join-Path $RepoDir 'cursor\agents') -Filter '*.md' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike 'ref-*' } | ForEach-Object {
     $desc = (Select-String -Path $_.FullName -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
-    $desc = $desc -replace '^"','' -replace '"$','' -replace "^'",'' -replace "'$",'' -replace '^\[[^\]]+\]\s*',''
-    $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
-    "  {0,-30} {1}" -f $_.BaseName, $short | Write-Host
+    $desc = Docs-CleanDesc $desc
+    Docs-PrintItem -Name $_.BaseName -Desc $desc -Mode $Mode -NameWidth 30
   }
 }
 
@@ -585,8 +596,14 @@ function DoDocs {
     '--list'         { Docs-ListTopics }
     '-l'             { Docs-ListTopics }
     'index'          { Docs-ListTopics }
-    'skills'         { Docs-SkillsIndex }
-    'agents'         { Docs-AgentsIndex }
+    'skills'         {
+      $mode = if ($Rest.Count -gt 1 -and $Rest[1] -eq '--brief') { 'brief' } else { 'full' }
+      Docs-SkillsIndex -Mode $mode
+    }
+    'agents'         {
+      $mode = if ($Rest.Count -gt 1 -and $Rest[1] -eq '--brief') { 'brief' } else { 'full' }
+      Docs-AgentsIndex -Mode $mode
+    }
     '--search'       {
       if ($Rest.Count -lt 2) { Write-Err 'Usage: ai-kit docs --search <term>'; exit 1 }
       Docs-Search -Term $Rest[1]

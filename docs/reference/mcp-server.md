@@ -135,6 +135,6 @@ Forbidden patterns:
 
 ## Liên quan
 
-- [maintainer-publish workflow](../workflows/maintainer-publish.md)
+- [maintainer guide](../maintainer.md)
 - [ai-kit reference](ai-kit.md)
 - [troubleshooting](../troubleshooting.md)

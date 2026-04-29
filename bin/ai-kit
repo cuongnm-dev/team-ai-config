@@ -370,18 +370,20 @@ docs_clean_desc() {
 
 docs_skills_index() {
   ensure_repo
+  local mode="${1:-full}"   # full | brief
   echo -e "${C_BOLD}Claude Skills${C_RESET}  (~/.claude/skills/)"
   echo ""
   for d in "$REPO_DIR/claude/skills"/*/; do
     [ -d "$d" ] || continue
     local name; name=$(basename "$d")
     local skill_md="$d/SKILL.md"
-    if [ -f "$skill_md" ]; then
-      local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
-      desc=$(docs_clean_desc "$desc")
+    if [ ! -f "$skill_md" ]; then continue; fi
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+    desc=$(docs_clean_desc "$desc")
+    if [ "$mode" = "brief" ]; then
       printf "  %-25s %s\n" "/$name" "${desc:0:90}"
     else
-      printf "  %-25s %s\n" "/$name" "(no SKILL.md)"
+      printf "  ${C_BOLD}/%s${C_RESET}\n      %s\n\n" "$name" "$desc"
     fi
   done
   echo ""
@@ -391,16 +393,20 @@ docs_skills_index() {
     [ -d "$d" ] || continue
     local name; name=$(basename "$d")
     local skill_md="$d/SKILL.md"
-    if [ -f "$skill_md" ]; then
-      local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
-      desc=$(docs_clean_desc "$desc")
+    [ -f "$skill_md" ] || continue
+    local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+    desc=$(docs_clean_desc "$desc")
+    if [ "$mode" = "brief" ]; then
       printf "  %-25s %s\n" "/$name" "${desc:0:90}"
+    else
+      printf "  ${C_BOLD}/%s${C_RESET}\n      %s\n\n" "$name" "$desc"
     fi
   done
 }
 
 docs_agents_index() {
   ensure_repo
+  local mode="${1:-full}"   # full | brief
   echo -e "${C_BOLD}Claude Agents${C_RESET}  (~/.claude/agents/)"
   echo ""
   for f in "$REPO_DIR/claude/agents"/*.md; do
@@ -408,7 +414,11 @@ docs_agents_index() {
     local name; name=$(basename "$f" .md)
     local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
     desc=$(docs_clean_desc "$desc")
-    printf "  %-30s %s\n" "$name" "${desc:0:90}"
+    if [ "$mode" = "brief" ]; then
+      printf "  %-30s %s\n" "$name" "${desc:0:90}"
+    else
+      printf "  ${C_BOLD}%s${C_RESET}\n      %s\n\n" "$name" "$desc"
+    fi
   done
   echo ""
   echo -e "${C_BOLD}Cursor Agents${C_RESET}  (~/.cursor/agents/)"
@@ -419,7 +429,11 @@ docs_agents_index() {
     local name; name=$(basename "$f" .md)
     local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
     desc=$(docs_clean_desc "$desc")
-    printf "  %-30s %s\n" "$name" "${desc:0:90}"
+    if [ "$mode" = "brief" ]; then
+      printf "  %-30s %s\n" "$name" "${desc:0:90}"
+    else
+      printf "  ${C_BOLD}%s${C_RESET}\n      %s\n\n" "$name" "$desc"
+    fi
   done
 }
 
@@ -439,8 +453,14 @@ cmd_docs() {
     --list|-l)            docs_list_topics ;;
     --search|-s)          [ -z "${2:-}" ] && { err 'Usage: ai-kit docs --search <term>'; exit 1; }; docs_search "$2" ;;
     --open|-o)            cmd_edit ;;
-    skills)               docs_skills_index ;;
-    agents)               docs_agents_index ;;
+    skills)
+      shift
+      [ "${1:-}" = "--brief" ] && docs_skills_index brief || docs_skills_index full
+      ;;
+    agents)
+      shift
+      [ "${1:-}" = "--brief" ] && docs_agents_index brief || docs_agents_index full
+      ;;
     *)
       local topic="$1"
       local file; file=$(docs_resolve_topic "$topic")

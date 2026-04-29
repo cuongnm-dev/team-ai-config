@@ -108,7 +108,7 @@ ai-kit status            # MCP + counts
 
 ## Liên quan
 
-- [from-doc-to-docs](from-doc-to-docs.md) — Sinh nhiều features cùng lúc từ SRS
-- [from-code-to-docs](from-code-to-docs.md) — Reverse-engineer từ code
+- [from-doc](from-doc.md) — Sinh nhiều features cùng lúc từ SRS
+- [from-code](from-code.md) — Reverse-engineer từ code
 - [agents reference](../reference/agents.md) — Chi tiết các stage agents
 - [troubleshooting](../troubleshooting.md) — Lỗi thường gặp khi dispatch

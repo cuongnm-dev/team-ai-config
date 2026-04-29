@@ -121,6 +121,6 @@ User: /generate-docs
 
 ## Liên quan
 
-- [from-doc-to-docs](from-doc-to-docs.md) — Greenfield (chưa có code)
+- [from-doc](from-doc.md) — Greenfield (chưa có code)
 - [new-feature](new-feature.md) — Thêm feature mới sau reverse-engineering
 - [troubleshooting](../troubleshooting.md)
