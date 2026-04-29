@@ -3,22 +3,19 @@ services:
     image: ${ETC_PLATFORM_IMAGE:-o0mrblack0o/etc-platform:latest}
     container_name: etc-platform
     ports:
-      - "${ETC_PLATFORM_PORT:-8001}:8001"
+      - "${ETC_PLATFORM_PORT:-8001}:8000"
     environment:
-      - ETC_PLATFORM_LOG_LEVEL=${ETC_PLATFORM_LOG_LEVEL:-info}
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: ${ETC_PLATFORM_LOG_LEVEL:-INFO}
     volumes:
-      - etc-uploads:/app/uploads
-      - etc-jobs:/app/jobs
-      - etc-kb:/app/kb
+      - etc-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8001/healthz || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/healthz || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
 volumes:
-  etc-uploads:
-  etc-jobs:
-  etc-kb:
+  etc-data:
