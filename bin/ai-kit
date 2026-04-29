@@ -359,6 +359,15 @@ docs_resolve_topic() {
   done | head -1
 }
 
+# Strip surrounding quotes + bracket prefixes (e.g. [ESCALATION TIER...])
+docs_clean_desc() {
+  local d="$1"
+  d="${d#\"}"; d="${d%\"}"
+  d="${d#\'}"; d="${d%\'}"
+  d="${d#\[*\] }"   # strip [ESCALATION TIER] prefix
+  echo "$d"
+}
+
 docs_skills_index() {
   ensure_repo
   echo -e "${C_BOLD}Claude Skills${C_RESET}  (~/.claude/skills/)"
@@ -369,6 +378,7 @@ docs_skills_index() {
     local skill_md="$d/SKILL.md"
     if [ -f "$skill_md" ]; then
       local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+      desc=$(docs_clean_desc "$desc")
       printf "  %-25s %s\n" "/$name" "${desc:0:90}"
     else
       printf "  %-25s %s\n" "/$name" "(no SKILL.md)"
@@ -383,6 +393,7 @@ docs_skills_index() {
     local skill_md="$d/SKILL.md"
     if [ -f "$skill_md" ]; then
       local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$skill_md")
+      desc=$(docs_clean_desc "$desc")
       printf "  %-25s %s\n" "/$name" "${desc:0:90}"
     fi
   done
@@ -396,7 +407,8 @@ docs_agents_index() {
     [ -f "$f" ] || continue
     local name; name=$(basename "$f" .md)
     local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
-    printf "  %-30s %s\n" "$name" "${desc:0:80}"
+    desc=$(docs_clean_desc "$desc")
+    printf "  %-30s %s\n" "$name" "${desc:0:90}"
   done
   echo ""
   echo -e "${C_BOLD}Cursor Agents${C_RESET}  (~/.cursor/agents/)"
@@ -406,7 +418,8 @@ docs_agents_index() {
     [[ "$(basename "$f")" == ref-* ]] && continue
     local name; name=$(basename "$f" .md)
     local desc; desc=$(awk '/^description:/{sub(/^description: */,""); print; exit}' "$f")
-    printf "  %-30s %s\n" "$name" "${desc:0:80}"
+    desc=$(docs_clean_desc "$desc")
+    printf "  %-30s %s\n" "$name" "${desc:0:90}"
   done
 }
 

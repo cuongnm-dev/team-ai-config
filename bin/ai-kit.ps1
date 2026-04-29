@@ -509,6 +509,7 @@ function Docs-SkillsIndex {
     $skillMd = Join-Path $_.FullName 'SKILL.md'
     if (Test-Path $skillMd) {
       $desc = (Select-String -Path $skillMd -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
+      $desc = $desc -replace '^"','' -replace '"$','' -replace "^'",'' -replace "'$",'' -replace '^\[[^\]]+\]\s*',''
       $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
       "  {0,-25} {1}" -f "/$($_.Name)", $short | Write-Host
     } else {
@@ -534,7 +535,8 @@ function Docs-AgentsIndex {
   Write-Host ''
   Get-ChildItem -Path (Join-Path $RepoDir 'claude\agents') -Filter '*.md' -ErrorAction SilentlyContinue | ForEach-Object {
     $desc = (Select-String -Path $_.FullName -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
-    $short = if ($desc.Length -gt 80) { $desc.Substring(0, 77) + '...' } else { $desc }
+    $desc = $desc -replace '^"','' -replace '"$','' -replace "^'",'' -replace "'$",'' -replace '^\[[^\]]+\]\s*',''
+    $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
     "  {0,-30} {1}" -f $_.BaseName, $short | Write-Host
   }
   Write-Host ''
@@ -542,7 +544,8 @@ function Docs-AgentsIndex {
   Write-Host ''
   Get-ChildItem -Path (Join-Path $RepoDir 'cursor\agents') -Filter '*.md' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike 'ref-*' } | ForEach-Object {
     $desc = (Select-String -Path $_.FullName -Pattern '^description:\s*(.*)$' -List | ForEach-Object { $_.Matches[0].Groups[1].Value })
-    $short = if ($desc.Length -gt 80) { $desc.Substring(0, 77) + '...' } else { $desc }
+    $desc = $desc -replace '^"','' -replace '"$','' -replace "^'",'' -replace "'$",'' -replace '^\[[^\]]+\]\s*',''
+    $short = if ($desc.Length -gt 90) { $desc.Substring(0, 87) + '...' } else { $desc }
     "  {0,-30} {1}" -f $_.BaseName, $short | Write-Host
   }
 }
