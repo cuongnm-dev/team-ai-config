@@ -28,10 +28,10 @@ function Ensure-Repo {
   }
 }
 
-function Cmd-Install {
+function DoInstall {
   if (Test-Path (Join-Path $RepoDir '.git')) {
     Write-Info "Already cloned. Running update instead."
-    Cmd-Update
+    DoUpdate
     return
   }
   Write-Err "Repo missing. Use bootstrap.ps1 first:"
@@ -39,7 +39,7 @@ function Cmd-Install {
   exit 1
 }
 
-function Cmd-Update {
+function DoUpdate {
   Ensure-Repo
   Write-Info "Pulling latest team config"
   git -C $RepoDir fetch --quiet
@@ -65,7 +65,7 @@ function Cmd-Update {
   Write-Ok "MCP refreshed"
 }
 
-function Cmd-Status {
+function DoStatus {
   Ensure-Repo
   Write-Host "Team AI Config" -ForegroundColor White
   $sha   = (git -C $RepoDir rev-parse --short HEAD).Trim()
@@ -99,7 +99,7 @@ function Cmd-Status {
   }
 }
 
-function Cmd-Doctor {
+function DoDoctor {
   Write-Host "ai-kit doctor" -ForegroundColor White
   $pass = $true
   foreach ($c in @('git','docker','curl')) {
@@ -117,7 +117,7 @@ function Cmd-Doctor {
   else { exit 1 }
 }
 
-function Cmd-Mcp {
+function DoMcp {
   Ensure-Repo
   $verb = if ($Rest.Count -gt 0) { $Rest[0] } else { 'status' }
   Push-Location (Join-Path $RepoDir 'mcp\etc-platform')
@@ -135,7 +135,7 @@ function Cmd-Mcp {
   } finally { Pop-Location }
 }
 
-function Cmd-Version {
+function DoVersion {
   Ensure-Repo
   Write-Host "ai-kit:           $Version"
   $desc = (git -C $RepoDir describe --always --dirty).Trim()
@@ -150,7 +150,7 @@ function Cmd-Version {
   Write-Host "MCP image:        $img"
 }
 
-function Cmd-Uninstall {
+function DoUninstall {
   Ensure-Repo
   Write-Warn "This will REMOVE $AiKitHome and stop the MCP container."
   Write-Warn "Your ~\.claude and ~\.cursor stay (already deployed)."
@@ -163,7 +163,7 @@ function Cmd-Uninstall {
   Write-Ok "Restore previous ~\.claude / ~\.cursor from latest backup at ~\ai-config-backup-* if needed."
 }
 
-function Cmd-Help {
+function DoHelp {
 @"
 ai-kit $Version — team AI config manager
 
@@ -184,20 +184,20 @@ Layout:  $AiKitHome
 }
 
 switch ($Command) {
-  'install'   { Cmd-Install }
-  'update'    { Cmd-Update }
-  'up'        { Cmd-Update }
-  'status'    { Cmd-Status }
-  'st'        { Cmd-Status }
-  'doctor'    { Cmd-Doctor }
-  'dr'        { Cmd-Doctor }
-  'mcp'       { Cmd-Mcp }
-  'version'   { Cmd-Version }
-  '-v'        { Cmd-Version }
-  '--version' { Cmd-Version }
-  'uninstall' { Cmd-Uninstall }
-  'help'      { Cmd-Help }
-  '-h'        { Cmd-Help }
-  '--help'    { Cmd-Help }
-  default     { Write-Err "Unknown command: $Command"; Cmd-Help; exit 1 }
+  'install'   { DoInstall }
+  'update'    { DoUpdate }
+  'up'        { DoUpdate }
+  'status'    { DoStatus }
+  'st'        { DoStatus }
+  'doctor'    { DoDoctor }
+  'dr'        { DoDoctor }
+  'mcp'       { DoMcp }
+  'version'   { DoVersion }
+  '-v'        { DoVersion }
+  '--version' { DoVersion }
+  'uninstall' { DoUninstall }
+  'help'      { DoHelp }
+  '-h'        { DoHelp }
+  '--help'    { DoHelp }
+  default     { Write-Err "Unknown command: $Command"; DoHelp; exit 1 }
 }
