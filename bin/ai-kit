@@ -1,40 +1,44 @@
 #!/usr/bin/env bash
 # ai-kit launcher — Node.js + Ink CLI
-# Falls back to legacy bash CLI if Node deps are unavailable.
 
 set -e
 
-# Resolve symlinks so DIR = the real repo bin/, not ~/.ai-kit/bin/
+# Resolve symlinks so SCRIPT_DIR = real repo bin/ (handles bootstrap symlink)
 SOURCE="${BASH_SOURCE[0]}"
 while [ -L "$SOURCE" ]; do
   SDIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
   SOURCE="$(readlink "$SOURCE")"
   [[ "$SOURCE" != /* ]] && SOURCE="$SDIR/$SOURCE"
 done
-DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 
-# Check Node.js >= 18
+# Canonical home — single source of truth for node_modules
+AI_KIT_HOME="${AI_KIT_HOME:-$HOME/.ai-kit}"
+REPO_DIR="$AI_KIT_HOME/team-ai-config"
+
+# Node >= 18 check
 if ! command -v node >/dev/null 2>&1; then
-  echo "✗ Node.js not found. Install Node 18+ and re-run." >&2
+  echo "✗ Node.js not found. Install Node 18+:" >&2
   echo "  macOS:  brew install node" >&2
-  echo "  Linux:  https://nodejs.org/  (or use nvm)" >&2
+  echo "  Linux:  https://nodejs.org/" >&2
   exit 1
 fi
-
 NODE_MAJOR=$(node --version | cut -c2- | cut -d. -f1)
 if [ "$NODE_MAJOR" -lt 18 ]; then
   echo "✗ Node.js $NODE_MAJOR detected — ai-kit needs >= 18." >&2
   exit 1
 fi
 
-# Ensure node_modules present in repo root (where package.json lives)
-REPO_ROOT="$(cd "$DIR/.." && pwd)"
-if [ ! -d "$REPO_ROOT/node_modules" ]; then
+# Install node_modules into AI_KIT_HOME if missing
+if [ ! -d "$AI_KIT_HOME/node_modules" ]; then
   echo "▶ First run — installing Node deps (one-time)…"
-  (cd "$REPO_ROOT" && npm install --omit=dev --silent) || {
-    echo "✗ npm install failed; falling back to legacy CLI" >&2
-    exec "$DIR/ai-kit.legacy" "$@"
+  # Always copy latest package.json from repo to AI_KIT_HOME
+  [ -f "$REPO_DIR/package.json" ] && cp "$REPO_DIR/package.json" "$AI_KIT_HOME/package.json"
+  (cd "$AI_KIT_HOME" && npm install --omit=dev --silent) || {
+    echo "✗ npm install failed" >&2
+    echo "  Try manually: cd ~/.ai-kit && npm install --omit=dev" >&2
+    exit 1
   }
 fi
 
-exec node "$DIR/ai-kit.mjs" "$@"
+exec node "$SCRIPT_DIR/ai-kit.mjs" "$@"

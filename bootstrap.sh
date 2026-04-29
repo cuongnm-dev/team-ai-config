@@ -217,18 +217,18 @@ if ! command -v glow >/dev/null 2>&1; then
   esac
 fi
 
-# ─── install Node deps (one-time) ──────────────────────────────────────
-if [ -f "$REPO_DIR/package.json" ]; then
-  if [ ! -d "$REPO_DIR/node_modules" ]; then
-    info "Installing Node.js dependencies"
-    (cd "$REPO_DIR" && npm install --omit=dev --silent) && ok "Node deps installed" || warn "npm install failed — CLI will fall back to legacy mode"
-  fi
+# ─── install Node deps into AI_KIT_HOME (canonical, matches ai-kit launcher) ──
+if [ -f "$REPO_DIR/package.json" ] && [ ! -d "$AI_KIT_HOME/node_modules" ]; then
+  info "Installing Node.js dependencies"
+  cp "$REPO_DIR/package.json" "$AI_KIT_HOME/package.json"
+  (cd "$AI_KIT_HOME" && npm install --omit=dev --silent) && ok "Node deps installed" \
+    || warn "npm install failed — CLI will fall back to legacy mode"
 fi
 
 # ─── run first-time deploy ─────────────────────────────────────────────
 info "Running first-time deploy"
 export PATH="$BIN_DIR:$PATH"
-"$REPO_DIR/bin/ai-kit" update
+"$REPO_DIR/bin/ai-kit" update || { err "First-time deploy failed. Try: ai-kit update"; exit 1; }
 
 # ─── done ──────────────────────────────────────────────────────────────
 cat <<EOF

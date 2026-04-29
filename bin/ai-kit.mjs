@@ -550,7 +550,8 @@ const cmdUpdate = () => {
     info('Installing Node deps into ~/.ai-kit');
     fs.copyFileSync(pkgSrc, path.join(AI_KIT_HOME, 'package.json'));
     const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    sh(npmBin, ['install', '--omit=dev', '--silent'], {cwd: AI_KIT_HOME});
+    const npmResult = sh(npmBin, ['install', '--omit=dev', '--silent'], {cwd: AI_KIT_HOME});
+    if (npmResult.exitCode !== 0) { err('npm install failed'); process.exit(1); }
   }
 
   // Deploy configs to ~/.claude + ~/.cursor (simple rsync/copy)
