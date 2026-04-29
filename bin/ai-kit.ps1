@@ -135,6 +135,18 @@ function DoUpdate {
     git -C $RepoDir log --oneline "$before..$after" | ForEach-Object { Write-Host "    $_" }
   }
 
+  # Self-update: refresh ai-kit CLI itself in user's PATH bin/
+  $binDir = Join-Path $AiKitHome 'bin'
+  if (Test-Path $binDir) {
+    foreach ($f in @('ai-kit.ps1','ai-kit.cmd','ai-kit')) {
+      $src = Join-Path $RepoDir "bin\$f"
+      if (Test-Path $src) {
+        Copy-Item -Force $src (Join-Path $binDir $f)
+      }
+    }
+    Write-Ok 'ai-kit CLI refreshed in PATH bin/'
+  }
+
   Write-Info "Deploying claude\ + cursor\"
   & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $RepoDir 'deploy.ps1')
   if ($LASTEXITCODE -ne 0) {

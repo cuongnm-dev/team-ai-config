@@ -59,6 +59,16 @@ cmd_update() {
     git -C "$REPO_DIR" log --oneline "$before..$after" | sed 's/^/    /'
   fi
 
+  # Self-update: refresh ai-kit CLI itself
+  local bin_dir="$AI_KIT_HOME/bin"
+  if [ -d "$bin_dir" ]; then
+    for f in ai-kit ai-kit.ps1 ai-kit.cmd; do
+      [ -f "$REPO_DIR/bin/$f" ] && cp -f "$REPO_DIR/bin/$f" "$bin_dir/$f"
+    done
+    chmod +x "$bin_dir/ai-kit" 2>/dev/null || true
+    ok "ai-kit CLI refreshed in PATH bin/"
+  fi
+
   info "Deploying claude/ + cursor/"
   bash "$REPO_DIR/deploy.sh"
 
