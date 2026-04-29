@@ -356,12 +356,12 @@ const printDocsIndex = () => {
   printDivider('Reference', reference.length);
   reference.forEach(it => printItem(it.name, it.title));
   printDivider('Auto-indexes');
-  printItem('skills', 'Claude + Cursor skills  (--brief for compact)');
-  printItem('agents', 'Claude + Cursor agents  (--brief for compact)');
+  printItem('skills', 'Claude + Cursor skills');
+  printItem('agents', 'Claude + Cursor agents');
   out.write(`\n${S.gray}  Tip: ${S.reset}ai-kit doc --search <term>${S.gray} — full-text search across all docs + agents${S.reset}\n\n`);
 };
 
-const printSkillsIndex = (brief) => {
+const printSkillsIndex = () => {
   ensureRepo();
   const readSkills = (dir) => {
     if (!exists(dir)) return [];
@@ -378,15 +378,13 @@ const printSkillsIndex = (brief) => {
   const out = process.stdout;
   out.write(`\n${S.bcyan}  Skills Catalog${S.reset}\n`);
   printDivider('Claude Skills  (~/.claude/skills/)', cs.length);
-  if (brief) cs.forEach(it => printItem(`/${it.name}`, it.title));
-  else cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}/${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}/${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
   printDivider('Cursor Skills  (~/.cursor/skills/)', cu.length);
-  if (brief) cu.forEach(it => printItem(`/${it.name}`, it.title));
-  else cu.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}/${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  cu.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}/${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
   out.write('\n');
 };
 
-const printAgentsIndex = (brief) => {
+const printAgentsIndex = () => {
   ensureRepo();
   const readAgents = (dir) => {
     if (!exists(dir)) return [];
@@ -401,11 +399,9 @@ const printAgentsIndex = (brief) => {
   const out = process.stdout;
   out.write(`\n${S.bcyan}  Agents Catalog${S.reset}\n`);
   printDivider('Claude Agents  (~/.claude/agents/)', cs.length);
-  if (brief) cs.forEach(it => printItem(it.name, it.title));
-  else cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
   printDivider('Cursor Agents  (~/.cursor/agents/)', cu.length);
-  if (brief) cu.forEach(it => printItem(it.name, it.title));
-  else cu.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
+  cu.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
   out.write('\n');
 };
 
@@ -471,8 +467,8 @@ const docCommand = (args) => {
     out.write(`\n  \x1b[2m${bar}\x1b[0m\n\n`);
     return;
   }
-  if (sub === 'skills') { printSkillsIndex(flag === '--brief'); return; }
-  if (sub === 'agents') { printAgentsIndex(flag === '--brief'); return; }
+  if (sub === 'skills') { printSkillsIndex(); return; }
+  if (sub === 'agents') { printAgentsIndex(); return; }
 
   // Resolve doc page
   const candidates = [
