@@ -15,21 +15,22 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "%AI_HOME%\node_modules" (
-  echo Installing Node deps (one-time)...
-  if exist "%REPO_DIR%\package.json" (
-    copy /y "%REPO_DIR%\package.json" "%AI_HOME%\package.json" >nul
-  )
-  pushd "%AI_HOME%"
-  call npm install --omit=dev --silent
-  set "NPM_EXIT=%ERRORLEVEL%"
-  popd
-  if not "%NPM_EXIT%"=="0" (
-    echo X npm install failed.
-    echo   Try manually: cd %AI_HOME% ^& npm install --omit=dev
-    exit /b 1
-  )
-)
+if exist "%AI_HOME%\node_modules" goto :run
 
+echo Installing Node deps...
+if exist "%REPO_DIR%\package.json" (
+  copy /y "%REPO_DIR%\package.json" "%AI_HOME%\package.json" >nul
+)
+pushd "%AI_HOME%"
+call npm install --omit=dev --silent
+if errorlevel 1 (
+  popd
+  echo X npm install failed.
+  echo   Try manually: cd %AI_HOME% ^&^& npm install --omit=dev
+  exit /b 1
+)
+popd
+
+:run
 node "%DIR%ai-kit.mjs" %*
 exit /b %ERRORLEVEL%
