@@ -23,7 +23,7 @@ exit_gates:
   - MCP job_status: completed for each render
 on_mcp_unavailable:
   action: STOP
-  user_instruction: "docker compose up -d in D:/MCP Server/etc-platform/"
+  user_instruction: "docker compose up -d in ~/.ai-kit/team-ai-config/mcp/etc-platform/"
 ```
 
 > **PATH MAPPING (CD-10)** — When Python fallback CLI args reference legacy paths:

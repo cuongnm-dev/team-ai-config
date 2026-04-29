@@ -39,7 +39,7 @@ cmd_install() {
     return
   fi
   err "Repo missing. Use bootstrap.sh first:"
-  err "  curl -sL https://raw.githubusercontent.com/<USER>/team-ai-config/main/bootstrap.sh | bash"
+  err "  curl -sL https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.sh | bash"
   exit 1
 }
 

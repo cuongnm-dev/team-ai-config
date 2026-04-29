@@ -184,7 +184,7 @@ warnings. User can convert manually via Word UI.
 
 | Situation | Action |
 |---|---|
-| MCP `/readyz` returns non-200 | `Blocked` — instruct `docker compose up -d` from `D:/MCP Server/etc-platform/` |
+| MCP `/readyz` returns non-200 | `Blocked` — instruct `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` |
 | `content-data.json` missing | `Blocked` — upstream writer agent did not complete |
 | Upload fails (4xx/5xx) | Retry once; if still failing → `Blocked` |
 | Job timeout (status stuck at `running` >300s) | `Blocked`, capture `/jobs/{id}` body for diagnostic |

@@ -21,14 +21,14 @@ rendering engines, templates, or schemas — those live exclusively in MCP.
 
 | Removed file | Now lives in |
 |---|---|
-| `fill_xlsx_engine.py` | `D:/MCP Server/etc-platform/src/etc_docgen/engines/xlsx.py` |
-| `render_docx.py` | `D:/MCP Server/etc-platform/src/etc_docgen/engines/docx.py` |
-| `synthesize_tc_fallback.py` | `D:/MCP Server/etc-platform/src/etc_docgen/synthesizers/tc_fallback.py` |
-| `templates/test-case.xlsx` | `D:/MCP Server/etc-platform/src/etc_docgen/assets/templates/test-case.xlsx` |
-| `templates/huong-dan-su-dung.docx` | `D:/MCP Server/etc-platform/src/etc_docgen/assets/templates/huong-dan-su-dung.docx` |
-| `templates/build_test_case_template.py` | `D:/MCP Server/etc-platform/src/etc_docgen/assets/templates/build_test_case_template.py` |
-| `schemas/test-case.xlsx.schema.yaml` | `D:/MCP Server/etc-platform/src/etc_docgen/assets/schemas/test-case.xlsx.schema.yaml` |
-| `schemas/content-data.schema.json` | `D:/MCP Server/etc-platform/src/etc_docgen/assets/schemas/content-data.schema.json` |
+| `fill_xlsx_engine.py` | `<MCP image>/src/etc_docgen/engines/xlsx.py` |
+| `render_docx.py` | `<MCP image>/src/etc_docgen/engines/docx.py` |
+| `synthesize_tc_fallback.py` | `<MCP image>/src/etc_docgen/synthesizers/tc_fallback.py` |
+| `templates/test-case.xlsx` | `<MCP image>/src/etc_docgen/assets/templates/test-case.xlsx` |
+| `templates/huong-dan-su-dung.docx` | `<MCP image>/src/etc_docgen/assets/templates/huong-dan-su-dung.docx` |
+| `templates/build_test_case_template.py` | `<MCP image>/src/etc_docgen/assets/templates/build_test_case_template.py` |
+| `schemas/test-case.xlsx.schema.yaml` | `<MCP image>/src/etc_docgen/assets/schemas/test-case.xlsx.schema.yaml` |
+| `schemas/content-data.schema.json` | `<MCP image>/src/etc_docgen/assets/schemas/content-data.schema.json` |
 
 ## How rendering happens
 
@@ -62,7 +62,7 @@ rendering fallback — that path was deprecated to enforce single-source-of-trut
 
 ```bash
 # To start MCP if not running:
-cd "D:/MCP Server/etc-platform" && docker compose up -d
+cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d
 ```
 
 ## Cursor SDLC integration (from-doc, resume-feature, close-feature)
@@ -75,7 +75,7 @@ exposed at `localhost:8001/sse` for direct MCP protocol access).
 
 To modify template format:
 
-1. Edit MCP source: `D:/MCP Server/etc-platform/src/etc_docgen/assets/templates/build_test_case_template.py`
+1. Edit MCP source: `<MCP image>/src/etc_docgen/assets/templates/build_test_case_template.py`
 2. Regenerate: `python build_test_case_template.py --out test-case.xlsx`
 3. Restart container: `docker restart etc-docgen` (picks up bind-mount of `src/`)
 4. Test render via HTTP API or MCP tool

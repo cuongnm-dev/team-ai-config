@@ -1,5 +1,5 @@
 # Team AI config bootstrap — Windows (PowerShell 5.1+)
-# One-liner: irm https://raw.githubusercontent.com/<USER>/team-ai-config/main/bootstrap.ps1 | iex
+# One-liner: irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex
 
 #Requires -Version 5.1
 $ErrorActionPreference = 'Stop'

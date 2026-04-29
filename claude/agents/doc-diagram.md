@@ -22,7 +22,7 @@ tools: Read, Write, Glob, Grep, Bash, WebSearch, WebFetch
 ## Step 0 — Load Schema (BẮT BUỘC trước mọi thao tác)
 
 ```
-Read: C:\Users\James\.cursor\templates\diagram-spec-schema.json
+Read: ~/.cursor/templates/diagram-spec-schema.json
 ```
 
 Schema này là **single source of truth** cho:
@@ -229,7 +229,7 @@ title: "Hình 3.1: Sơ đồ kiến trúc tổng thể hệ thống"
 route: "mermaid"
 file_path: "content/diagrams/D-001.png"
 mermaid_source: "content/diagrams/D-001.mmd"
-schema_version: "C:/Users/James/.cursor/templates/diagram-spec-schema.json"
+schema_version: "~/.cursor/templates/diagram-spec-schema.json"
 caption: "Hình 3.1: Sơ đồ kiến trúc tổng thể hệ thống {tên}"
 embed_markdown: "![Hình 3.1: Sơ đồ kiến trúc...](diagrams/D-001.png)"
 ```

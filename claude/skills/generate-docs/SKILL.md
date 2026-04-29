@@ -322,7 +322,7 @@ Writer sub-agents read these via `Read` tool when prompted.
 ```bash
 docker ps | grep etc-docgen-mcp-server
 # Nếu chưa chạy:
-cd "D:\MCP Server\etc-docgen" && docker compose up -d
+cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d
 ```
 
 `~/.claude/mcp.json` configured separately.

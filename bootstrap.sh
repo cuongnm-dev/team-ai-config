@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Team AI config bootstrap — Mac / Linux
-# One-liner: curl -sL https://raw.githubusercontent.com/<USER>/team-ai-config/main/bootstrap.sh | bash
+# One-liner: curl -sL https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.sh | bash
 
 set -euo pipefail
 

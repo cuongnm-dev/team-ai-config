@@ -108,7 +108,7 @@ def main() -> int:
     print(
         f"INTEL SCHEMA VIOLATION — {artifact} (CD-10 enforcement):\n{errmsg}\n"
         f"Fix: align JSON to {schema.name} or run "
-        f"`python C:/Users/James/.claude/scripts/intel/write_wrapper.py "
+        f"`python ~/.claude/scripts/intel/write_wrapper.py "
         f"<intel_dir> {artifact} <payload> --producer <name>` for atomic write+validate.",
         file=sys.stderr,
     )

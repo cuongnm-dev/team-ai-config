@@ -124,7 +124,7 @@ for tc in ev['test_cases']:
 
 **Execution lives in MCP etc-docgen, NOT Claude skill.**
 
-The deterministic synthesizer is at `D:/MCP Server/etc-platform/src/etc_docgen/synthesizers/tc_fallback.py`.
+The deterministic synthesizer is at `<MCP image>/src/etc_docgen/synthesizers/tc_fallback.py`.
 Writer agent calls MCP HTTP endpoint to invoke it — never runs Python locally:
 
 ```
@@ -156,7 +156,7 @@ The synthesizer implements every dimension in steps B.3.1–B.3.9 below. To cust
 re-implement in the writer agent.
 
 If MCP is unavailable: `GET /readyz` fails → BLOCK with message
-`"MCP etc-docgen unavailable. Start: docker compose -f \"D:/MCP Server/etc-platform/docker-compose.yaml\" up -d"`.
+`"MCP etc-docgen unavailable. Start: docker compose -f \"~/.ai-kit/team-ai-config/mcp/etc-platform/docker-compose.yml\" up -d"`.
 
 ### Step 1 — Compute target TC count per feature
 

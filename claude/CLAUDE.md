@@ -128,7 +128,7 @@ Sau export, BẮT BUỘC invoke `anthropic-skills:xlsx` (recalc formulas) + `ant
 
 ### CD-8: Office export routing — MCP-only via etc-platform (post-merge 2026-04-28)
 
-**Single source of truth**: All Office rendering (DOCX/XLSX) goes through `etc-platform` MCP `/jobs` API. Render engines (`docx.py` + `xlsx.py` + diagram renderer + synthesizers) are bundled into the MCP container at `D:/MCP Server/etc-platform/src/etc_platform/engines/`. Templates are in `assets/templates/` inside the same image.
+**Single source of truth**: All Office rendering (DOCX/XLSX) goes through `etc-platform` MCP `/jobs` API. Render engines (`docx.py` + `xlsx.py` + diagram renderer + synthesizers) are bundled into the MCP container at `<MCP image>/src/etc_platform/engines/`. Templates are in `assets/templates/` inside the same image.
 
 **Mandatory flow** (Stage 6 export):
 1. `POST localhost:8001/uploads` — upload `content-data.json`
@@ -142,13 +142,13 @@ Sau export, BẮT BUỘC invoke `anthropic-skills:xlsx` (recalc formulas) + `ant
 - ❌ `python fill-manual.py` / `python fill-testcase.py` (legacy paths — these files were moved into MCP image)
 - ❌ Local `templates/*.docx` reads — templates are bundled in MCP, not user-side
 
-**MCP down → BLOCK**: Skill must instruct user `docker compose up -d` from `D:/MCP Server/etc-platform/`. No silent Python fallback. This is non-negotiable per CD-8 single-source-of-truth.
+**MCP down → BLOCK**: Skill must instruct user `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/`. No silent Python fallback. This is non-negotiable per CD-8 single-source-of-truth.
 
 **PDF conversion** (optional post-export step):
 - If `mcp__word_document_server__*` registered (separate Word MCP, NOT etc-platform) → call `convert_to_pdf` after docx export
 - If not registered → skip + warn user, manual convert via Word UI
 
-Template mapping: documented in `D:/MCP Server/etc-platform/src/etc_platform/assets/schemas/*.yaml` (canonical, baked into image).
+Template mapping: documented in `<MCP image>/src/etc_platform/assets/schemas/*.yaml` (canonical, baked into image).
 
 Word/Excel MCP re-enable (only if PDF convert needed):
 - Word MCP: `uvx --from office-word-mcp-server word_mcp_server` + add to mcp.json
@@ -204,7 +204,7 @@ Shared knowledge layer giữa `from-doc`, `from-code`, `generate-docs` (và SDLC
 ## etc-platform MCP Rules (UNIFIED — post-merge 2026-04-28)
 
 ### MCP-1: Single unified MCP server (port 8001)
-**Sau merge ngày 2026-04-28**, etc-docgen + etc-platform được hợp nhất thành 1 MCP server duy nhất tại `localhost:8001`. Container name: `etc-platform` (đã rename). Image: `etc-platform:latest`. FastMCP internal name vẫn là `etc-docgen` → tool prefix trong client = `mcp__etc-platform__*` (canonical). Port :8000 vẫn expose làm back-compat alias trong giai đoạn migration. Source folder: `D:/MCP Server/etc-platform/` (sẽ rename `etc-platform/` khi WSL2 lock release — defer until reboot).
+**Sau merge ngày 2026-04-28**, etc-docgen + etc-platform được hợp nhất thành 1 MCP server duy nhất tại `localhost:8001`. Container name: `etc-platform` (đã rename). Image: `etc-platform:latest`. FastMCP internal name vẫn là `etc-docgen` → tool prefix trong client = `mcp__etc-platform__*` (canonical). Port :8000 vẫn expose làm back-compat alias trong giai đoạn migration. Source folder: `~/.ai-kit/team-ai-config/mcp/etc-platform/` (sẽ rename `etc-platform/` khi WSL2 lock release — defer until reboot).
 
 **Tool surface (24 tools)**:
 
@@ -232,7 +232,7 @@ Skills default to MCP for centralized state. Local fallback when MCP unavailable
 **Universal rule for ANY agent/skill referencing local KB / DEDUP / templates / outlines**: when running on MCP-enabled session, prefer the corresponding MCP tool over local file scan. Files NOT individually updated still inherit this default.
 
 ### MCP-3: Bootstrap order
-First install: `docker compose up -d` in `D:/MCP Server/etc-platform/`. Outlines + KB schema baked into image; KB starts empty (use `kb_save` to populate).
+First install: `docker compose up -d` in `~/.ai-kit/team-ai-config/mcp/etc-platform/`. Outlines + KB schema baked into image; KB starts empty (use `kb_save` to populate).
 
 ### MCP-4: Anonymization mandate (intel cache)
 `intel_cache_contribute` requires `contributor_consent=True` AND server scan passes (no email/phone/CCCD/Bộ-Tỉnh-Sở patterns). Caller pre-redacts; server is last line of defense.

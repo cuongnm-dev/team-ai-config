@@ -23,7 +23,7 @@ function Write-Dim($msg)  { Write-Host $msg -ForegroundColor DarkGray }
 function Ensure-Repo {
   if (-not (Test-Path (Join-Path $RepoDir '.git'))) {
     Write-Err "team-ai-config not found at $RepoDir"
-    Write-Err "Run bootstrap first:  irm https://raw.githubusercontent.com/<USER>/team-ai-config/main/bootstrap.ps1 | iex"
+    Write-Err "Run bootstrap first:  irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex"
     exit 1
   }
 }
@@ -35,7 +35,7 @@ function Cmd-Install {
     return
   }
   Write-Err "Repo missing. Use bootstrap.ps1 first:"
-  Write-Err "  irm https://raw.githubusercontent.com/<USER>/team-ai-config/main/bootstrap.ps1 | iex"
+  Write-Err "  irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex"
   exit 1
 }
 
