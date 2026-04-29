@@ -184,7 +184,7 @@ if ((Test-Path $pkgSrc) -and (-not (Test-Path (Join-Path $AiKitHome 'node_module
   Copy-Item -Force $pkgSrc $pkgDst
   Push-Location $AiKitHome
   try {
-    & npm install --omit=dev --silent
+    & npm.cmd install --omit=dev --silent
     if ($LASTEXITCODE -eq 0) { Write-Ok 'Node deps installed' }
     else { Write-Host '  ! npm install failed — CLI will fall back to legacy mode' -ForegroundColor Yellow }
   } finally { Pop-Location }

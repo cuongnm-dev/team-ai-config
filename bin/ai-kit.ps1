@@ -22,7 +22,7 @@ if (-not (Test-Path (Join-Path $RepoRoot 'node_modules'))) {
   Write-Host "Installing Node deps (one-time)..."
   Push-Location $RepoRoot
   try {
-    & npm install --omit=dev --silent
+    & npm.cmd install --omit=dev --silent
     if ($LASTEXITCODE -ne 0) {
       Write-Host "X npm install failed; falling back to legacy CLI" -ForegroundColor Red
       & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Dir 'ai-kit.legacy.ps1') @args
