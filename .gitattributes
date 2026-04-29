@@ -1,0 +1,22 @@
+# Force LF line endings for shell scripts (broken on Mac/Linux otherwise)
+*.sh         text eol=lf
+bin/ai-kit   text eol=lf
+
+# Windows scripts use CRLF
+*.ps1        text eol=crlf
+*.cmd        text eol=crlf
+*.bat        text eol=crlf
+
+# Markdown / config — let git handle (default)
+*.md         text
+*.json       text
+*.yml        text
+*.yaml       text
+*.py         text eol=lf
+
+# Binary
+*.png        binary
+*.jpg        binary
+*.xlsx       binary
+*.docx       binary
+*.pdf        binary
