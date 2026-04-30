@@ -288,11 +288,10 @@ const Doctor = () => {
 const renderDoc = (file) => {
   const content = fs.readFileSync(file, 'utf8');
   const stripped = stripFm(content);
-  // Skip glow for docs with wide ASCII art — glow wraps box-drawing → vỡ diagram
-  const hasWideAsciiArt = stripped.split('\n').some(line =>
-    line.length > 70 && /[┌┐└┘─│├┤┬┴┼►◄▼▲]/.test(line)
-  );
-  if (cmdAvail('glow') && !hasWideAsciiArt) {
+  // Skip glow if doc has ASCII art (box-drawing chars) — glow adds borders/colors
+  // around individual characters, breaking diagram visuals
+  const hasAsciiArt = /[┌┐└┘├┤┬┴┼]/.test(stripped);
+  if (cmdAvail('glow') && !hasAsciiArt) {
     // Windows lacks 'less' for -p paging; let terminal handle scrolling natively
     const glowArgs = process.platform === 'win32' ? [file] : ['-p', file];
     try { execaSync('glow', glowArgs, {stdio: 'inherit'}); return; } catch {}
