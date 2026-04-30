@@ -64,6 +64,23 @@ foreach ($name in $INCLUDE_CURSOR) {
   Write-Host "  + $name"
 }
 
+# ── 1b. Sync ref-*.md templates → MCP data/registry/templates ────────────────
+# MCP server reads templates via volume bind ./data:/data
+# Path inside container: /data/registry/templates/{namespace}/{template_id}.md
+Write-Step "Syncing skill templates → MCP registry"
+$MCP_TPL_ROOT = Join-Path $RepoRoot 'mcp\etc-platform\data\registry\templates'
+$TEMPLATE_NAMESPACES = @('new-workspace', 'new-document-workspace')
+foreach ($ns in $TEMPLATE_NAMESPACES) {
+  $srcDir = Join-Path $ClaudeHome "skills\$ns"
+  $dstDir = Join-Path $MCP_TPL_ROOT $ns
+  if (-not (Test-Path $srcDir)) { Write-Warn "  skip $ns (no source)"; continue }
+  if (Test-Path $dstDir) { Remove-Item -Recurse -Force $dstDir }
+  New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
+  $refs = Get-ChildItem -Path $srcDir -Filter 'ref-*.md' -File
+  foreach ($f in $refs) { Copy-Item -Force $f.FullName (Join-Path $dstDir $f.Name) }
+  Write-Host "  + $ns ($($refs.Count) templates)"
+}
+
 # ── 2. Kiểm tra path máy cá nhân ────────────────────────────────────────────
 Write-Step "Scanning machine-specific paths"
 $suspicious = @()
