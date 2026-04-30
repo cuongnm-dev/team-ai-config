@@ -25,7 +25,7 @@ That's it. Updates later: `ai-kit update`.
 ```
 team-ai-config/
 ├── bootstrap.sh / bootstrap.ps1   ← team member: one-liner first install
-├── publish.ps1                    ← maintainer: pack → commit → push (Windows)
+├── deploy.sh / deploy.ps1         ← legacy CLI migration stub
 ├── bin/
 │   ├── ai-kit                     ← POSIX CLI (linked to PATH)
 │   ├── ai-kit.ps1                 ← Windows PowerShell CLI
@@ -146,16 +146,16 @@ Default is `:latest`. Pin to a version (e.g. `v3.0.0`) for stability.
 
 ## For maintainers — push a new release
 
-When you've improved an agent / skill / rule:
+Maintainer scripts đặt ở **workspace root** (`D:\AI-Platform\publish.ps1`), không phải trong repo này. Khi cải tiến agent / skill / rule:
 
 ```powershell
-cd ~/team-ai-config
+cd D:\AI-Platform
 .\publish.ps1          # pack → validate → commit → push (prompts for message)
 # hoặc:
 .\publish.ps1 "fix: mô tả thay đổi"
 ```
 
-`publish.ps1` tự động: pack từ `~/.claude` + `~/.cursor` → kiểm tra path máy cá nhân → commit → push.
+`publish.ps1` tự động: pack từ `~/.claude` + `~/.cursor` → kiểm tra path máy cá nhân → commit → push lên team-ai-config repo.
 
 Team members run `ai-kit update` to receive the change.
 
@@ -218,6 +218,6 @@ Before opening a PR:
 
 - [ ] Agent/skill has `LIFECYCLE CONTRACT` block per `claude/schemas/intel/LIFECYCLE.md` §5
 - [ ] Prompt body is English-only (Vietnamese only in `description` frontmatter or output examples — per CD-9)
-- [ ] No machine-specific paths (`publish.ps1` cảnh báo nếu có)
+- [ ] No machine-specific paths (workspace root `publish.ps1` cảnh báo nếu có)
 - [ ] No secrets / API keys committed (.gitignore catches common patterns)
 - [ ] If schema changed: bump version + add migration note in commit
