@@ -288,7 +288,11 @@ const Doctor = () => {
 const renderDoc = (file) => {
   const content = fs.readFileSync(file, 'utf8');
   const stripped = stripFm(content);
-  if (cmdAvail('glow')) {
+  // Skip glow for docs with wide ASCII art — glow wraps box-drawing → vỡ diagram
+  const hasWideAsciiArt = stripped.split('\n').some(line =>
+    line.length > 70 && /[┌┐└┘─│├┤┬┴┼►◄▼▲]/.test(line)
+  );
+  if (cmdAvail('glow') && !hasWideAsciiArt) {
     // Windows lacks 'less' for -p paging; let terminal handle scrolling natively
     const glowArgs = process.platform === 'win32' ? [file] : ['-p', file];
     try { execaSync('glow', glowArgs, {stdio: 'inherit'}); return; } catch {}
