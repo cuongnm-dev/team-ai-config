@@ -30,6 +30,19 @@ $INCLUDE_CLAUDE = @('agents','skills','schemas','scripts','CLAUDE.md')
 # Những gì được chia sẻ từ ~/.cursor
 $INCLUDE_CURSOR = @('agents','skills','skills-cursor','rules','commands','playbooks','templates','AGENTS.md','mcp.json')
 
+# ── 0. Cảnh báo nếu có direct edits trong claude/ hoặc cursor/ của repo ─────
+# (vì pack step sẽ overwrite bằng version từ ~/.claude + ~/.cursor)
+$dirtyDeployed = git -C $RepoRoot diff --name-only HEAD -- claude/ cursor/
+if ($dirtyDeployed) {
+  Write-Warn "Phát hiện sửa thẳng trong claude/ hoặc cursor/ của repo:"
+  $dirtyDeployed | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+  Write-Host ""
+  Write-Host "  ⚠ Pack step sẽ GHI ĐÈ các file này bằng version từ ~/.claude và ~/.cursor." -ForegroundColor Yellow
+  Write-Host "    Nếu muốn giữ sửa: copy chúng sang ~/.claude / ~/.cursor trước khi tiếp tục." -ForegroundColor Yellow
+  $ans = Read-Host "  Tiếp tục pack (sẽ mất các sửa trên)? (y/N)"
+  if ($ans -ne 'y') { Write-Warn "Cancelled — chuyển sửa sang ~/.claude rồi chạy lại"; exit 0 }
+}
+
 # ── 1. Pack ──────────────────────────────────────────────────────────────────
 Write-Step "Packing ~/.claude → claude/"
 foreach ($name in $INCLUDE_CLAUDE) {
