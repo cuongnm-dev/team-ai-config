@@ -9,7 +9,11 @@
 ## §1. Quality bar — 10 nguyên tắc bất di bất dịch
 
 1. **Group / package / frame** — mọi node phải nằm trong package có label. Không có node lẻ.
-2. **One direction per diagram** — chọn `top to bottom` HOẶC `left to right`, đừng để PlantUML auto-pick. **DEFAULT = `top to bottom direction`** vì layered architecture (4 lớp CPĐT, deployment zones, network tier) trông tự nhiên theo chiều dọc; chỉ chọn `left to right` cho use case (system boundary nằm giữa, actors trái) hoặc luồng nghiệp vụ tuyến tính ngắn.
+2. **One direction per diagram** — chọn `top to bottom` HOẶC `left to right`. **Quy tắc bắt buộc theo loại diagram:**
+   - **Network topology, Deployment, Data flow ≥ 4 zones → `left to right direction`** (industry standard: Internet bên trái → DMZ → Core → Backend → Storage bên phải; bandwidth label nằm trên edge ngang đọc thuận mắt). Top-to-bottom với network gây cramped + edge label chèn vào frame.
+   - **Component / Class / ERD / Use Case** → `top to bottom direction` (hierarchy tự nhiên).
+   - **Sequence** → mặc định top-to-bottom (timeline trục dọc).
+   - **Activity / Swimlane** → mặc định top-to-bottom; ≥ 5 lanes → cân nhắc đổi sang LTR (lanes thành cột).
 3. **Orthogonal edges** — `skinparam linetype ortho` (đường thẳng góc, không đường chéo) cho mọi diagram cấu trúc; chỉ dùng `polyline` cho sequence.
 4. **Whitespace** — `ranksep 60`, `nodesep 40`. Tuyệt đối không cho phép edge chéo qua node hoặc node sát mép node khác.
 5. **Consistent shape ngữ nghĩa** — `database` = cylinder, `actor` = stickman, `component` = component, `node` = box 3D, `cloud` = cloud, `package` = labeled rect. KHÔNG dùng `rectangle` cho mọi thứ.
@@ -128,6 +132,8 @@ skinparam note {
 
 title <b>Hình 7.4.1</b>: Mô hình vật lý hạ tầng vùng trong (Cục C10)
 left to right direction
+' ⚠ Deployment LUÔN dùng LTR — Internet bên trái → Storage bên phải.
+'   Top-to-bottom với deployment làm zones cramped + label chèn frame.
 
 cloud "Internet" as INET #White
 
@@ -386,7 +392,9 @@ ND ||--o{ BXL : "xử lý"
 <<insert §2 preset>>
 
 title <b>Hình PL.2</b>: Sơ đồ nguyên lý mạng triển khai
-top to bottom direction
+left to right direction
+' ⚠ Network LUÔN LTR — Internet bên trái → Storage bên phải.
+'   Đây là industry standard (Cisco, AWS, Juniper docs đều LTR).
 
 cloud "Internet" as INET
 
@@ -792,6 +800,10 @@ sunday    are closed
 ---
 
 ## §11. Anti-patterns (TUYỆT ĐỐI TRÁNH)
+
+❌ **Layer-skipping edges** — edge từ Lớp người dùng nhảy thẳng xuống Lớp tích hợp (vượt qua Lớp ứng dụng) → graphviz buộc routing dài + overlap với frames giữa. **Fix**: đi qua module trung gian (User → M01 → I01) hoặc dùng `..>` dashed dependency edge thay vì arrow chính.
+
+❌ **Sai direction theo loại** — `top to bottom` cho network 6 zones → frames cramped chiều ngang, label "10Gbps" chèn vào frame. **Fix**: network/deployment LTR; chỉ component/ERD/sequence dùng top-to-bottom.
 
 ❌ **Forest hub-and-spoke** — 1 node trung tâm với 15 nhánh toả ra. → tách thành 3 group, đặt grouping bằng package.
 
