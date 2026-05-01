@@ -898,6 +898,119 @@ autonumber
 
 ---
 
+## §13b. Pattern N — SVG Hero Templates (KHUNG TỔNG THỂ govt-grade)
+
+**Khi nào dùng**: diagram **tổng thể quốc gia/ngành/dự án** kiểu "Khung Kiến trúc CPĐT 4.0" — layered đều nhau, full-width bars, cylinder bus xuyên qua, hài hoà thị giác. **PlantUML không làm được kiểu này**; đây là điểm mạnh duy nhất của SVG hero templates.
+
+**3 hero templates có sẵn** (nằm trong MCP image, gọi qua engine SVG dispatch):
+
+### N.1 — `kien-truc-cpdt` (TKKT §1, NCKT §7.1, Đề án §3 tổng thể)
+6 lớp ngang full-width + cylinder LGSP/NDXP bên phải xuyên qua tất cả lớp + footer mạng truyền dẫn.
+
+```json
+{
+  "diagrams": {
+    "tkkt_overall": {
+      "template": "kien-truc-cpdt",
+      "data": {
+        "title": "Hình 1.1: Khung Kiến trúc CĐS THAHS",
+        "subtitle": "Theo QĐ 749/QĐ-TTg + CT 34/CT-TTg",
+        "layers": [
+          { "name": "Lớp người dùng", "color": "#FFE6E6", "border": "#C00000",
+            "items": ["Cán bộ Cục", "Cán bộ Trại", "Lãnh đạo Bộ"] },
+          { "name": "Lớp ứng dụng nghiệp vụ", "color": "#DEEBF7", "border": "#2E75B6",
+            "items": ["Module M1", "M2", "M3", "M4", "M5", "M6"] },
+          { "name": "Lớp dịch vụ dùng chung", "color": "#FFF2CC", "border": "#BF9000",
+            "items": ["Định danh", "Lưu trữ", "Quản trị"] },
+          { "name": "Lớp tích hợp", "color": "#E2EFDA", "border": "#548235",
+            "items": ["LGSP", "API GW"] },
+          { "name": "Lớp dữ liệu", "color": "#FBE5D5", "border": "#C55A11",
+            "items": ["CSDL 1", "CSDL 2", "Kho ĐT"] },
+          { "name": "Lớp hạ tầng kỹ thuật", "color": "#F2F2F2", "border": "#404040",
+            "items": ["TTDL", "Mạng", "ATTT"] }
+        ],
+        "bus": { "name": "LGSP / NDXP Bộ Công an", "color": "#FFF2CC", "border": "#BF9000" },
+        "footer": "Hạ tầng mạng truyền dẫn quốc gia + Internet"
+      }
+    }
+  }
+}
+```
+
+### N.2 — `khung-kt-quoc-gia` (Đề án CĐS quốc gia, NCKT §3 phù hợp KT)
+2 cột Trung ương | Địa phương + cylinder NDOP/LGSP **ở giữa** (xuyên dọc) + actor strip phía trên + footer mạng quốc gia. Phù hợp diagram cấp Bộ/Tỉnh quy mô ngành.
+
+```json
+{
+  "template": "khung-kt-quoc-gia",
+  "data": {
+    "title": "Khung KT Dữ liệu Quốc gia",
+    "actors": [{"label": "Cơ quan"}, {"label": "Cán bộ"}, {"label": "Người dân"}, {"label": "DN"}],
+    "central": {"name": "Nền tảng chia sẻ dữ liệu (NDOP)"},
+    "tw_zones": [
+      {"name": "Bộ, Ngành TW", "color": "#FFF2CC", "border": "#BF9000",
+       "items": ["CSDL Bộ", "LDOP", "HTTT", "SOC", "LGSP", "ATTT"]},
+      {"name": "TT Dữ liệu QG", "color": "#FBE5D5", "border": "#C55A11",
+       "items": ["CSDL Tổng hợp", "Cổng QG", "SOC QG"]}
+    ],
+    "dp_zones": [
+      {"name": "Tỉnh, Thành", "color": "#DEEBF7", "border": "#2E75B6",
+       "items": ["CSDL Tỉnh", "LDOP Tỉnh", "Cổng DVC"]},
+      {"name": "DN + Tổ chức", "color": "#E2EFDA", "border": "#548235",
+       "items": ["DN nhà nước", "DN tư nhân", "TT DL DN"]}
+    ],
+    "footer": "Hạ tầng mạng truyền dẫn quốc gia"
+  }
+}
+```
+
+### N.3 — `kien-truc-ung-dung-numbered` (TKKT §3, NCKT §6.5 PM nội bộ)
+Actor strip + functional bands (4-5 cột tỉ lệ tuỳ ý) với numbered modules (1, 2, 3...) + integration bar (số 17 chuẩn VN gov) + database row cylinder + bottom links (LGSP/NDXP/TTHC...).
+
+```json
+{
+  "template": "kien-truc-ung-dung-numbered",
+  "data": {
+    "title": "Hình 3.2: Mô hình Kiến trúc Ứng dụng",
+    "actors": [{"label": "Người dùng TW"}, {"label": "Quản trị HT"}, ...],
+    "bands": [
+      {"name": "Tích hợp DL", "width_ratio": 1.0, "color": "#DEEBF7", "border": "#2E75B6",
+       "modules": [{"no": 9, "name": "PM đồng bộ"}, {"no": 10, "name": "PM kiểm soát"}]},
+      {"name": "Ứng dụng nghiệp vụ", "width_ratio": 2.6, "color": "#DEEBF7", "border": "#2E75B6",
+       "modules": [{"no": 1, "name": "Tiếp nhận HS"}, {"no": 2, "name": "Quản lý PN"}, ...]},
+      {"name": "Quản trị HT", "width_ratio": 1.0, "color": "#FFF2CC", "border": "#BF9000",
+       "modules": [{"no": 11, "name": "Quản trị HT"}, {"no": 12, "name": "Giám sát"}]},
+      {"name": "Cung cấp DL", "width_ratio": 1.6, "color": "#E2EFDA", "border": "#548235",
+       "modules": [{"no": 13, "name": "Tra cứu"}, ...]}
+    ],
+    "integration_bar": "17. Phần mềm Quản lý dịch vụ kết nối, chia sẻ, cung cấp dữ liệu",
+    "databases": [{"label": "CSDL Tác nghiệp"}, {"label": "CSDL Chia sẻ"}, ...],
+    "bottom_links": [{"label": "LGSP/NDXP"}, {"label": "HT TTHC"}, {"label": "CSDL TNMT"}]
+  }
+}
+```
+
+---
+
+## §13c. Routing rule — KHI NÀO dùng SVG hero, KHI NÀO dùng PlantUML
+
+**SVG hero (Pattern N) BẮT BUỘC cho:**
+- "Khung Kiến trúc Chính phủ điện tử" / "Khung KT CĐS" / "Khung KT Dữ liệu Quốc gia" — tổng thể đa lớp đều nhau
+- "Mô hình Kiến trúc Ứng dụng" với numbered modules + DB row + integration bar
+- TKKT §1 ngữ cảnh tổng quát, NCKT §7.1 mô hình kiến trúc tổng thể, Đề án §3 phù hợp KT
+
+**PlantUML BẮT BUỘC cho:**
+- Component diagram chi tiết (≤ 25 nodes)
+- ERD, Sequence, State machine, Class diagram, Use case
+- Deployment cụ thể (TTDL inner/outer specs với CPU/RAM)
+- Network topology technical (Spine/Leaf, MLAG, FC zones)
+- Swimlane workflow nhiều actor
+- Activity/Gantt cụ thể
+
+**Quy tắc nhận biết**: nếu lãnh đạo cấp Bộ/Sở **liếc 30 giây phải hiểu được** → dùng SVG hero (high-level layered, ít text). Nếu kỹ sư **đọc 5 phút để debug/triển khai** → dùng PlantUML (chi tiết, technical).
+
+---
+
 ## §14. C4 Model (cao cấp — cho TKKT context/container diagrams)
 
 Khi cần diagram cao cấp theo chuẩn Simon Brown C4, có thể tham khảo offline include (đã được bake vào image production trong tương lai). Hiện tại fallback bằng PlantUML thuần với stereotype:

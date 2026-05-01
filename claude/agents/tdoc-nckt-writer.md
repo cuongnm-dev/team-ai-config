@@ -92,7 +92,7 @@ Reference Pydantic model: `etc_platform.data.models.NcktData`. Output JSON:
    **Trước khi viết diagram, BẮT BUỘC đọc**: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — 8 worked patterns + skinparam preset chuyên nghiệp + 13-item checklist.
 
    **Mapping NCKT diagram → pattern**:
-   - `nckt_overall_architecture_diagram` (§7.1) → Pattern B (Component, §4 notepad) HOẶC C4 Context (§14)
+   - `nckt_overall_architecture_diagram` (§7.1) → **Pattern N.1 SVG hero `kien-truc-cpdt`** (đẹp nhất cho NCKT tổng thể) HOẶC Pattern B Component nếu cần chi tiết module
    - `nckt_business_architecture_diagram` (§7.2) → Pattern B (Component grouping by business domain)
    - `nckt_logical_infra_diagram` (§7.3) → Pattern B + zone packages
    - `nckt_physical_infra_inner_diagram` (§7.4.1) → Pattern A (Deployment với node + database + storage)

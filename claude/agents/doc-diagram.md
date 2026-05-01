@@ -185,9 +185,22 @@ Log diagram-route vào arch-report.json:
 
 ---
 
-### Route 0 — DEFAULT: PlantUML (kiến trúc / network / deployment / ERD / sequence)
+### Route −1 — SVG Hero Templates (BẮT BUỘC cho "khung tổng thể")
 
-**Khi nào dùng:** mọi diagram có ≥10 nodes hoặc layered structure (vùng/tầng/cluster).
+**Khi nào dùng** (nhận biết qua title/section):
+- "Khung Kiến trúc CĐS / CPĐT / Dữ liệu Quốc gia" → template `kien-truc-cpdt` hoặc `khung-kt-quoc-gia`
+- "Mô hình Kiến trúc Ứng dụng" với numbered modules → template `kien-truc-ung-dung-numbered`
+- TKKT §1 ngữ cảnh tổng thể, NCKT §7.1 kiến trúc tổng thể, Đề án §3 phù hợp KT
+
+3 hero templates đã bake vào MCP image, dispatch qua `diagrams.{key}` dạng `{"template": "...", "data": {...}}`. Tham khảo notepad **§13b Pattern N** để biết schema.
+
+**Lý do**: PlantUML không vẽ được layered architecture đều full-width + cylinder bus xuyên qua. SVG hero là duy nhất.
+
+---
+
+### Route 0 — PlantUML (DEFAULT cho diagram chi tiết kỹ thuật)
+
+**Khi nào dùng:** mọi diagram có ≥10 nodes hoặc layered structure cụ thể (vùng/tầng/cluster CHI TIẾT, không phải overview tổng thể).
 
 **Setup tối thiểu (skinparam Vietnamese-friendly):**
 

@@ -257,7 +257,7 @@ if max(sims) > 0.65:
 **MANDATORY READING** trước khi viết: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2 (BẮT BUỘC), worked patterns §3-§10, anti-patterns §11, pre-flight checklist §12 (13 items).
 
 Mapping 6 TKKT diagrams → notepad pattern:
-- `tkkt_architecture` → Pattern B (Component) hoặc C4 Container (§14)
+- `tkkt_architecture` → **Pattern N.1 SVG hero `kien-truc-cpdt`** (mặc định cho khung tổng thể) HOẶC Pattern B Component / C4 Container nếu là chi tiết
 - `tkkt_logical` → Pattern B (Component grouping theo domain)
 - `tkkt_data` → Pattern D (ERD)
 - `tkkt_integration` → Pattern B (Component + external `<<system>>`)
