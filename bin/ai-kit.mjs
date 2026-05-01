@@ -32,6 +32,34 @@ const USE_COLOR = (process.stdout.isTTY !== false || process.env.FORCE_COLOR ===
   && process.env.FORCE_COLOR !== '0';
 const _a = s => USE_COLOR ? s : '';
 
+// ─── Truecolor gradient ─────────────────────────────────────────────────
+const USE_TRUECOLOR = USE_COLOR && (
+  process.env.COLORTERM === 'truecolor' ||
+  process.env.COLORTERM === '24bit' ||
+  !!process.env.WT_SESSION ||        // Windows Terminal
+  !!process.env.TERM_PROGRAM         // iTerm2 / Hyper / VS Code integrated terminal
+);
+const _lerp = (a, b, t) => Math.round(a + (b - a) * t);
+const _tc   = (r, g, b) => `\x1b[38;2;${r};${g};${b}m`;
+// gradient(text, [[r,g,b],...]) — multi-stop, Unicode-safe, spaces uncolored
+const gradient = (text, stops) => {
+  if (!USE_TRUECOLOR || stops.length < 2) return USE_COLOR ? `\x1b[1;36m${text}\x1b[0m` : text;
+  const chars = [...text];
+  const n = chars.length;
+  const segs = stops.length - 1;
+  return chars.map((ch, i) => {
+    if (ch === ' ') return ch;
+    const pos = (n < 2 ? 0 : i / (n - 1)) * segs;
+    const s = Math.min(Math.floor(pos), segs - 1);
+    const t = pos - s;
+    const [r1,g1,b1] = stops[s], [r2,g2,b2] = stops[s+1];
+    return `${_tc(_lerp(r1,r2,t), _lerp(g1,g2,t), _lerp(b1,b2,t))}${ch}`;
+  }).join('') + '\x1b[0m';
+};
+// ai-kit brand: electric cyan → indigo → vivid violet
+const BRAND = [[0,229,255], [41,121,255], [170,0,255]];
+const brand = text => gradient(text, BRAND);
+
 const h = React.createElement;
 
 // ─── Theme ─────────────────────────────────────────────────────────────
@@ -105,7 +133,7 @@ const cleanDesc = d => (d || '')
 // ─── UI Components ─────────────────────────────────────────────────────
 const Header = ({title, subtitle}) => h(Box, {flexDirection: 'column', marginBottom: 1},
   h(Box, {borderStyle: 'round', borderColor: T.primary, paddingX: 1},
-    h(Text, {bold: true, color: T.primary}, title)
+    h(Text, {bold: true}, brand(title))
   ),
   subtitle && h(Box, {marginLeft: 1}, h(Text, {color: T.dim}, subtitle))
 );
@@ -354,7 +382,7 @@ const printDivider = (title, count) => {
   const w = _cols();
   const label = count != null ? `${title} (${count})` : title;
   const lineLen = Math.max(2, w - label.length - 9);
-  process.stdout.write(`\n${S.gray}  ── ${S.reset}${S.bmagenta}${label}${S.reset} ${S.gray}${'─'.repeat(lineLen)}${S.reset}\n`);
+  process.stdout.write(`\n${S.gray}  ── ${S.reset}${brand(label)} ${S.gray}${'─'.repeat(lineLen)}${S.reset}\n`);
 };
 
 const printItem = (name, title, nameWidth = 24) => {
@@ -378,7 +406,7 @@ const printDocsIndex = () => {
   const workflows = readDocItems(path.join(docsDir, 'workflows'));
   const reference = readDocItems(path.join(docsDir, 'reference'));
   const out = process.stdout;
-  out.write(`\n${S.bcyan}  Documentation Hub${S.reset}\n`);
+  out.write(`\n${brand('  Documentation Hub')}\n`);
   out.write(`${S.gray}  ai-kit doc <topic>   ·   ai-kit doc --search <term>${S.reset}\n`);
   printDivider('General', root.length);
   root.forEach(it => printItem(it.name, it.title));
@@ -407,7 +435,7 @@ const printSkillsIndex = () => {
   const cs = readSkills(path.join(REPO_DIR, 'claude', 'skills'));
   const cu = readSkills(path.join(REPO_DIR, 'cursor', 'skills'));
   const out = process.stdout;
-  out.write(`\n${S.bcyan}  Skills Catalog${S.reset}\n`);
+  out.write(`\n${brand('  Skills Catalog')}\n`);
   printDivider('Claude Skills  (~/.claude/skills/)', cs.length);
   cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}/${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
   printDivider('Cursor Skills  (~/.cursor/skills/)', cu.length);
@@ -428,7 +456,7 @@ const printAgentsIndex = () => {
   const cs = readAgents(path.join(REPO_DIR, 'claude', 'agents'));
   const cu = readAgents(path.join(REPO_DIR, 'cursor', 'agents'));
   const out = process.stdout;
-  out.write(`\n${S.bcyan}  Agents Catalog${S.reset}\n`);
+  out.write(`\n${brand('  Agents Catalog')}\n`);
   printDivider('Claude Agents  (~/.claude/agents/)', cs.length);
   cs.forEach(it => { out.write(`\n  ${S.bold}${S.cyan}${it.name}${S.reset}\n    ${S.gray}${it.title}${S.reset}\n`); });
   printDivider('Cursor Agents  (~/.cursor/agents/)', cu.length);
@@ -483,7 +511,7 @@ const docCommand = (args) => {
     const w = _cols();
     const bar = '─'.repeat(w - 4);
     const out = process.stdout;
-    out.write(`\n  ${S.bcyan}Search results${S.reset}  ${S.gray}"${term}"  ·  ${results.length} hit${results.length !== 1 ? 's' : ''}${S.reset}\n`);
+    out.write(`\n  ${brand('Search results')}  ${S.gray}"${term}"  ·  ${results.length} hit${results.length !== 1 ? 's' : ''}${S.reset}\n`);
     out.write(`  ${S.dim}${bar}${S.reset}\n\n`);
     let lastFile = '';
     results.forEach(r => {
@@ -532,7 +560,7 @@ const docCommand = (args) => {
 // Use plain console.log + chalk-style ANSI. No Ink overhead.
 
 const C = S;  // unified ANSI constants — single source of truth
-const info = m => { if (!QUIET) console.log(`${C.bold}${C.cyan}▶${C.reset} ${m}`); };
+const info = m => { if (!QUIET) console.log(`${brand('▶')} ${m}`); };
 const ok   = m => { if (!QUIET) console.log(`  ${C.green}✓${C.reset} ${m}`); };
 const warn = m => console.log(`  ${C.yellow}⚠${C.reset} ${m}`);  // always show
 const err  = m => console.error(`  ${C.red}✗${C.reset} ${m}`);   // always show
@@ -548,7 +576,7 @@ const bgUpdateCheck = () => {
   let cached = null;
   try { cached = JSON.parse(fs.readFileSync(UPDATE_CACHE, 'utf8')); } catch {}
   if (cached?.ahead > 0) {
-    process.stdout.write(`\n  ${_a('\x1b[33m')}\u2b06 update available${_a('\x1b[0m')}  ${_a('\x1b[90m')}${cached.ahead} commit(s) behind — ai-kit update${_a('\x1b[0m')}\n`);
+    process.stdout.write(`\n  ${gradient('⬆ update available', [[255,200,0],[255,120,0]])}  ${_a('\x1b[90m')}${cached.ahead} commit(s) behind — ai-kit update${_a('\x1b[0m')}\n`);
   }
   const now = Date.now();
   if (cached?.ts && now - cached.ts < 3_600_000) return; // 1h TTL
@@ -938,7 +966,7 @@ const cmdHelp = (topic) => {
   if (!entry) { renderStaticLater(h(Help)); return; }
   const w = _cols(), bar = '─'.repeat(w - 4);
   const out = process.stdout;
-  out.write(`\n  ${S.bcyan}ai-kit ${resolved}${S.reset}\n  ${S.dim}${bar}${S.reset}\n\n`);
+  out.write(`\n  ${brand(`ai-kit ${resolved}`)}\n  ${S.dim}${bar}${S.reset}\n\n`);
   out.write(`  ${S.bold}Usage${S.reset}   ${entry.usage}\n\n`);
   out.write(`  ${S.bold}What${S.reset}    ${entry.desc}\n`);
   if (entry.flags) {
