@@ -9,7 +9,7 @@
 ## §1. Quality bar — 10 nguyên tắc bất di bất dịch
 
 1. **Group / package / frame** — mọi node phải nằm trong package có label. Không có node lẻ.
-2. **One direction per diagram** — chọn `top to bottom` HOẶC `left to right`, đừng để PlantUML auto-pick.
+2. **One direction per diagram** — chọn `top to bottom` HOẶC `left to right`, đừng để PlantUML auto-pick. **DEFAULT = `top to bottom direction`** vì layered architecture (4 lớp CPĐT, deployment zones, network tier) trông tự nhiên theo chiều dọc; chỉ chọn `left to right` cho use case (system boundary nằm giữa, actors trái) hoặc luồng nghiệp vụ tuyến tính ngắn.
 3. **Orthogonal edges** — `skinparam linetype ortho` (đường thẳng góc, không đường chéo) cho mọi diagram cấu trúc; chỉ dùng `polyline` cho sequence.
 4. **Whitespace** — `ranksep 60`, `nodesep 40`. Tuyệt đối không cho phép edge chéo qua node hoặc node sát mép node khác.
 5. **Consistent shape ngữ nghĩa** — `database` = cylinder, `actor` = stickman, `component` = component, `node` = box 3D, `cloud` = cloud, `package` = labeled rect. KHÔNG dùng `rectangle` cho mọi thứ.
@@ -46,9 +46,12 @@ skinparam arrowThickness           1.1
 skinparam arrowFontSize            10
 skinparam arrowColor               $grayDark
 skinparam linetype                 ortho
-skinparam ranksep                  55
-skinparam nodesep                  35
+skinparam ranksep                  80
+skinparam nodesep                  50
 skinparam padding                  4
+skinparam wrapWidth                220
+skinparam maxMessageSize           220
+skinparam packageStyle             rectangle
 
 skinparam package {
   BackgroundColor $grayLight
@@ -545,11 +548,210 @@ stop
 
 ---
 
-## §10. Pattern H — Gantt (NCKT §13 tiến độ)
+## §10. Pattern H — Swimlane (HDSD / TKCT module flow chuyên biệt)
+
+**Use case**: HDSD module flow nhiều actor; quy trình nghiệp vụ chính phủ phân theo vai trò.
+**Lưu ý**: PlantUML là engine duy nhất render được swimlane đẹp — Mermaid KHÔNG hỗ trợ native.
+
+```plantuml
+@startuml
+<<insert §2 preset>>
+
+title <b>Hình M-02.1</b>: Quy trình Quản lý phạm nhân (Swimlane 4 lane)
+
+|#DEEBF7|Cán bộ tiếp nhận|
+start
+:Quét CCCD phạm nhân;
+:Hệ thống tra cứu CSDLQGDC;
+if (Đã có hồ sơ?) then (có)
+  :Cập nhật thông tin;
+else (không)
+  :Tạo hồ sơ mới;
+  :Số hoá tài liệu kèm theo;
+endif
+:Phân loại đối tượng;
+
+|#FFF2CC|Cán bộ chấp hành án|
+:Tiếp nhận phân công;
+:Phê duyệt phương án giam giữ;
+if (Đặc biệt nguy hiểm?) then (có)
+  :Áp dụng quy trình ANQP riêng;
+  :Báo cáo Lãnh đạo;
+endif
+
+|#FBE5D5|Hệ thống|
+:Sinh mã hồ sơ HS-YYYY-NNNNN;
+:Lưu vào CSDL Phạm nhân;
+:Đẩy event vào Kafka;
+
+|#E2EFDA|Lãnh đạo Trại|
+:Nhận thông báo;
+:Phê duyệt cuối cùng;
+stop
+@enduml
+```
+
+**Quy tắc swimlane**:
+- Mỗi lane là 1 actor/role/system, mở bằng `|#color|Lane Name|` trên dòng riêng.
+- Activity step trong lane theo cú pháp `:text;`.
+- Decision diamond: `if (?) then (yes) ... else (no) ... endif`.
+- Tách nội dung sang lane khác: chỉ cần đặt `|#color|NewLane|` rồi tiếp tục activity steps.
+- ≤ 5 lanes/diagram, mỗi lane ≤ 8 activities — nếu vượt → tách thành 2 swimlane.
+
+---
+
+## §10b. Pattern I — Class diagram (TKCT §8.6 mô hình lớp nghiệp vụ)
+
+```plantuml
+@startuml
+<<insert §2 preset>>
+skinparam classAttributeIconSize 0
+
+title <b>Hình 8.6</b>: Mô hình lớp nghiệp vụ Quản lý phạm nhân
+
+abstract class HoSoBase {
+  # id : Long
+  # ma_ho_so : String
+  --
+  + tao() : void
+  {abstract} validate() : boolean
+}
+
+class HoSoPhamNhan {
+  - cccd : String
+  --
+  + xacThucCCCD() : boolean
+}
+
+enum TrangThai { MOI; DANG_XU_LY; HOAN_THANH; HUY }
+
+HoSoBase <|-- HoSoPhamNhan
+HoSoPhamNhan "*" o-- "1" TraiGiam
+HoSoPhamNhan --> TrangThai
+@enduml
+```
+
+**Quy tắc**:
+- `abstract class` cho base class; in nghiêng tự động.
+- Visibility prefix: `+` public, `-` private, `#` protected, `~` package.
+- `{abstract}` cho method abstract; `{static}` cho static.
+- Cardinality + relationship: `<|--` inheritance, `*--` composition (strong), `o--` aggregation (weak), `-->` association.
+- `enum` riêng với mỗi value 1 dòng.
+
+---
+
+## §10c. Pattern J — State machine (TKCT vòng đời thực thể)
+
+```plantuml
+@startuml
+<<insert §2 preset>>
+
+title <b>Hình 8.7</b>: Vòng đời hồ sơ thi hành án
+
+[*] --> Moi : tạo hồ sơ
+state Moi : Hồ sơ vừa nhập\nChưa số hoá
+state DangSoHoa : Đang OCR + đối chiếu
+state ChoDuyet : Chờ lãnh đạo phê duyệt
+state DangXuLy : Đã duyệt — đang thi hành
+state HoanThanh : Đã chấp hành xong
+state Huy : Bị huỷ bỏ
+
+Moi --> DangSoHoa : số hoá tài liệu
+DangSoHoa --> ChoDuyet : OCR thành công
+DangSoHoa --> Moi : OCR lỗi
+ChoDuyet --> DangXuLy : phê duyệt
+ChoDuyet --> Huy : từ chối
+DangXuLy --> HoanThanh : hết thời hạn
+DangXuLy --> Huy : có quyết định huỷ
+HoanThanh --> [*]
+Huy --> [*]
+
+note right of ChoDuyet : SLA 48h
+@enduml
+```
+
+**Quy tắc**:
+- `[*]` = entry/exit point.
+- `state X : description` để gắn description nhiều dòng vào state.
+- Edge label = trigger event hoặc condition.
+- `note right of X : ...` cho SLA / business rule.
+
+---
+
+## §10d. Pattern K — Mindmap (Đề án CĐS phân rã mục tiêu)
+
+```plantuml
+@startmindmap
+<<insert §2 preset>>
+
+title <b>Sơ đồ phân rã mục tiêu</b>: Đề án CĐS THAHS
+
+* Đề án CĐS THAHS
+** Mục tiêu chiến lược
+*** Số hoá 100% hồ sơ
+*** Liên thông CSDLQGDC + VNeID
+** Trục nghiệp vụ
+*** Quản lý phạm nhân
+**** Tiếp nhận
+**** Theo dõi giam giữ
+*** Báo cáo thống kê
+** Trục hạ tầng
+*** TTDL Cục C10
+*** ATTT cấp độ 3
+@endmindmap
+```
+
+**Quy tắc**:
+- `*` đánh dấu node — số `*` = depth level (1=root, 2=branch chính, 3=sub-branch).
+- Tối đa 4 level — nhiều hơn → đọc khó.
+- Mỗi node ≤ 5 từ; thông tin dài → tách thành sub-branch.
+- Use case: NCKT §4.1 mục tiêu, Đề án CĐS phân rã initiative, ToC/scope tổng quan.
+
+---
+
+## §10e. Pattern L — WBS (cấu trúc phân rã công việc)
+
+```plantuml
+@startwbs
+<<insert §2 preset minus skinparam class/component blocks>>
+
+title <b>WBS</b>: Cấu trúc phân rã công việc dự án CĐS
+
+* Dự án CĐS THAHS
+** 1. Khảo sát + Phân tích
+*** 1.1 Khảo sát hiện trạng
+*** 1.2 Phân tích yêu cầu
+** 2. Thiết kế
+*** 2.1 TKCS
+*** 2.2 TKCT
+** 3. Thực thi
+*** 3.1 Đấu thầu
+*** 3.2 Lắp đặt hạ tầng
+**** 3.2.1 PCCN
+**** 3.2.2 Mạng + máy chủ
+*** 3.3 Phát triển PM
+** 4. Triển khai + Đào tạo
+** 5. Nghiệm thu + Bàn giao
+@endwbs
+```
+
+**Quy tắc**:
+- Cú pháp giống mindmap nhưng layout dạng cây dọc xuống (project tree).
+- Số thứ tự WBS code: `1.`, `1.1`, `1.1.1` viết trong text node.
+- Use case: NCKT §13 work breakdown trước Gantt, Đề án CĐS roadmap, kế hoạch dự án.
+
+---
+
+## §10f. Pattern M — Gantt (NCKT §13 tiến độ thực hiện)
+
+**⚠ BẮT BUỘC `printscale weekly`** (hoặc `monthly`/`quarterly`) — không có sẽ render 1 ngày = 1 cột → 8000+ pixel rộng, không đọc được.
 
 ```plantuml
 @startgantt
-<<insert §2 preset minus rectangle/component blocks>>
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 11
+skinparam shadowing false
+printscale weekly
 project starts 2026-06-01
 saturday  are closed
 sunday    are closed
