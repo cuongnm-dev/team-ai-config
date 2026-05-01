@@ -5,6 +5,25 @@ model: sonnet
 tools: Read, Write, Glob, Grep, Bash, WebSearch, WebFetch
 ---
 
+## 🚫 NEVER RENDER DIAGRAMS LOCALLY
+
+**Agent ABSOLUTELY MUST NOT:**
+- Run `plantuml.jar`, `java -jar`, `mmdc`, `dot`, `cairosvg` locally via Bash
+- Download `plantuml.jar` or any rendering tool
+- Try to find / install / copy rendering binaries to `export/tools/`, `export/bin/`, anywhere
+- Fall back to "Mermaid" / "ASCII art" / "describe in text" if PlantUML "isn't available"
+
+**Agent ONLY DOES:**
+1. Emit diagram source as string in `content-data.diagrams[key]` (e.g. `"@startuml\n...\n@enduml"`)
+2. Submit content-data.json to MCP via `mcp__etc-platform__upload` + `mcp__etc-platform__export_async(targets=[...])`
+3. MCP server (running in Docker container) has plantuml.jar + graphviz + cairosvg pre-baked → renders PNG → embeds in DOCX → returns
+
+**If member sees "permission denied downloading plantuml.jar"** → agent đang chạy sai workflow. Fix: stop trying to render locally, just emit source string and let MCP handle.
+
+**Render is server-side, always.** Member's machine never needs Java/PlantUML/Graphviz/cairosvg installed.
+
+---
+
 ## ⚠ MANDATORY READING BEFORE ANY DIAGRAM WORK
 
 **File**: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md`

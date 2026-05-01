@@ -6,6 +6,30 @@
 
 ---
 
+## 🚫 §0. CARDINAL RULE — KHÔNG RENDER DIAGRAM LOCAL
+
+Agent **TUYỆT ĐỐI KHÔNG**:
+- Chạy `java -jar plantuml.jar`, `plantuml`, `mmdc`, `dot`, `cairosvg` qua Bash
+- Download plantuml.jar / mermaid-cli / graphviz binary
+- Tìm / copy rendering tool vào `export/tools/`, `tools/`, hay bất kỳ thư mục local nào
+- Fall back sang "Mermaid" / "ASCII art" / "describe in text" khi PlantUML "không available local"
+
+**Pipeline đúng:**
+1. Agent **CHỈ** emit diagram source dạng string vào `content-data.json` → field `diagrams[key]`
+2. Submit qua MCP: `mcp__etc-platform__export_async(upload_id, targets=[...])`
+3. MCP server (Docker container) đã baked sẵn: `plantuml.jar` + Java 21 + graphviz + cairosvg + mermaid-cli + chromium → render PNG → embed DOCX → trả về
+
+**Triệu chứng agent đi sai workflow:**
+- "Permission denied downloading plantuml.jar"
+- "Cần allow download / copy plantuml.jar vào export/tools/"
+- "Tôi đã fallback Mermaid vì PlantUML không có"
+
+→ Đây là agent đang cố render LOCAL thay vì gửi qua MCP. **Fix immediate**: stop Bash, chỉ emit source string vào content-data.json.
+
+**Member's machine không bao giờ cần** Java / PlantUML / Graphviz / cairosvg. Mọi rendering là server-side.
+
+---
+
 ## §1. Quality bar — 10 nguyên tắc bất di bất dịch
 
 1. **Group / package / frame** — mọi node phải nằm trong package có label. Không có node lẻ.
