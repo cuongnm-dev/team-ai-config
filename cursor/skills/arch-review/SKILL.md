@@ -1,6 +1,7 @@
 ---
 name: arch-review
 description: Khảo sát toàn bộ kiến trúc dự án và đăng ký nợ kỹ thuật. Có 2 chế độ: review (phân tích kiến trúc hiện tại để đánh giá điểm mạnh/yếu) và tech-debt (kiểm kê và xếp ưu tiên các vấn đề tồn đọng cần xử lý).
+disable-model-invocation: true
 ---
 
 # Architecture Review

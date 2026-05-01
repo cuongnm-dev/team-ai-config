@@ -1,6 +1,7 @@
 ---
 name: release
 description: Quản lý phát hành phiên bản. 4 chế độ: prepare (chuẩn bị release — check list, version bump), go-nogo (quyết định có release hay không dựa trên rủi ro), rollback (rollback nhanh nếu phiên bản mới bị lỗi), changelog (sinh ghi chú thay đổi cho khách hàng).
+disable-model-invocation: true
 ---
 
 # Release

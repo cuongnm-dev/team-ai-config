@@ -1,6 +1,6 @@
 ---
 name: qa-pro
-model: claude-opus-4-7
+model: auto
 description: [ESCALATION TIER — opus] "Test 1 feature: 3 atomic artifacts (TC prose + Playwright spec + screenshots). Chạy sau dev hoàn thành."
 ---
 

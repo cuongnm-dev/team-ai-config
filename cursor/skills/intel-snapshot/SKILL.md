@@ -1,6 +1,7 @@
 ---
 name: intel-snapshot
 description: Sinh bản tóm tắt nén (Markdown ~3-5K token) từ các file intel JSON gốc (50K+ token mỗi file). Các agent SDLC cấp cơ bản (dev, qa, reviewer) đọc bản tóm tắt này để hiểu nhanh ngữ cảnh; chỉ agent cấp Pro và SA mới đọc full JSON khi cần quyết định sâu. Producer phải gọi script này sau mỗi lần ghi intel để bản tóm tắt luôn mới.
+disable-model-invocation: true
 ---
 
 # Intel Snapshot

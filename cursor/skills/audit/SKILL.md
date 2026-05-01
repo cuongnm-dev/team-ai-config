@@ -1,6 +1,7 @@
 ---
 name: audit
 description: Kiểm toán dự án về 3 mặt khác nhau, chọn 1 chế độ khi chạy: security (lỗ hổng bảo mật), compliance (tuân thủ tiêu chuẩn pháp lý/quy định), dependencies (các thư viện ngoài có an toàn không, có vulnerability nào không).
+disable-model-invocation: true
 ---
 
 # Audit

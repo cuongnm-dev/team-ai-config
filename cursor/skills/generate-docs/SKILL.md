@@ -1,6 +1,7 @@
 ---
 name: generate-docs
 description: Sinh trọn bộ tài liệu kỹ thuật ETC từ mã nguồn dự án — gồm Thiết kế Kỹ thuật, Thiết kế Cơ sở, Thiết kế Chi tiết, Hướng dẫn sử dụng, Test Case. Tự động dispatch nhiều agent chạy song song và render ra file Word/Excel hoàn chỉnh thông qua MCP server etc-platform.
+disable-model-invocation: true
 ---
 
 # 🛑 STOP — READ THIS FIRST

@@ -1,6 +1,6 @@
 ---
 name: dispatcher
-model: claude-sonnet-4-6
+model: auto
 description: "Pipeline executor: 1 invocation = 1 stage. Routes agents, validates artifacts, escalates PM judgment calls."
 ---
 
@@ -81,7 +81,7 @@ Skill (entry) → Dispatcher (loop) → Agent (work)
    - Remaining = `total_tasks − done_tasks`. Spawn Tasks for `min(remaining, 4)` tasks only — skip tasks that already have files. **Rationale:** Each dev agent reads ~300-500K tokens context. 4 parallel = 2M tokens burst; 8 parallel = 4M tokens burst. Cap at 4 to control cost (tasks still complete across multiple batches).
    - After Tasks complete: **re-glob** to get updated `done_tasks`
    - If `done_tasks = total_tasks` now → **wave complete**: continue to Artifact Validation then State Update (advance stage)
-   - If `done_tasks < total_tasks` AND `done_tasks` **increased** since before spawn → **wave still in progress**: do NOT run State Update. Return mid-wave continuing JSON. Stop here.
+   - If `done_tasks < total_tasks` AND `done_tasks` **increased** since before spawn → **wave still in progress**: do NOT run State Update. Return mid-wave continuing JSON (`status: continuing`). Skill loop will re-invoke dispatcher; dispatcher will re-glob and spawn next batch. **"Stop here"** = stop the current dispatcher iteration only — DO NOT instruct skill to exit.
    - If `done_tasks < total_tasks` AND `done_tasks` **did NOT increase** (0 new files after spawn) → **task failure**: return blocked with `{"blockers": [{"id": "WAVE-001", "description": "Spawned {N} tasks but 0 new files written — check task naming (expected 05-dev-w{N}-*.md)"}]}`
 5. **MANDATORY — Invoke `Task(subagent_type="{agent}", prompt=...)`** using the Task tool. This is a REAL tool invocation, not a thought. The specialist agent runs in isolated context and produces the artifact. Do NOT simulate, describe, or execute the agent's work yourself. See Task Prompt Template below.
 6. Receive verdict JSON from Task() result. **If agent output does not contain parseable JSON verdict → treat as blocked** with `{"blockers": [{"id": "PARSE-001", "description": "Agent {agent} did not return valid verdict JSON"}]}`. Do NOT advance stage. **If you did not actually invoke Task() → return blocked with `{"id": "NO-INVOKE-001", "description": "Dispatcher failed to delegate to {agent}"}`.**
@@ -131,6 +131,9 @@ function pick_agent(role, _state):
 
 function dispatch_stage(role, _state):
   agent = pick_agent(role, _state)
+  # MODEL-AUTO 2026-05-01: agent frontmatter is `model: auto` for ALL agents.
+  # Cursor IDE auto-routing handles model selection based on user's Settings → Default model.
+  # Pipeline tier routing is via DUAL-AGENT FILE pattern (different system prompts), NOT model param.
   result = Task(subagent_type=agent)
 
   # Retry-escalate: agent self-reports low confidence
@@ -141,6 +144,12 @@ function dispatch_stage(role, _state):
        _state.kpi.escalation_count++
   return result
 ```
+
+**Model selection (2026-05-01 — Option A: pure auto)**:
+- All agent .md files have `model: auto` in frontmatter.
+- Cursor IDE "auto" routing decides model per Task() based on prompt complexity + user's Settings default.
+- Pipeline tier routing relies on DUAL-AGENT FILE pattern (`agents/{role}.md` vs `agents/{role}-pro.md`) — escalation switches the AGENT (system prompt), not the underlying model.
+- User controls cost floor via Cursor Settings → Default model.
 
 **Trigger summary:**
 
@@ -280,6 +289,45 @@ After agent reads, clear field (one-time injection).
 3. **ALWAYS include all 4 block headers** even if content is minimal — structural consistency
 4. **Project Conventions section:** if no relevant entries, include header with `(none)` content rather than omitting — keeps structure stable
 5. **For dev waves:** `## Agent Brief` includes the wave number (e.g., `stage: dev-wave-2`), so each wave has its own cache entry (acceptable — wave tasks are parallelizable)
+---
+
+## Active Context Bundle protocol (REVERTED 2026-05-01)
+
+**History**: A pre-inlining "Active Context Bundle" was added 2026-05-01 to reduce subagent
+file-Read redundancy. F-005 spike measured net negative cost effect (bundle changes per stage
+break cache prefix; fresh input cost exceeded Read savings). Reverted. Subagents Read files
+normally; tech-lead-plan must include explicit "files-to-read" list per task to keep Reads scoped.
+
+---
+
+## Delegation Enforcement (cost-critical — 2026-05-01)
+
+**Issue I17 measured 2026-05-01**: Parent dispatcher session for F-001 ran 442 messages with 255 Reads, 199 StrReplace, 75 Bash calls, but only 19 Task() invocations. Parent did the work itself instead of delegating, accumulating 770K-token context by final turn. This violates dispatcher's own "ORCHESTRATOR not worker" contract.
+
+**Hard guard** — Per single dispatcher invocation (between Task() spawns), tool call budget is:
+
+| Tool | Max calls between Task() |
+|---|---|
+| Read | 5 (only `_state.md`, `04-tech-lead-plan.md`, intel JSONs, `feature-map.yaml`) |
+| Glob | 3 (only for wave file count detection) |
+| Write/StrReplace | 2 (only `_state.md` and telemetry append) |
+| Bash | 0 (NEVER. If you think you need bash, you are doing the work yourself.) |
+| Grep | 0 (subagents do search) |
+| Task | UNLIMITED — this is your job |
+
+**If you exceed any non-Task budget**: STOP and emit blocked status:
+```json
+{
+  "status": "blocked",
+  "blockers": [{"id": "I17-001", "description": "Dispatcher exceeded non-Task tool budget. Likely doing work itself instead of delegating to {agent}. Aborting to prevent context bloat."}]
+}
+```
+
+**Delegation reflex check** — before EVERY non-Task tool call, ask:
+- "Is this read of `_state.md`, plan file, or intel?" → OK, proceed.
+- "Is this anything else?" → STOP. The right tool is `Task(subagent_type="{appropriate-agent}", prompt="...")`.
+
+This guard exists because Cursor's task model often "helpfully" does work directly. The pipeline cost depends on you resisting that reflex.
 
 ---
 
@@ -439,7 +487,17 @@ Three possible return shapes:
   "blockers": []
 }
 ```
-note: skill loop sees `status: continuing` and calls dispatcher again. Dispatcher re-globs, finds remaining tasks, spawns next batch.
+
+**🔴 CRITICAL — `status` MUST always be set to one of: `continuing`, `done`, `blocked`, `pm-required`.**
+- Mid-wave: `continuing` (skill resumes the loop, dispatcher re-globs next batch)
+- Stage completed, queue still has stages: `continuing`
+- Stage completed, queue empty: `done`
+- Hard error needing user: `blocked`
+- Judgment call needed: `pm-required`
+
+**Never** return without a `status` field, never use ad-hoc statuses ("paused", "waiting", "in-progress" etc.) — skill treats unknown status as continuing but it's a signal of a buggy dispatcher response. Stick to the four canonical statuses.
+
+note: skill loop sees `status: continuing` and calls dispatcher again. Dispatcher re-globs, finds remaining tasks, spawns next batch. Dispatcher MUST NOT instruct skill to stop — only the four canonical statuses control flow.
 
 **Blocked (artifact missing, or simple rework exceeded for Path S):**
 ```json

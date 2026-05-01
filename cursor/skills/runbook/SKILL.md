@@ -1,6 +1,7 @@
 ---
 name: runbook
 description: Tạo runbook vận hành cho 1 tính năng hoặc service đã chạy production. SRE liệt kê các kịch bản giám sát và xử lý lỗi thường gặp, DevOps liệt kê thao tác triển khai và hạ tầng, PM tổng hợp lại thành tài liệu hoàn chỉnh. Chạy sau khi tính năng đã được đẩy lên production.
+disable-model-invocation: true
 ---
 
 # Runbook

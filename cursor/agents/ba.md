@@ -1,7 +1,7 @@
 ---
 name: ba
-model: claude-sonnet-4-6
-description: "Phân tích nghiệp vụ + mô hình domain cho 1 feature. User stories, AC, business rules. Stage đầu SDLC."
+model: auto
+description: Phân tích nghiệp vụ + mô hình domain cho 1 feature. User stories, AC, business rules. Stage đầu SDLC.
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.
 

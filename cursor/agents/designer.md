@@ -1,6 +1,6 @@
 ---
 name: designer
-model: composer-2
+model: auto
 description: "Phân tích UI/UX flow, form behavior, empty/error/loading states. Chạy khi BA đánh dấu UI impact."
 is_background: true
 ---

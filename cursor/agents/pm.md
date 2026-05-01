@@ -1,6 +1,6 @@
 ---
 name: pm
-model: claude-opus-4-7
+model: auto
 description: "Delivery orchestrator: judgment calls (path selection, exceptions, extended roles). KHÔNG gọi agents trực tiếp."
 ---
 

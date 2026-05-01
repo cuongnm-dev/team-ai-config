@@ -1,6 +1,7 @@
 ---
 name: ui-catalog
 description: Tạo file docs/ui-library/component-catalog.md bằng cách quét Figma kit hoặc mã nguồn của template UI đã cài đặt. Chạy 1 LẦN sau khi cài template — sau đó mọi tính năng đọc catalog tĩnh này thay vì gọi Figma MCP mỗi lần (tiết kiệm token và thời gian). Chỉ chạy lại khi nâng cấp template UI.
+disable-model-invocation: true
 ---
 
 # Skill: UI Catalog Generator

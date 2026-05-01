@@ -1,6 +1,7 @@
 ---
 name: strategic-critique
 description: Đóng vai cán bộ thẩm định (Bộ/Tỉnh/Sở) phản biện ngược lại Đề án Chuyển đổi số bạn vừa viết — bắt các lỗi thường gặp: câu chữ mơ hồ, thiếu số liệu cụ thể, viện dẫn pháp lý sai, mâu thuẫn nội bộ, bỏ sót dùng chung hệ thống có sẵn, đề xuất bất khả thi. Dùng để rà chất lượng trước khi nộp.
+disable-model-invocation: true
 ---
 
 # Strategic Critique — Adversarial Reviewer

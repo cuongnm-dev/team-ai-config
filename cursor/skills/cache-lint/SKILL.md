@@ -1,6 +1,7 @@
 ---
 name: cache-lint
 description: Quét toàn bộ file cấu hình agent và skill để phát hiện vi phạm quy tắc tối ưu prompt cache (giúp Claude chạy nhanh và tiết kiệm chi phí). Bắt các lỗi: khoảng trắng dư, dữ liệu thay đổi nằm sai chỗ, thiếu header chuẩn, định dạng tên sai, line ending Windows. Có thể chạy thủ công hoặc tự động khi sửa file.
+disable-model-invocation: true
 ---
 
 # Cache Lint

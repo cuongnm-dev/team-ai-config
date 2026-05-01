@@ -1,6 +1,6 @@
 ---
 name: reviewer
-model: composer-2
+model: auto
 description: "Quality gate cuối: requirement + architecture + code quality + security + test adequacy. Chạy sau QA Pass."
 readonly: true
 ---

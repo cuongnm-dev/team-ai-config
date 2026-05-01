@@ -1,0 +1,150 @@
+=== Cursor Transcript Cost Audit (v2) ===
+Project key: d-Projects-ufh-rfid
+Inferred root: D:\Projects\ufh\rfid
+Transcripts: C:\Users\James\.cursor\projects\d-Projects-ufh-rfid\agent-transcripts
+
+========================================================================================================================
+PER-RUN SUMMARY (tokens)
+========================================================================================================================
+run_id                                 p_msg   p_text  p_tools  p_tool_res  subs   s_text  s_tools  s_tool_res
+016d96ce-5067-4987-bd13-efadcc1fcc07       0        0        0           0     1        0        0           0
+06d23d54-999f-444f-a892-47d24f278d45       0        0        0           0     1    6,655       10      16,280
+07717793-c471-4c8c-b8bb-7707682bef0e       0        0        0           0     1    3,450       24      10,896
+10a9e6e7-6aa2-4dca-88e0-79f94ad727af      30   18,352       58      49,413     4    8,109       45      29,271
+15a7bcff-2f7c-4708-8d86-d9d3fa323c20      41    3,311       50      40,459     0        0        0           0
+1c035625-0a52-42d9-bb80-bb6064e577a9       0        0        0           0     1    1,250       20      50,308
+3ac87706-c979-4b2f-9822-fa96ecfeaadc     442  142,296      741     548,038    19   36,817      316     250,795
+55755d5c-6a10-4ccb-85ef-45f92e059f13       0        0        0           0     1    4,880       21      29,235
+830dffe0-9193-4c79-bb7e-7d0964206b5f       0        0        0           0     1    1,517       13      23,522
+95022481-19ed-4d80-8856-3cf5902e406f       0        0        0           0     1    4,961        4       2,805
+9b78c9c6-baac-4f77-a823-2b692d801bdf       2      114        0           0     1    4,623       24      20,632
+9d594cd8-d186-4520-8a88-c466f1414c87       8    5,274        9       1,125     1    1,337        6       4,492
+a16db806-6ea6-475e-90a1-ef2941981168       0        0        0           0     1    1,680        8       1,422
+c566fa85-d7f8-41bd-98dc-04b834fbc1e0       0        0        0           0     1    2,503       15       7,704
+d37cab57-c04c-4a0c-be89-2c0ae60031e4       7      317        1          50     4   15,982      151      90,812
+e0e6f84c-94cc-4231-a71b-26c5065a353a       2      177        0           0     5   17,165       77      84,863
+e3da78cc-6692-433e-b255-7d33f3105e41       0        0        0           0     2    8,299       98      75,340
+e7fed1f6-1def-44ce-af4c-cb1003c414bf       2       96        0           0     1      899       13      15,709
+f65f27a5-19e9-4f0a-9edd-3c00ac1eabde       3      242        3       3,875     1    5,524       81      81,087
+f6d26b69-54e6-4e49-b5d4-90e946013fe3       0        0        0           0     2   15,562       68     104,954
+------------------------------------------------------------------------------------------------------------------------
+TOTAL                                         170,179      862     642,960    49  141,213      994     900,127
+
+GRAND TOTAL estimated tokens injected to LLM context: 1,854,479
+  Parent text+prompt:      170,179 (  9.2%)
+  Parent tool results:     642,960 ( 34.7%)
+  Subagent text+prompt:    141,213 (  7.6%)
+  Subagent tool results:   900,127 ( 48.5%)
+
+========================================================================================================================
+BY STAGE — aggregate
+========================================================================================================================
+stage                  calls avg_prompt  avg_resp avg_tools avg_tool_res reads globs greps  bash
+dev                        6      1,986     2,060        41       27,692    87    14    20     0
+security                   4      1,169     1,746        24       27,545    40     9     8     0
+tech-lead                  6        786     1,015        14       16,979    31     8     3     0
+dev-wave-1                 4        935     2,263        21       22,897    35    13     3     0
+qa                         2        712     3,034        45       44,967    32     8     3     0
+devops                     4        844     1,458        18       18,449    26    12     1     0
+reviewer                   3      1,700     5,033        17       22,915    28     3     4     0
+pm                         4        448     3,552        26       15,385     8     9     0     0
+ba                         6        846     1,532        11        8,149    15     5     1     0
+sa                         3      1,046     1,971        15       15,844    16     3     1     0
+dev-wave-2                 4        511       301         5        7,149     7     5     1     0
+security-review-w2         1        878       594        10       11,231     8     0     0     0
+qa-wave-2                  1        490       217         1           50     0     0     0     0
+unknown                    1          0         0         0            0     0     0     0     0
+
+========================================================================================================================
+FILE READ REDUNDANCY (after path normalization)
+========================================================================================================================
+ count   file_size  tokens_redundant  path
+    54        9370           124,152  d:\Projects\ufh-rfid\docs\features\RFID-F-001\_state.md
+    54       13595           180,133  d:\Projects\ufh-rfid\docs\features\RFID-F-002\_state.md
+    34         806             6,649  d:\Projects\ufh-rfid\docs\feature-map.yaml
+    25        3105            18,630  d:\Projects\ufh-rfid\src\ingest\src\main.rs
+    21       14107            70,535  d:\Projects\ufh-rfid\src\ingest\src\consumer.rs
+    18        3091            13,136  d:\Projects\ufh-rfid\docs\features\RFID-F-003\_state.md
+    18       22482            95,548  d:\Projects\ufh-rfid\docs\features\RFID-F-001\04-tech-lead-plan.md
+    15         937             3,279  d:\Projects\ufh-rfid\src\ingest\Cargo.toml
+    15        5241            18,343  d:\Projects\ufh-rfid\docs\features\RFID-F-001\_checkpoints.md
+    14        8993            29,227  d:\Projects\ufh-rfid\src\ingest\src\config.rs
+    14        3905            12,691  d:\Projects\ufh-rfid\src\ingest\src\db.rs
+    13        7003            21,009  d:\Projects\ufh-rfid\src\ingest\src\validate.rs
+    12        9884            27,181  d:\Projects\ufh-rfid\src\ingest\src\health.rs
+    12        3232             8,888  d:\Projects\ufh-rfid\src\common\src\envelope.rs
+    11        1077             2,692  d:\Projects\ufh-rfid\Cargo.toml
+    11       15015            37,537  d:\Projects\ufh-rfid\docs\features\RFID-F-002\04-tech-lead-plan.md
+     9       48753            97,506  d:\Projects\ufh-rfid\docs\features\RFID-F-001\feature-brief.md
+     9       23863            47,726  d:\Projects\ufh-rfid\docs\features\RFID-F-002\sa\00-lean-architecture.md
+     9       15593            31,186  d:\Projects\ufh-rfid\docs\features\RFID-F-002\feature-brief.md
+     8        3187             5,577  d:\Projects\ufh-rfid\docs\intel\feature-catalog.json
+     7       11357            17,035  d:\Projects\ufh-rfid\src\controller\src\main.rs
+     7       39773            59,659  d:\Projects\ufh-rfid\docs\features\RFID-F-001\ba\00-lean-spec.md
+     7        2542             3,813  d:\Projects\ufh-rfid\src\ingest\migrations\20260430000001_create_rfid_detection.sql
+     7        8579            12,868  d:\Projects\ufh-rfid\src\controller\src\config.rs
+     7        5776             8,664  d:\Projects\ufh-rfid\docs\features\RFID-F-001\test-evidence\RFID-F-001.json
+     6       31323            39,153  d:\Projects\ufh-rfid\docs\features\RFID-F-001\sa\00-lean-architecture.md
+     6        7467             9,333  d:\Projects\ufh-rfid\.cursor\telemetry\RFID-F-001.jsonl
+     5          33                33  d:\Projects\ufh-rfid\src\common\src\lib.rs
+     5        1936             1,936  d:\Projects\ufh-rfid\docker-compose.yml
+     5         407               407  d:\Projects\ufh-rfid\.env.example
+
+Total redundant tokens (n-1 reads × file_size): ~1,004,526
+
+========================================================================================================================
+AGENT-TOOLS DIR (stored tool outputs — terminal/web)
+========================================================================================================================
+    38,545B  ~  9,636tok  159994b8-3f49-4ccc-b3be-3661374779e9.txt
+    62,797B  ~ 15,699tok  1b891ce0-a4e7-4fe3-b22d-e9d51e675b26.txt
+    53,552B  ~ 13,388tok  3b5b6fd0-ed70-4ab6-810b-eae61fe3256e.txt
+    56,102B  ~ 14,025tok  3e43e14b-7e1a-40a7-abe2-f5b52aadf340.txt
+    47,686B  ~ 11,921tok  abf445cb-7e25-4108-b580-5fa3080b23aa.txt
+
+  TOTAL: 258,682B = ~64,670 tokens
+
+========================================================================================================================
+TOP 15 EXPENSIVE Task() CALLS (prompt + response + tool_results)
+========================================================================================================================
+ total_tok  stage                prompt     resp   tool_res  reads  tools  run
+    86,611  qa                    1,258    4,266     81,087     30     81  f65f27a5
+    69,494  dev                   2,387    3,826     63,281     26     81  e3da78cc
+    68,882  reviewer                988   12,455     55,439     20     31  f6d26b69
+    51,634  security                748    1,371     49,515     17     37  f6d26b69
+    51,558  tech-lead               384      866     50,308     13     20  1c035625
+    41,155  dev-wave-1              266    3,499     37,390     14     27  3ac87706
+    39,751  dev                   2,255    2,255     35,241     19     43  d37cab57
+    39,474  dev-wave-1              513    2,670     36,291     13     26  3ac87706
+    35,267  devops                1,343    1,277     32,647     11     27  e0e6f84c
+    34,115  pm                      473    4,407     29,235      6     21  55755d5c
+    32,491  security                159    2,447     29,885      8     17  3ac87706
+    31,633  sa                    1,640    3,142     26,851      9     22  e0e6f84c
+    27,470  dev                   3,019    2,067     22,384     16     43  d37cab57
+    25,255  security              3,672      951     20,632     13     24  9b78c9c6
+    25,039  tech-lead               798      719     23,522      6     13  830dffe0
+
+========================================================================================================================
+SUMMARY CARD
+========================================================================================================================
+Project: d-Projects-ufh-rfid
+Total runs: 20
+Total Task() subagent calls: 49
+Estimated context tokens injected to LLMs (visible portion):
+  - Text + prompts: 311,392
+  - Tool results (file reads, glob, grep, bash):  1,543,087
+  - GRAND TOTAL: 1,854,479
+  - Tool result % of total: 83.2%
+
+Cursor billing same period (from CSV):
+  - Apr 2026 total: 772M tokens, $397
+  - Apr 20 (F-001 day): 45M tokens, $219
+  - Apr 30 (F-002 day): 22M tokens, $11.70
+
+Coverage ratio:
+  - Our estimate: 1,854,479 tokens
+  - Cursor billed (Apr 20 + Apr 30, F-001+F-002): ~67M tokens
+  - Our estimate covers: 2.8% of billed
+  - Gap explanation: agent system prompts (5-30K × 41 calls), alwaysApply rules,
+    Cursor IDE auto-context, model thinking tokens, prompt cache writes
+
+Raw data saved: D:\AI-Platform\team-ai-config\docs\cost-audit\transcript-analysis.json

@@ -1,6 +1,6 @@
 ---
 name: fe-dev
-model: composer-2
+model: auto
 description: "Implement frontend (React/Vue, pages, forms, a11y). Yêu cầu designer + tech-lead output trước khi chạy."
 ---
 

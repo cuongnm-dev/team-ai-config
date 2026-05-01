@@ -1,6 +1,7 @@
 ---
 name: adr
 description: Ghi chép lại một quyết định kiến trúc quan trọng (Architecture Decision Record). Có 2 mức độ: full (kiến trúc sư cùng tech-lead xác nhận, dùng cho quyết định lớn) và quick (kiến trúc sư tự ghi, dùng cho quy ước nhỏ). Skill tự chọn mức phù hợp hoặc hỏi user nếu chưa rõ.
+disable-model-invocation: true
 ---
 
 # Architecture Decision Record

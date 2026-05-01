@@ -152,58 +152,111 @@ last-verdict: {last-verdict}       # "none" on iter=1; result.verdict on iter>1
 
 First iteration only: append `session-context: |` block under `## Current State` if distilled content exists (Step 5). Do NOT include in iter > 1.
 
-**Assembly rule:**
-```
-header = build_frozen_header().rstrip("\n")   # strip trailing newlines — prevents \n\n\n
-prompt = header + "\n\n" + DYNAMIC_SUFFIX     # separator always exactly \n\n
-```
+### 6.5. (REVERTED 2026-05-01) Active Context Bundle removed
 
-If `stages-queue` missing (legacy): reconstruct from path stages − completed-stages, save before loop.
+**History**: An "Active Context Bundle" feature was added on 2026-05-01 to pre-inline artifacts
+into Task() prompts (intent: reduce subagent re-reads). F-005 spike measured net negative effect:
+bundle changes per stage break Cursor cache prefix, adding fresh input cost (~$3/feature) that
+exceeded the redundant-Read savings. Subagents now Read files normally (cheap when project is
+small + properly scoped tech-lead-plan).
+
+**If revisiting**: bundle would only pay off if (a) bundle content is IDENTICAL across stages
+(same prefix bytes for cache hit) OR (b) Cursor exposes explicit cache_control breakpoints.
+Neither is true today.
 
 ### 7. Dispatcher loop
 
-**⚠️ DO NOT STOP unless explicit condition:**
-- `status=done` / `blocked` / `pm-required` with `resume=false`
-- Loop guards: max_iterations (50), max_pm_invocations (5), no-op detection
-- Exception after retry
-- **NOT**: user confirmation, milestones, long output, context pressure
+**⚠️⚠️⚠️ CRITICAL — RUN FULL PIPELINE IN ONE SESSION (cost-fix 2026-05-01)**:
+
+Each `/resume-feature` invocation = 1 fresh skill execution = pays cache_write tax (~$0.30-0.50). Multiple invocations per feature = multiple cache writes = duplicated cost. **You MUST loop until `status=done` or hard `blocked`** unless user explicitly aborts.
+
+**DO NOT EXIT just because:**
+- ❌ A wave boundary completed (more stages remain)
+- ❌ A stage transitioned (queue not empty)
+- ❌ A PM resolved (skill should resume immediately)
+- ❌ Long output / Cursor "Continue?" prompt (auto-continue if possible)
+- ❌ "Pipeline looks paused" — re-call dispatcher anyway, it will re-read _state and progress
+
+**ONLY EXIT when:**
+- ✅ `status=done` (stages-queue empty AND status field set to done)
+- ✅ `status=blocked` with explicit blocker requiring user input
+- ✅ `iter >= max_iterations` (200)
+- ✅ Hard error (exception after 2 retries)
 
 **Loop:**
 ```
 iter = 0; pm_count = 0; last_hash = null; last_verdict = "none"
-FROZEN_HEADER = build_frozen_header().rstrip("\n")   # computed once — see Step 6 for sdlc/doc-gen conditional fields
-PM_FROZEN = build_pm_frozen().rstrip("\n")           # computed once — sdlc: include feature-id; doc-gen: omit
+FROZEN_HEADER = build_frozen_header().rstrip("\n")
+PM_FROZEN = build_pm_frozen().rstrip("\n")
 
-WHILE iter < 50:
+WHILE iter < 200:                                     # bumped 50→200 (cost-fix 2026-05-01)
   iter++
   DYNAMIC_SUFFIX = "## Current State\ncurrent-stage: {current-stage}\niter: {iter}\nlast-verdict: {last_verdict}"
   IF iter == 1 AND session_context exists: DYNAMIC_SUFFIX += "\nsession-context: |\n  {session_context}"
   prompt = FROZEN_HEADER + "\n\n" + DYNAMIC_SUFFIX
 
-  result = Task(dispatcher, prompt)  # retry 1× on crash, else STOP
+  result = Task(dispatcher, prompt)  # MODEL-AUTO; retry 1× on crash, else STOP
 
-  # Intel gate (sdlc, stages that touch code: implement, dev-wave-*, fe-dev-wave-*)
-  # Pre-stage: if current-stage starts implementing AND intel-path missing required artifacts → STOP with "intel-missing: {file}". User must run /from-code (or /from-doc + /from-code) before /resume-feature.
-  # Post-stage: if result.verdict carries `intel-drift: true` → persist to _state.md.intel-drift; suggest /intel-refresh after pipeline done.
+  # Intel gate (sdlc, stages that touch code)
+  # Pre-stage: if current-stage starts implementing AND intel-path missing required artifacts → STOP with "intel-missing: {file}".
+  # Post-stage: if result.verdict carries `intel-drift: true` → persist to _state.md.intel-drift.
 
-  status=continuing: last_verdict = result.verdict; print "[{stage}] ✓ {verdict}" (dots after iter>10), append_telemetry_inline(stage-complete), checkpoint_if_wave_boundary(), loop
-  status=done: append_telemetry_inline(done), report, release lock, exit
-  status=blocked: surface blockers, release lock, stop
-  status=pm-required:
-    pm_count++
-    IF pm_count > 5: STOP (possible stuck)
-    curr_hash = hash(_state.md)
-    IF curr_hash == last_hash AND pm_count > 1: STOP (no-op loop)
-    pm_ctx = truncate(result.pm-context, 8K)
-    pm_dynamic = "## PM Request\n" + pm_ctx
-    pm_result = Task(pm, PM_FROZEN + "\n\n" + pm_dynamic)  # retry 1× on crash, else STOP
-    IF invalid JSON or no `resume`: STOP
-    IF resume=true: last_hash = curr_hash; last_verdict = "pm-resolved"; loop
-    else: surface message, STOP
-  status=other: STOP
+  # Robust status handling — be LENIENT (cost-fix 2026-05-01):
+  # If result has no `status` field OR status is unknown: TREAT AS continuing (default behaviour).
+  # Only stop on EXPLICIT done/blocked/pm-required.
+  status = result.get("status") or "continuing"        # default to continuing if missing
+
+  CASE status:
+    "continuing":
+      last_verdict = result.verdict or "in-progress"
+      print "[{stage}] ✓ {verdict}" (dots after iter>10)
+      append_telemetry_inline(stage-complete)
+      checkpoint_if_wave_boundary()
+      loop  # ← CRITICAL: do NOT exit even if verdict says "wave done", "stage advanced", etc.
+
+    "done":
+      # SAFETY CHECK: verify stages-queue actually empty before honoring done.
+      reread _state.md
+      IF stages-queue is non-empty:
+        print "⚠ Dispatcher returned done but stages-queue not empty — treating as continuing"
+        last_verdict = "auto-continue"
+        loop                                             # do NOT exit
+      ELSE:
+        append_telemetry_inline(done)
+        report final summary
+        release lock
+        exit
+
+    "blocked":
+      # Distinguish HARD blockers (user input needed) from TRANSIENT blockers (try once more)
+      IF result.blockers contains any of: PARSE-001, NO-INVOKE-001:
+        # Transient — retry once
+        IF transient_retry_count < 1:
+          transient_retry_count++
+          continue                                       # retry same iter
+      surface blockers, release lock, stop
+
+    "pm-required":
+      pm_count++
+      IF pm_count > 5: STOP (possible stuck)
+      curr_hash = hash(_state.md)
+      IF curr_hash == last_hash AND pm_count > 1: STOP (no-op loop)
+      pm_ctx = truncate(result.pm-context, 8K)
+      pm_result = Task(pm, PM_FROZEN + "\n\npm_ctx)  # retry 1× on crash
+      IF invalid JSON or no `resume`: STOP
+      IF resume=true: last_hash = curr_hash; last_verdict = "pm-resolved"; loop
+      else: surface message, STOP
+
+    default ("other"):
+      # NEVER silently STOP. Log + treat as continuing.
+      print "⚠ Unknown status '{status}' from dispatcher — treating as continuing (cost-fix 2026-05-01)"
+      last_verdict = result.verdict or "unknown-status"
+      loop
 ```
 
-All STOP paths release lock. All paths preserve `_state.md`.
+**All STOP paths release lock. All paths preserve `_state.md`.**
+
+**Cost rationale (2026-05-01)**: Each early exit forces user to invoke `/resume-feature` again = NEW skill session = cache_write tax (1.25× input rate on system prompt + agent.md). Measured: ~$0.30-0.50 per re-invocation. Pipeline of 4 stages re-invoked 4× = ~$1.50 wasted on cold-cache tax alone. Strict rule: **loop until pipeline genuinely complete or hard-blocked**.
 
 ### 7a. SDLC Checkpoint markers (cache-safe)
 

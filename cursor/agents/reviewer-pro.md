@@ -1,6 +1,6 @@
 ---
 name: reviewer-pro
-model: claude-opus-4-7
+model: auto
 description: [ESCALATION TIER — opus] "Quality gate cuối: requirement + architecture + code quality + security + test adequacy. Chạy sau QA Pass."
 readonly: true
 ---

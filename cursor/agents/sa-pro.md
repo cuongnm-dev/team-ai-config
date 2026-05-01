@@ -1,6 +1,6 @@
 ---
 name: sa-pro
-model: claude-opus-4-7
+model: auto
 description: [ESCALATION TIER — opus] "Thiết kế kiến trúc 1 feature: routes, entities, integrations, permission concrete. Chạy sau ba duyệt."
 ---
 

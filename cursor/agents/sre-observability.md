@@ -1,7 +1,7 @@
 ---
 name: sre-observability
 description: "Resilience gap + SLO/SLI definition + monitoring. Chạy khi feature có integrations hoặc SLO-sensitive paths."
-model: composer-2
+model: auto
 readonly: true
 is_background: true
 ---

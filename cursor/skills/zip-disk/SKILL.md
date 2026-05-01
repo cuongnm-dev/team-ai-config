@@ -1,6 +1,7 @@
 ---
 name: zip-disk
 description: Đóng gói toàn bộ sản phẩm bàn giao thành 1 file ZIP để giao khách hàng hoặc ghi ra đĩa. Tự đổi tên tiếng Việt có dấu, gom tài liệu Word/Excel + thư mục mã nguồn + Docker file, loại bỏ file build và cache không cần thiết. Tên file dạng: {tên-dự-án}-ban-giao-{ngày}.zip.
+disable-model-invocation: true
 ---
 
 # ZIP Disk — Customer delivery package
