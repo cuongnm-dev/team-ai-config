@@ -302,15 +302,25 @@ for word in audience_profile.vocabulary_banned.literal:
             return blocked(f"banned word '{word}' in tkcs.{k}")
 ```
 
-### Step 6 — Mermaid diagrams (2 mandatory)
+### Step 6 — Diagrams (2 mandatory) — **PREFER PlantUML**
 
-Required diagram keys:
-- `tkcs_business_context` (graph LR): organization → external systems →
-  integrations (high-level, business-language only)
-- `tkcs_security_zones` (graph TD): ATTT zones per NĐ 85/2016 cấp độ X
+**MANDATORY READING** trước khi viết: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2 (BẮT BUỘC), patterns §3-§10, anti-patterns §11, checklist §12 (13 items).
+
+Mapping:
+- `tkcs_business_context` → Pattern B (Component, business-language only)
+- `tkcs_security_zones` → Pattern A (Deployment với 3 frame zones: DMZ / vùng trung gian / vùng trong)
+
+Engine auto-detects PlantUML (`@startuml`) vs Mermaid by source prefix.
+PlantUML PREFERRED — graphviz layout cleaner than Mermaid auto-layout.
+
+Required diagram keys + recommended PlantUML pattern:
+- `tkcs_business_context` (**PlantUML** component or rectangle):
+  organization → external systems → integrations (high-level, business-language only)
+- `tkcs_security_zones` (**PlantUML** package + node):
+  ATTT zones per NĐ 85/2016 cấp độ X
 
 Generic TKCS diagrams cite organization name + integration partners + zone
-boundaries — NEVER container names or framework names.
+boundaries — NEVER container names or framework names. Refs: `doc-diagram.md` Route 0.
 
 ### Step 7 — Write fragment + self-validate
 

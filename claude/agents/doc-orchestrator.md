@@ -22,8 +22,8 @@ Coordinate the full document-creation lifecycle — from workspace init through 
 ## Render Routing (CRITICAL — decide BEFORE Phase 1)
 
 ```
-RENDERER = "etc-docgen"  if doc_type in {tkcs, tkct, tkkt, hdsd}
-RENDERER = "pandoc"      if doc_type in {du-toan, hsmt, hsdt, nckt, bao-cao-ct, thuyet-minh, de-an-cds}
+RENDERER = "etc-platform"  if doc_type in {tkcs, tkct, tkkt, hdsd, xlsx, nckt}
+RENDERER = "pandoc"        if doc_type in {du-toan, hsmt, hsdt, bao-cao-ct, thuyet-minh, de-an-cds}
 ```
 
 **etc-docgen pipeline:**

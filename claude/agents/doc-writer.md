@@ -28,14 +28,18 @@ If prompt contains "OUTPUT_FORMAT: Markdown"  → Pandoc mode
 If unspecified                                → Pandoc mode (default)
 ```
 
-### etc-docgen Mode (TKCS, TKCT, TKKT, HDSD)
-- Output = **JSON object** matching `section_schema` fields.
+### etc-platform Mode (TKCS, TKCT, TKKT, HDSD, XLSX, **NCKT**)
+- Output = **JSON object** matching `section_schema(doc_type)` fields.
 - Prose fields = Vietnamese admin style (same rules as Markdown mode below).
 - Structured fields = JSON arrays/objects per Pydantic model.
 - Do NOT write Markdown files — return JSON string for orchestrator merge.
-- Orchestrator merges into `content-data.json`, then `etc-docgen` renders the `.docx`.
+- Orchestrator merges into `content-data.json`, then `etc-platform` MCP renders `.docx`.
+- **NCKT-specific**: delegate to `tdoc-nckt-writer` specialist agent. Block contract:
+  `nckt.sections[<key>]` (118 keys "1.1"…"pl.3"), `nckt.risk_matrix[]` (≥5 rows, §18.1),
+  `nckt.investment_summary[]` (§14.2), 8 diagram filename refs (§7 + Phụ lục).
+  Outline IMMUTABLE: load via `mcp__etc-platform__outline_load(doc_type="nghien-cuu-kha-thi")`.
 
-### Pandoc Mode (Dự toán, HSMT, HSDT, NCKT, Đề án CĐS, ...)
+### Pandoc Mode (Dự toán, HSMT, HSDT, Đề án CĐS, ...)
 - Output = **Markdown prose** written into `content/` files.
 - Unchanged from previous behavior.
 

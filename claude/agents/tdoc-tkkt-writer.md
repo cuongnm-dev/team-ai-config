@@ -252,21 +252,35 @@ if max(sims) > 0.65:
 # Same for nfr[].requirement+solution
 ```
 
-### Step 6 — Mermaid diagrams (6 mandatory)
+### Step 6 — Diagrams (6 mandatory) — **PREFER PlantUML**
 
-Emit Mermaid source for each diagram in `diagrams.{key}`. Render engine
-resolves `{key}` → PNG via mermaid-cli automatically.
+**MANDATORY READING** trước khi viết: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2 (BẮT BUỘC), worked patterns §3-§10, anti-patterns §11, pre-flight checklist §12 (13 items).
 
-Required diagram keys (6):
-- `tkkt_architecture` (graph TD): 3-4 layer overview per CPĐT 4.0
-- `tkkt_logical` (graph LR): components by domain
-- `tkkt_data` (erDiagram): entity relationships (top 10-15)
-- `tkkt_integration` (graph LR): external systems + integration patterns
-- `tkkt_deployment` (graph TB): zones + servers + network
-- `tkkt_security` (graph TD): security boundaries + access control
+Mapping 6 TKKT diagrams → notepad pattern:
+- `tkkt_architecture` → Pattern B (Component) hoặc C4 Container (§14)
+- `tkkt_logical` → Pattern B (Component grouping theo domain)
+- `tkkt_data` → Pattern D (ERD)
+- `tkkt_integration` → Pattern B (Component + external `<<system>>`)
+- `tkkt_deployment` → Pattern A (Deployment với node + frame zone)
+- `tkkt_security` → Pattern A + frame `<<security boundary>>` màu đỏ
 
-Mermaid sources MUST cite real component/entity names — generic "User →
-System → DB" is rejected.
+Emit diagram source in `diagrams.{key}`. Render engine auto-detects engine
+by source prefix:
+- Source starts with `@startuml`/`@startmindmap`/`@startgantt` → **PlantUML**
+  (graphviz dot layout — RECOMMENDED for arch/data/deployment/integration/security)
+- Source starts with `graph`/`flowchart`/`erDiagram`/... → Mermaid (legacy)
+- Both render to `{key}.png` automatically
+
+Required diagram keys (6) + RECOMMENDED engine + PlantUML pattern:
+- `tkkt_architecture` (**PlantUML** package/component): 3-4 layer overview per CPĐT 4.0
+- `tkkt_logical` (**PlantUML** component): components by domain
+- `tkkt_data` (**PlantUML** entity ERD): entity relationships (top 10-15) — `entity Foo { ... }` syntax
+- `tkkt_integration` (**PlantUML** component): external systems + integration patterns
+- `tkkt_deployment` (**PlantUML** node + database): zones + servers + network
+- `tkkt_security` (**PlantUML** package + component): security boundaries + access control
+
+PlantUML diagram sources MUST cite real component/entity names — generic "User →
+System → DB" is rejected. Tham khảo `doc-diagram.md` Route 0 cho 4 patterns chuẩn.
 
 ### Step 7 — Write fragment + self-validate
 

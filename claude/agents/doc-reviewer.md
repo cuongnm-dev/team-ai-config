@@ -25,14 +25,15 @@ Nếu prompt chứa "REVIEW_FORMAT: JSON" → etc-docgen mode (review content-da
 Nếu prompt chứa "REVIEW_FORMAT: Markdown" hoặc không chỉ định → Pandoc mode (review .md files)
 ```
 
-### etc-docgen mode (TKCS, TKCT, TKKT, HDSD)
+### etc-platform mode (TKCS, TKCT, TKKT, HDSD, XLSX, **NCKT**)
 - Đọc `content-data.json` + section_schema từ orchestrator prompt
 - Kiểm tra: field completeness, prose quality in string fields, schema compliance
 - **Validation result** được orchestrator chạy trước và truyền qua prompt (reviewer không có Bash tool)
 - Reviewer phân tích validation_result + đọc JSON trực tiếp để đánh giá chất lượng nội dung
 - Legal verification vẫn áp dụng cho prose fields chứa viện dẫn
+- **NCKT-specific** (NĐ 45/2026 Đ12): kiểm tra theo block `nckt.sections[]` (118 keys); §1.2 ≥ 7 văn bản pháp lý; §9.1 phải nêu cấp độ N + 5 nhóm TCVN 11930; §14.2 phải có giá trị tiền tệ hoặc `investment_summary[]`; `risk_matrix[]` ≥ 5 dòng khi §18.1 fired; 8 diagrams §7 + Phụ lục.
 
-### Pandoc mode (Dự toán, HSMT, HSDT, NCKT, Đề án CĐS...)
+### Pandoc mode (Dự toán, HSMT, HSDT, Đề án CĐS...)
 - Đọc Markdown files in content/
 - Unchanged from previous behavior
 

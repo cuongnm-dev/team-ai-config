@@ -85,6 +85,7 @@ Quản lý đầu tư ứng dụng CNTT sử dụng nguồn vốn ngân sách nh
 |---|---|---|
 | Thiết kế sơ bộ (TKCS) | Điều 18 | **Điều 13** |
 | Thiết kế chi tiết (TKCT) | Điều 19 | **Điều 14** |
+| Báo cáo Nghiên cứu khả thi (NCKT) | Điều 22 | **Điều 12** (outline `nghien-cuu-kha-thi/nd45-2026`, 19 chương + Phụ lục) |
 | Dự toán / Tổng mức đầu tư | Điều 19–20 | **Điều 16** |
 | Thẩm định TKCS | Điều 20–21 | **Điều 17** |
 | Kiểm thử, vận hành thử | Điều 25+ | **Điều 22** |
@@ -103,6 +104,35 @@ Quản lý đầu tư ứng dụng CNTT sử dụng nguồn vốn ngân sách nh
 | 5 | Tuyên bố sẵn sàng IPv6 hoặc lộ trình nâng cấp (dự án Internet) | **MỚI — BẮT BUỘC** |
 | 6 | Phương án an toàn, an ninh mạng | |
 | 7 | **Mô hình tổng thể + mô hình lô-gic + mô hình vật lý** | **MỚI — BẮT BUỘC 3 tầng** |
+
+## Yêu cầu nội dung NCKT — Điều 12 (Báo cáo Nghiên cứu khả thi)
+
+Outline IMMUTABLE: `nghien-cuu-kha-thi/nd45-2026.md` (load qua `mcp__etc-platform__outline_load`). Cấu trúc 19 chương + Phụ lục:
+
+| Chương | Nội dung | Khoản tham chiếu |
+|---|---|---|
+| 1 | Tổng quan dự án (thông tin chung, căn cứ pháp lý, yêu cầu ATTT) | Đ12 khoản 1 |
+| 2 | Sự cần thiết đầu tư (hiện trạng + đánh giá) | Đ12 khoản 2 |
+| 3 | Phù hợp Quy hoạch KT-XH + Khung KT CPĐT | Đ12 khoản 3 |
+| 4 | Mục tiêu, quy mô, thời gian, hình thức đầu tư | Đ12 khoản 4 |
+| 5 | Điều kiện tự nhiên, KT-KT, địa điểm | Đ12 khoản 5 |
+| 6 | Phân tích lựa chọn phương án CN/KT/TB (gồm tiêu chuẩn, yêu cầu, tiêu chí, mạng/FW/lưu trữ/máy chủ/ảo hoá/SIEM/NMS, PM nội bộ, PM thương mại, phục hồi) | Đ12 khoản 6 |
+| 7 | Mô hình kiến trúc (tổng thể, nghiệp vụ, logic hạ tầng, vật lý hạ tầng) | **3 tầng bắt buộc** |
+| 8 | Thiết kế cơ sở (định cỡ, hạ tầng, PM nội bộ, hỗ trợ vận hành, đào tạo, lắp đặt) | |
+| 9 | Cấp độ ATTT của hệ thống | NĐ 85/2016, TT 12/2022, TCVN 11930 |
+| 10 | Tổ chức quản lý, khai thác, sử dụng | |
+| 11 | Vật tư, dịch vụ, PCCC, ANQP | |
+| 12 | Đánh giá tác động & BVMT | |
+| 13 | Tiến độ thực hiện | |
+| 14 | Tổng mức đầu tư, cơ cấu nguồn vốn | Đ12 khoản 7 + TT 04/2020 |
+| 15 | Chi phí vận hành, bảo dưỡng, duy tu, sửa chữa lớn | |
+| 16 | Tổ chức quản lý dự án (chủ đầu tư, BQLDA, trách nhiệm các bên) | |
+| 17 | Hiệu quả đầu tư (KT-XH + ANQP) | |
+| 18 | Yếu tố đảm bảo thành công (rủi ro + yếu tố thành công) | Ma trận rủi ro tối thiểu 5 dòng |
+| 19 | Kết luận và kiến nghị | |
+| PL | Mặt bằng TTDL + sơ đồ mạng + sơ đồ liên thông | 3 sơ đồ bắt buộc |
+
+**Specialist agent**: `tdoc-nckt-writer` (Claude). Output JSON `nckt.sections[<key>]` + `nckt.risk_matrix[]` + `nckt.investment_summary[]` + 8 diagram refs. Render: `mcp__etc-platform__export(targets=["nckt"])` → `bao-cao-nghien-cuu-kha-thi.docx`.
 
 ## Yêu cầu nội dung TKCT — Điều 14
 

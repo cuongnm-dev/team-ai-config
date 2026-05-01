@@ -15,14 +15,14 @@ Doc type              Renderer       Output format
 ─────────────────     ──────────     ─────────────────────────
 TKCS                  etc-docgen     content-data.json → .docx
 TKCT                  etc-docgen     content-data.json → .docx
-TKKT                  etc-docgen     content-data.json → .docx
-HDSD                  etc-docgen     content-data.json → .docx
-Test Cases            etc-docgen     content-data.json → .xlsx
+TKKT                  etc-platform   content-data.json → .docx
+HDSD                  etc-platform   content-data.json → .docx
+Test Cases            etc-platform   content-data.json → .xlsx
+NCKT                  etc-platform   content-data.json → .docx (NĐ 45/2026 Đ12)
 ─────────────────     ──────────     ─────────────────────────
 Dự toán               Pandoc         Markdown → .docx
 HSMT                  Pandoc         Markdown → .docx
 HSDT                  Pandoc         Markdown → .docx
-NCKT                  Pandoc         Markdown → .docx
 Báo cáo chủ trương    Pandoc         Markdown → .docx
 Thuyết minh           Pandoc         Markdown → .docx
 ```
@@ -148,7 +148,7 @@ Mapping doc_type ↔ legacy filename:
 | `du-toan` | `tt04-2020` | `du-toan-tt04-2020.md` |
 | `hsmt` | `ldt2023` | `hsmt-ldt2023.md` |
 | `hsdt` | `ldt2023` | `hsdt-ldt2023.md` |
-| `nghien-cuu-kha-thi` | `v1` | `nghien-cuu-kha-thi.md` |
+| `nghien-cuu-kha-thi` | `nd45-2026` | `nghien-cuu-kha-thi.md` (19 chương + Phụ lục — render qua etc-platform) |
 | `thuyet-minh` | `v1` | `thuyet-minh.md` |
 | `bao-cao-chu-truong` | `v1` | `bao-cao-chu-truong.md` |
 
@@ -288,7 +288,7 @@ Init `content-data.json` skeleton from interview data:
 # 5. validate(content-data.json) → check initial skeleton
 ```
 
-**For Pandoc doc types (Dự toán, HSMT, HSDT, NCKT, etc.):**
+**For Pandoc doc types (Dự toán, HSMT, HSDT, etc. — không bao gồm NCKT):**
 ```
 projects/{slug}/
 ├── _doc_state.md          ← from template, populated with section tracker
@@ -365,7 +365,7 @@ Target: content-data.json → etc-docgen sẽ render .docx
 5. Return JSON object with ONLY the fields you are filling
 ```
 
-### 5b. Pandoc doc types (Dự toán, HSMT, HSDT, NCKT, etc.)
+### 5b. Pandoc doc types (Dự toán, HSMT, HSDT, etc. — không bao gồm NCKT)
 
 **Unchanged — doc-writer produces Markdown prose:**
 
@@ -454,9 +454,9 @@ Bash("./export/export.ps1 -DocPath projects/{slug} -Open")
 ```
 Đề án CĐS → per DA-XX:
   ├── Báo cáo chủ trương (prerequisite: QĐ phê duyệt Đề án)        [Pandoc]
-  ├── NCKT (prerequisite: Báo cáo CT hoặc QĐ chủ trương)           [Pandoc]
-  ├── TKCS (prerequisite: NCKT hoặc QĐ đầu tư)                     [etc-docgen]
-  ├── TKCT (prerequisite: TKCS duyệt)                               [etc-docgen]
+  ├── NCKT (prerequisite: Báo cáo CT hoặc QĐ chủ trương)           [etc-platform]
+  ├── TKCS (prerequisite: NCKT hoặc QĐ đầu tư)                     [etc-platform]
+  ├── TKCT (prerequisite: TKCS duyệt)                               [etc-platform]
   ├── Dự toán (prerequisite: TKCS hoặc TKCT)                        [Pandoc]
   ├── HSMT (prerequisite: QĐ kế hoạch lựa chọn nhà thầu)           [Pandoc]
   └── HSDT (prerequisite: HSMT + TKCS + Dự toán)                    [Pandoc]
@@ -467,8 +467,8 @@ User không cần copy-paste — orchestrator tự link.
 
 **Cross-renderer handoff**: Khi TKCS (etc-docgen) → Dự toán (Pandoc), orchestrator
 đọc content-data.json và inject relevant data vào DCB cho Pandoc writer.
-Khi NCKT (Pandoc) → TKCS (etc-docgen), orchestrator đọc NCKT content files
-và populate content-data.json skeleton.
+Khi NCKT → TKCS (cả hai etc-platform), orchestrator đọc `nckt.sections[]` từ
+content-data.json và inject vào `tkcs.*` skeleton (kế thừa hiện trạng + giải pháp).
 
 ---
 

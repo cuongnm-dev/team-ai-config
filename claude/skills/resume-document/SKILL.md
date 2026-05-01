@@ -161,13 +161,15 @@ Nếu fresh session (no history): skip — state file đủ.
 ### EXPORT Stage Routing:
 
 ```
-Doc type in {tkcs, tkct, tkkt, hdsd}?
-  ├─ YES → etc-docgen v2.0.0 job-based pipeline:
+Doc type in {tkcs, tkct, tkkt, hdsd, xlsx, nckt}?
+  ├─ YES → etc-platform v2.0.0+ job-based pipeline:
   │        Bash: curl -F file=@projects/{slug}/content-data.json $ETC_URL/uploads → upload_id
   │        mcp__etc-platform__validate_uploaded(upload_id)
   │        mcp__etc-platform__export_async(upload_id, targets=[doc_type]) → job_id
   │        mcp__etc-platform__job_status(job_id) (poll until terminal)
   │        Bash: curl -o projects/{slug}/output/<file> $ETC_URL/jobs/<id>/files/<file>
+  │        # NCKT-specific: specialist agent là tdoc-nckt-writer (118 sections,
+  │        # outline IMMUTABLE = nghien-cuu-kha-thi/nd45-2026, NĐ 45/2026 Đ12)
   │
   └─ NO  → Pandoc pipeline:
            Bash("./export/export.ps1 -DocPath projects/{slug} -Open")

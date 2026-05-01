@@ -11,7 +11,7 @@
 | DT-05 | Thuyết minh đề án / dự án  | `thuyet-minh`        | NĐ 73/2019, Điều 16-17            | Hiện trạng, giải pháp đề xuất, kế hoạch, kinh phí        | 40-80 trang      |
 | DT-06 | Hồ sơ mời thầu (HSMT)      | `hsmt-ldt2023`       | Luật 22/2023, NĐ 24/2024          | Chỉ dẫn nhà thầu, điều kiện hợp đồng, yêu cầu kỹ thuật   | 50-100 trang     |
 | DT-07 | Hồ sơ dự thầu (HSDT)       | `hsdt-ldt2023`       | Luật 22/2023, NĐ 24/2024          | Đơn dự thầu, năng lực, giải pháp, giá dự thầu            | 60-120 trang     |
-| DT-08 | Báo cáo nghiên cứu khả thi | `nghien-cuu-kha-thi` | NĐ 73/2019, Điều 15               | Hiện trạng, NCKT, phân tích lựa chọn, kế hoạch           | 50-80 trang      |
+| DT-08 | Báo cáo Nghiên cứu khả thi | `nghien-cuu-kha-thi` (`nd45-2026`) | **NĐ 45/2026, Điều 12** (kế thừa NĐ 73/2019 Điều 22) | 19 chương + Phụ lục: Tổng quan, Sự cần thiết, Phù hợp quy hoạch, Mục tiêu, Điều kiện địa điểm, Phương án CN/KT/TB, Mô hình kiến trúc, TKCS, ATTT cấp độ, Quản lý-khai thác, PCCC-ANQP, BVMT, Tiến độ, Tổng mức ĐT, Vận hành, QLDA, Hiệu quả, Rủi ro, Kết luận, PL sơ đồ | 80-120 trang     |
 
 ---
 

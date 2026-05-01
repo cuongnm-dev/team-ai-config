@@ -277,19 +277,29 @@ if max(sims) > 0.65:
 
 Threshold 0.65 (stricter than v1's 0.70). Server-side check at 0.80.
 
-### Step 6 — Diagrams (Mermaid sources, NOT images)
+### Step 6 — Diagrams (source strings, NOT images) — **PREFER PlantUML**
 
-Emit Mermaid source for each required diagram in `diagrams.{key}`. The
-render engine resolves `{key}` → PNG via mermaid-cli automatically.
+**MANDATORY READING** trước khi viết: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2, patterns §3-§10, anti-patterns §11, checklist §12.
 
-Required diagram keys:
-- `tkct_architecture_overview` (graph TD): components + integration arrows
-- `tkct_data_model` (erDiagram): entities + relationships
-- `tkct_security_zones` (graph LR): network zones + ACL boundaries
-- `tkct_module_{module_name}_flow` (sequenceDiagram): per-module business flow
+Mapping:
+- `tkct_architecture_overview` → Pattern B (Component)
+- `tkct_data_model` → Pattern D (ERD với 6+ entity, đầy đủ FK/PK/unique)
+- `tkct_security_zones` → Pattern A (Deployment với security frames)
+- `tkct_module_{module_name}_flow` → Pattern C (Sequence) hoặc Pattern G (Activity với swimlane)
 
-Mermaid sources MUST cite real component names from intel — generic
-"User → System → DB" is rejected.
+Emit diagram source in `diagrams.{key}`. Engine auto-detects PlantUML vs Mermaid
+by prefix (`@startuml` → PlantUML, `graph`/`erDiagram` → Mermaid). PlantUML is
+RECOMMENDED for TKCT — graphviz dot layout produces cleaner output for ERD,
+sequence, and component diagrams than Mermaid.
+
+Required diagram keys + recommended PlantUML pattern:
+- `tkct_architecture_overview` (**PlantUML** component): components + integration arrows
+- `tkct_data_model` (**PlantUML** entity): entities + relationships (cardinality icons)
+- `tkct_security_zones` (**PlantUML** package + node): network zones + ACL boundaries
+- `tkct_module_{module_name}_flow` (**PlantUML** sequence): per-module business flow
+
+PlantUML/Mermaid sources MUST cite real component names from intel — generic
+"User → System → DB" is rejected. Refs: `doc-diagram.md` Route 0 (4 patterns).
 
 ### Step 7 — Write fragment
 
