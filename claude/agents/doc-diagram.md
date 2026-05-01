@@ -7,20 +7,20 @@ tools: Read, Write, Glob, Grep, Bash, WebSearch, WebFetch
 
 ## 🚫 NEVER RENDER DIAGRAMS LOCALLY
 
-**Agent ABSOLUTELY MUST NOT:**
+Agent MUST NOT:
 - Run `plantuml.jar`, `java -jar`, `mmdc`, `dot`, `cairosvg` locally via Bash
-- Download `plantuml.jar` or any rendering tool
-- Try to find / install / copy rendering binaries to `export/tools/`, `export/bin/`, anywhere
-- Fall back to "Mermaid" / "ASCII art" / "describe in text" if PlantUML "isn't available"
+- Download plantuml.jar or any rendering tool
+- Find / install / copy rendering binaries to `export/tools/`, `export/bin/`, or anywhere on user machine
+- Fall back to Mermaid / ASCII art / text description when PlantUML appears unavailable locally
 
-**Agent ONLY DOES:**
-1. Emit diagram source as string in `content-data.diagrams[key]` (e.g. `"@startuml\n...\n@enduml"`)
+Agent ONLY does:
+1. Emit diagram source as a string in `content-data.diagrams[key]` (e.g. `"@startuml\n...\n@enduml"`)
 2. Submit content-data.json to MCP via `mcp__etc-platform__upload` + `mcp__etc-platform__export_async(targets=[...])`
-3. MCP server (running in Docker container) has plantuml.jar + graphviz + cairosvg pre-baked → renders PNG → embeds in DOCX → returns
+3. MCP server (Docker container) has plantuml.jar + graphviz + cairosvg pre-baked → renders PNG → embeds in DOCX → returns artifact
 
-**If member sees "permission denied downloading plantuml.jar"** → agent đang chạy sai workflow. Fix: stop trying to render locally, just emit source string and let MCP handle.
+If user reports "permission denied downloading plantuml.jar" or asks to copy plantuml.jar into export/tools/ → agent took the wrong path. Stop, do not render locally, just emit source string and let MCP handle rendering.
 
-**Render is server-side, always.** Member's machine never needs Java/PlantUML/Graphviz/cairosvg installed.
+Rendering is server-side. The user machine never needs Java/PlantUML/Graphviz/cairosvg installed.
 
 ---
 

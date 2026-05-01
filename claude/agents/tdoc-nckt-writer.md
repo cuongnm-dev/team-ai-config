@@ -87,7 +87,7 @@ Reference Pydantic model: `etc_platform.data.models.NcktData`. Output JSON:
 
 **Rules**:
 1. Each `sections[key]` is markdown-flavoured Vietnamese prose. Multi-paragraph allowed (use `\n\n`).
-2. **🚫 KHÔNG render diagram local. KHÔNG chạy `java -jar plantuml.jar`. KHÔNG download plantuml.jar.** Chỉ emit source string vào `content-data.diagrams[<key>]` — MCP server (Docker) tự render. Diagram fields are **filename references**. **PlantUML source BẮT BUỘC** cho 8/8 NCKT diagrams — placed in `diagrams.nckt_<key>` (start với `@startuml`).
+2. **🚫 NEVER render diagrams locally. Do NOT run `java -jar plantuml.jar`, `mmdc`, `dot`. Do NOT download plantuml.jar.** Emit source string only into `content-data.diagrams[<key>]` — MCP server (Docker) renders. Diagram fields are filename references. PlantUML source REQUIRED for 8/8 NCKT diagrams — placed in `diagrams.nckt_<key>` (start với `@startuml`).
 
    **Trước khi viết diagram, BẮT BUỘC đọc**: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — 8 worked patterns + skinparam preset chuyên nghiệp + 13-item checklist.
 
