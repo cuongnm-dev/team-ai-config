@@ -622,22 +622,33 @@ const renderDocSubset = (file, fromLine, toLine, headerSuffix) => {
   hintLessOnce();
 };
 
-// Interactive menu over a doc's H2 sections (with H3 sub-pick when present).
-// Renders selected section. ESC / Ctrl+C exits cleanly.
-const interactiveSectionMenu = async (file) => {
-  const content = fs.readFileSync(file, 'utf8');
-  const stripped = stripFm(content);
-  const sections = parseDocSections(stripped);
-  if (sections.length === 0) { renderDoc(file); return; }
+// After rendering a section, ask user where to go next.
+// Returns 'menu' (back to section list) or 'exit' (quit doc).
+const promptContinue = async () => {
+  try {
+    return await select({
+      message: ' ',
+      choices: [
+        { name: '↩ Quay lại menu mục', value: 'menu' },
+        { name: '✕ Thoát', value: 'exit' },
+      ],
+      pageSize: 4,
+    });
+  } catch { return 'exit'; }
+};
+
+// One pass of section menu: pick H2 section → optional H3 pick → render subset.
+// Returns 'rendered' (a section was shown) or 'exit' (user quit menu).
+const pickAndRenderSection = async (file, sections) => {
   const choices = [
-    { name: '📖 Xem toàn bộ', value: '__all' },
+    { name: '📖 Xem toàn bộ tài liệu', value: '__all' },
     ...sections.map((s, idx) => ({
       name: s.children.length > 0
         ? `${s.title}  ${S.dim}(${s.children.length} mục con)${S.reset}`
         : s.title,
       value: String(idx),
     })),
-    { name: '↩ Thoát', value: '__back' },
+    { name: '✕ Thoát', value: '__exit' },
   ];
   let pick;
   try {
@@ -646,57 +657,90 @@ const interactiveSectionMenu = async (file) => {
       choices,
       pageSize: 15,
     });
-  } catch { return; } // Ctrl+C / ESC
-  if (pick === '__back') return;
-  if (pick === '__all') { renderDoc(file); return; }
+  } catch { return 'exit'; }
+  if (pick === '__exit') return 'exit';
+  if (pick === '__all') { clearScreen(); renderDoc(file); return 'rendered'; }
+
   const sec = sections[parseInt(pick, 10)];
-  // If H2 has H3 children, offer 2nd-level pick
+  // Drill into H3 children when present
   if (sec.children.length > 0) {
     const sub = [
       { name: `📖 Toàn bộ "${sec.title}"`, value: '__sec' },
       ...sec.children.map((c, idx) => ({ name: c.title, value: String(idx) })),
-      { name: '↩ Quay lại', value: '__back' },
+      { name: '↩ Quay lại danh sách mục', value: '__back' },
     ];
     let pick2;
     try {
       clearScreen();
       pick2 = await select({ message: `${sec.title} →`, choices: sub, pageSize: 15 });
-    } catch { return; }
-    if (pick2 === '__back') { clearScreen(); return interactiveSectionMenu(file); }
+    } catch { return 'exit'; }
+    if (pick2 === '__back') return pickAndRenderSection(file, sections); // re-pick top-level
     if (pick2 === '__sec') {
+      clearScreen();
       renderDocSubset(file, sec.lineStart, sec.lineEnd, sec.title);
-      return;
+      return 'rendered';
     }
-    const child = sec.children[parseInt(pick2, 10)];
-    const nextChild = sec.children[parseInt(pick2, 10) + 1];
+    const cIdx = parseInt(pick2, 10);
+    const child = sec.children[cIdx];
+    const nextChild = sec.children[cIdx + 1];
     const childEnd = nextChild ? nextChild.lineStart - 1 : sec.lineEnd;
+    clearScreen();
     renderDocSubset(file, child.lineStart, childEnd, `${sec.title} → ${child.title}`);
-    return;
+    return 'rendered';
   }
+  clearScreen();
   renderDocSubset(file, sec.lineStart, sec.lineEnd, sec.title);
+  return 'rendered';
 };
 
-// On-board hub: 3-choice menu (Overview / SDLC / Tài liệu)
+// Loop: section menu → render → "đọc tiếp?" → menu / exit.
+// Used for any long doc (>2 H2 sections).
+const docSessionLoop = async (file) => {
+  const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
+  if (sections.length === 0) { renderDoc(file); return; }
+  while (true) {
+    clearScreen();
+    const result = await pickAndRenderSection(file, sections);
+    if (result === 'exit') return;
+    const next = await promptContinue();
+    if (next === 'exit') return;
+    // else loop back to section menu
+  }
+};
+
+// On-board hub: pick luồng → drill into chosen on-board doc with section loop.
+// Loops so user can read both luồng A and luồng B in one session.
 const interactiveOnboardMenu = async () => {
   const docsDir = path.join(REPO_DIR, 'docs');
-  let pick;
-  try {
-    pick = await select({
-      message: 'Hướng dẫn nhập môn — chọn luồng:',
-      choices: [
-        { name: '📋 Tổng quan (chọn luồng A hoặc B)', value: 'on-board' },
-        { name: '🅰 SDLC — Sản xuất phần mềm', value: 'on-board-sdlc' },
-        { name: '🅱 Tài liệu nhà nước (Đề án CĐS, đấu thầu CNTT)', value: 'on-board-tailieu' },
-        { name: '↩ Thoát', value: '__back' },
-      ],
-      pageSize: 10,
-    });
-  } catch { return; }
-  if (pick === '__back') return;
-  const file = path.join(docsDir, `${pick}.md`);
-  if (exists(file)) {
+  while (true) {
     clearScreen();
-    renderDoc(file);
+    let pick;
+    try {
+      pick = await select({
+        message: 'Hướng dẫn nhập môn — chọn luồng công việc:',
+        choices: [
+          { name: '📋 Tổng quan (router — chọn luồng A hoặc B trước)', value: 'on-board' },
+          { name: '🅰 SDLC — Sản xuất phần mềm (BA/SA/Dev/QA)', value: 'on-board-sdlc' },
+          { name: '🅱 Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'on-board-tailieu' },
+          { name: '✕ Thoát', value: '__exit' },
+        ],
+        pageSize: 10,
+      });
+    } catch { return; }
+    if (pick === '__exit') return;
+    const file = path.join(docsDir, `${pick}.md`);
+    if (!exists(file)) continue;
+    // 'on-board' itself is short (router) → render direct + continue prompt.
+    // sdlc/tailieu are long → use section loop.
+    const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
+    if (sections.length > 2) {
+      await docSessionLoop(file);
+    } else {
+      clearScreen();
+      renderDoc(file);
+      const next = await promptContinue();
+      if (next === 'exit') return;
+    }
   }
 };
 
@@ -716,14 +760,10 @@ const docCommand = async (args) => {
     return;
   }
 
-  // Multi-level menus: on-board hub + faq sections.
+  // Multi-level menu: on-board has a special hub menu (luồng A vs B).
   if (interactive && sub === 'on-board') {
     await interactiveOnboardMenu();
     return;
-  }
-  if (interactive && sub === 'faq') {
-    const file = path.join(docsDir, 'faq.md');
-    if (exists(file)) { await interactiveSectionMenu(file); return; }
   }
   if (sub === '--search' || sub === '-s') {
     if (!args[1]) { console.error('Cách dùng: ai-kit doc --search <từ khoá>'); process.exit(1); }
@@ -797,6 +837,15 @@ const docCommand = async (args) => {
     process.stderr.write(`${S.red}  ✗ Topic not found: ${sub}${S.reset}\n`);
     printDocsIndex();
     process.exit(1);
+  }
+  // For interactive sessions, auto-show section menu when doc has >2 H2 sections.
+  // Member can then navigate without scrolling. Short docs render directly.
+  if (interactive) {
+    const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
+    if (sections.length > 2) {
+      await docSessionLoop(file);
+      return;
+    }
   }
   renderDoc(file);
 };
