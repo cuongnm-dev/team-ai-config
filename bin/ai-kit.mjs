@@ -404,36 +404,40 @@ const clearScreen = () => {
   }
 };
 
-// Page long doc through `less -R` (Unix + Git Bash on Win) or `more` (Win fallback).
+// Page long doc through `less -R` (Unix + Git Bash + WSL + Windows-with-less).
 // Pager is interactive, content starts at TOP of viewport, user scrolls with Space/PgDn.
-// Skipped when stdout not a TTY (piped/redirected) or NO_PAGER=1.
+// Skipped when stdout not a TTY (piped/redirected), NO_PAGER=1, or `less` not installed.
+// Windows `more` is NOT used — it mangles UTF-8 (Vietnamese → mojibake) and strips ANSI.
 const tryPager = (text) => {
   if (!process.stdout.isTTY || process.env.NO_PAGER === '1') return false;
+  if (!cmdAvail('less')) return false;
   const viewport = process.stdout.rows || 30;
   const lines = text.split('\n').length;
   if (lines <= viewport - 2) return false; // Fits on screen — no need to page
 
   const tmpFile = path.join(os.tmpdir(), `ai-kit-doc-${process.pid}-${Date.now()}.txt`);
   try {
-    if (cmdAvail('less')) {
-      // -R = pass through ANSI colors; -F = quit if 1 page; -X = no clear on exit (preserves doc visible after quit)
-      fs.writeFileSync(tmpFile, text);
-      execaSync('less', ['-R', '-F', '-X', tmpFile], {stdio: 'inherit'});
-      return true;
-    }
-    if (process.platform === 'win32' && cmdAvail('more')) {
-      // Windows `more` doesn't render ANSI escapes — strip them for paged view
-      const plain = text.replace(/\x1b\[[0-9;]*m/g, '');
-      fs.writeFileSync(tmpFile, plain);
-      execaSync('more', [tmpFile], {stdio: 'inherit'});
-      return true;
-    }
+    // -R = pass through ANSI colors; -F = quit if 1 page; -X = no clear on exit (doc remains visible)
+    fs.writeFileSync(tmpFile, text);
+    execaSync('less', ['-R', '-F', '-X', tmpFile], {stdio: 'inherit'});
+    return true;
   } catch {
-    // Pager failed — caller falls through to direct stdout write
+    return false; // Pager failed — caller falls through to direct stdout write
   } finally {
     try { fs.unlinkSync(tmpFile); } catch {}
   }
-  return false;
+};
+
+// One-time hint: when on Windows without `less`, suggest installing it for paginated reading.
+// Stored in env var so we only print once per session.
+const hintLessOnce = () => {
+  if (process.platform !== 'win32') return;
+  if (cmdAvail('less')) return;
+  if (process.env.AI_KIT_LESS_HINTED === '1') return;
+  process.env.AI_KIT_LESS_HINTED = '1';
+  process.stdout.write(
+    `${S.gray}  Tip: cài \`less\` để doc dài tự paging từ đầu (scoop install less | choco install less | winget install less).${S.reset}\n`
+  );
 };
 
 const renderDoc = (file) => {
@@ -458,6 +462,7 @@ const renderDoc = (file) => {
     `  ${S.gray}ai-kit doc  ·  ai-kit doc --search <term>${S.reset}\n`;
   if (tryPager(text)) return;
   process.stdout.write(text + '\n');
+  hintLessOnce();
 };
 
 
