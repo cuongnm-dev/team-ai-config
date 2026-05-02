@@ -36,5 +36,12 @@ if (-not (Test-Path (Join-Path $AiHome 'node_modules'))) {
   } finally { Pop-Location }
 }
 
+# Self-heal: sync bin\lib from repo if missing (post-modular-refactor)
+$LibDir   = Join-Path $Dir 'lib'
+$RepoLib  = Join-Path $RepoDir 'bin\lib'
+if (-not (Test-Path (Join-Path $LibDir 'util.mjs')) -and (Test-Path $RepoLib)) {
+  Copy-Item -Recurse -Force $RepoLib $LibDir
+}
+
 & node (Join-Path $Dir 'ai-kit.mjs') @args
 exit $LASTEXITCODE

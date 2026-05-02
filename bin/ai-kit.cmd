@@ -32,5 +32,11 @@ if errorlevel 1 (
 popd
 
 :run
+REM Self-heal: sync bin\lib from repo if missing (post-modular-refactor)
+if not exist "%DIR%lib\util.mjs" (
+  if exist "%REPO_DIR%\bin\lib" (
+    xcopy /E /I /Y /Q "%REPO_DIR%\bin\lib" "%DIR%lib\" >nul
+  )
+)
 node "%DIR%ai-kit.mjs" %*
 exit /b %ERRORLEVEL%
