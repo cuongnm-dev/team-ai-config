@@ -12,6 +12,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import React, { useEffect, useState } from 'react';
+import { Listr } from 'listr2';
+import boxen from 'boxen';
 
 const _pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const VERSION = _pkg.version;
@@ -622,50 +624,53 @@ const dockerHealth = () => {
   return 'ok';
 };
 
-// Print friendly OS-specific guidance when Docker missing/stopped.
+// Print friendly OS-specific guidance when Docker missing/stopped (boxed).
 const printDockerGuide = (state) => {
   const isWin = process.platform === 'win32';
   const isMac = process.platform === 'darwin';
-  warn(state === 'not-installed'
-    ? 'Docker chưa được cài đặt trên máy.'
-    : 'Docker daemon đang dừng — service MCP cần Docker để chạy.');
-  console.log('');
+  const title = state === 'not-installed'
+    ? '⚠ Docker chưa được cài đặt'
+    : '⚠ Docker daemon đang dừng';
+  let body;
   if (state === 'not-installed') {
     if (isWin) {
-      console.log(`  ${C.cyan}Cài Docker Desktop cho Windows:${C.reset}`);
-      console.log('    1. Tải:  https://www.docker.com/products/docker-desktop/');
-      console.log('    2. Hoặc qua winget:  winget install Docker.DockerDesktop');
-      console.log('    3. Sau khi cài, mở Docker Desktop và đợi icon Docker xanh ở taskbar.');
+      body = `${C.cyan}Cài Docker Desktop cho Windows:${C.reset}\n`
+        + `  1. Tải: https://www.docker.com/products/docker-desktop/\n`
+        + `  2. Hoặc qua winget:  ${C.yellow}winget install Docker.DockerDesktop${C.reset}\n`
+        + `  3. Sau khi cài, mở Docker Desktop và đợi icon xanh ở taskbar`;
     } else if (isMac) {
-      console.log(`  ${C.cyan}Cài Docker Desktop cho macOS:${C.reset}`);
-      console.log('    1. Tải:  https://www.docker.com/products/docker-desktop/');
-      console.log('    2. Hoặc qua brew:  brew install --cask docker');
-      console.log('    3. Sau khi cài, mở Docker Desktop từ Applications.');
+      body = `${C.cyan}Cài Docker Desktop cho macOS:${C.reset}\n`
+        + `  1. Tải: https://www.docker.com/products/docker-desktop/\n`
+        + `  2. Hoặc qua brew:  ${C.yellow}brew install --cask docker${C.reset}\n`
+        + `  3. Sau khi cài, mở Docker Desktop từ Applications`;
     } else {
-      console.log(`  ${C.cyan}Cài Docker Engine cho Linux:${C.reset}`);
-      console.log('    curl -fsSL https://get.docker.com | sh');
-      console.log('    sudo usermod -aG docker $USER  # logout/login để áp dụng');
-      console.log('    sudo systemctl enable --now docker');
+      body = `${C.cyan}Cài Docker Engine cho Linux:${C.reset}\n`
+        + `  ${C.yellow}curl -fsSL https://get.docker.com | sh${C.reset}\n`
+        + `  ${C.yellow}sudo usermod -aG docker $USER${C.reset}  ${C.gray}# logout/login để áp dụng${C.reset}\n`
+        + `  ${C.yellow}sudo systemctl enable --now docker${C.reset}`;
     }
   } else {
     if (isWin) {
-      console.log(`  ${C.cyan}Bật Docker Desktop:${C.reset}`);
-      console.log('    1. Mở Start menu → tìm "Docker Desktop" → Run');
-      console.log('    2. Đợi icon Docker xanh ở taskbar (~30s)');
-      console.log('    3. Hoặc CLI:  Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"');
+      body = `${C.cyan}Bật Docker Desktop:${C.reset}\n`
+        + `  1. Mở Start menu → tìm "Docker Desktop" → Run\n`
+        + `  2. Đợi icon Docker xanh ở taskbar (~30s)\n`
+        + `  3. Hoặc CLI:  ${C.yellow}Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"${C.reset}`;
     } else if (isMac) {
-      console.log(`  ${C.cyan}Bật Docker Desktop:${C.reset}`);
-      console.log('    open -a Docker');
-      console.log('    # Đợi icon Docker xuất hiện trên menu bar (~30s)');
+      body = `${C.cyan}Bật Docker Desktop:${C.reset}\n`
+        + `  ${C.yellow}open -a Docker${C.reset}\n`
+        + `  ${C.gray}# Đợi icon Docker xuất hiện trên menu bar (~30s)${C.reset}`;
     } else {
-      console.log(`  ${C.cyan}Bật Docker daemon:${C.reset}`);
-      console.log('    sudo systemctl start docker');
-      console.log('    sudo systemctl enable docker  # tự động bật khi reboot');
+      body = `${C.cyan}Bật Docker daemon:${C.reset}\n`
+        + `  ${C.yellow}sudo systemctl start docker${C.reset}\n`
+        + `  ${C.yellow}sudo systemctl enable docker${C.reset}  ${C.gray}# tự động bật khi reboot${C.reset}`;
     }
   }
-  console.log('');
-  console.log(`  ${C.gray}Sau khi xong, chạy lại:${C.reset}  ai-kit update`);
-  console.log('');
+  body += `\n\n${C.gray}Sau khi xong, chạy lại:${C.reset}  ${C.green}ai-kit update${C.reset}`;
+  console.log(boxen(body, {
+    padding: 1, margin: {top: 0, bottom: 1, left: 2, right: 2},
+    borderColor: 'yellow', borderStyle: 'round',
+    title, titleAlignment: 'left',
+  }));
 };
 
 // Try to auto-start Docker Desktop on Windows / macOS (best-effort, returns true if started).
@@ -699,135 +704,178 @@ const waitForDocker = (maxMs = 60000) => {
 };
 
 // ─── update ────────────────────────────────────────────────────────────
-const cmdUpdate = () => {
+const cmdUpdate = async () => {
   ensureRepo();
-  info('Đang kiểm tra thay đổi cục bộ');
-  const {stdout: dirty} = shQuiet('git', ['-C', REPO_DIR, 'status', '--porcelain']);
-  if (dirty && dirty.trim()) {
-    err('Có thay đổi cục bộ chưa commit — chạy "ai-kit reset" để bỏ, hoặc commit trước.');
-    console.log(dirty);
+
+  // Snapshot vars used across tasks
+  let _snapName = '';
+
+  const tasks = new Listr([
+    {
+      title: 'Kiểm tra thay đổi cục bộ',
+      task: (ctx, task) => {
+        const {stdout: dirty} = shQuiet('git', ['-C', REPO_DIR, 'status', '--porcelain']);
+        if (dirty && dirty.trim()) {
+          ctx.dirty = dirty;
+          throw new Error('Có thay đổi cục bộ chưa commit — chạy "ai-kit reset" để bỏ, hoặc commit trước.');
+        }
+        task.title = 'Repo sạch, không có thay đổi cục bộ';
+      },
+    },
+    {
+      title: 'Pull team-ai-config mới nhất',
+      task: (_, task) => {
+        const r = sh('git', ['-C', REPO_DIR, 'pull', '--ff-only', '--quiet']);
+        if (r.exitCode !== 0) throw new Error('git pull thất bại');
+        task.title = 'Đã pull team-ai-config';
+      },
+    },
+    {
+      title: 'Làm mới ai-kit CLI tại ~/.ai-kit/bin',
+      task: (_, task) => {
+        fs.mkdirSync(BIN_DIR, {recursive: true});
+        for (const f of ['ai-kit', 'ai-kit.cmd', 'ai-kit.ps1', 'ai-kit.mjs', 'ai-kit.legacy', 'ai-kit.legacy.ps1']) {
+          const src = path.join(REPO_DIR, 'bin', f);
+          const dst = path.join(BIN_DIR, f);
+          if (exists(src)) {
+            fs.copyFileSync(src, dst);
+            if (process.platform !== 'win32' && (f === 'ai-kit' || f === 'ai-kit.legacy')) {
+              try { fs.chmodSync(dst, 0o755); } catch {}
+            }
+          }
+        }
+        task.title = 'Đã làm mới CLI';
+      },
+    },
+    {
+      title: 'Cài Node deps vào ~/.ai-kit',
+      enabled: () => exists(path.join(REPO_DIR, 'package.json')),
+      task: (_, task) => {
+        fs.copyFileSync(path.join(REPO_DIR, 'package.json'), path.join(AI_KIT_HOME, 'package.json'));
+        const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+        const r = sh(npmBin, ['install', '--omit=dev', '--silent'], {cwd: AI_KIT_HOME, stdio: ['ignore', 'ignore', 'pipe']});
+        if (r.exitCode !== 0) throw new Error('npm install thất bại');
+        task.title = 'Đã cài Node deps';
+      },
+    },
+    {
+      title: 'Sao lưu cấu hình hiện tại',
+      task: (ctx, task) => {
+        const _snapTs = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        _snapName = `ai-config-backup-${_snapTs}`;
+        const _cprSnap = (s, d) => {
+          if (!exists(s)) return;
+          fs.mkdirSync(d, {recursive: true});
+          for (const e of fs.readdirSync(s, {withFileTypes: true})) {
+            const sp = path.join(s, e.name), dp = path.join(d, e.name);
+            if (e.isDirectory()) _cprSnap(sp, dp);
+            else fs.copyFileSync(sp, dp);
+          }
+        };
+        for (const [base, items] of [
+          [path.join(os.homedir(), '.claude'), ['agents', 'skills']],
+          [path.join(os.homedir(), '.cursor'), ['agents', 'skills']],
+        ]) {
+          for (const item of items) {
+            const src = path.join(base, item);
+            if (exists(src)) _cprSnap(src, path.join(base, _snapName, item));
+          }
+        }
+        task.title = `Đã sao lưu (${_snapName})`;
+      },
+    },
+    {
+      title: 'Triển khai agents + skills vào ~/.claude và ~/.cursor',
+      task: (_, task) => {
+        const deploy = (subdir, target) => {
+          const src = path.join(REPO_DIR, subdir);
+          if (!exists(src)) return;
+          const dst = path.join(os.homedir(), target);
+          const dstTmp = dst + '.tmp';
+          if (exists(dstTmp)) fs.rmSync(dstTmp, {recursive: true, force: true});
+          if (cmdAvail('rsync')) {
+            fs.mkdirSync(dstTmp, {recursive: true});
+            sh('rsync', ['-a', '--delete', src + '/', dstTmp + '/']);
+          } else {
+            const cpr = (s, d) => {
+              if (!exists(s)) return;
+              fs.mkdirSync(d, {recursive: true});
+              for (const e of fs.readdirSync(s, {withFileTypes: true})) {
+                const sp = path.join(s, e.name), dp = path.join(d, e.name);
+                if (e.isDirectory()) cpr(sp, dp);
+                else fs.copyFileSync(sp, dp);
+              }
+            };
+            cpr(src, dstTmp);
+          }
+          if (exists(dst)) fs.rmSync(dst, {recursive: true, force: true});
+          fs.renameSync(dstTmp, dst);
+        };
+        deploy('claude/agents', '.claude/agents');
+        deploy('claude/skills', '.claude/skills');
+        deploy('cursor/agents', '.cursor/agents');
+        deploy('cursor/skills', '.cursor/skills');
+        task.title = 'Đã triển khai agents + skills';
+      },
+    },
+    {
+      title: 'Làm mới MCP image (Docker)',
+      enabled: () => exists(composeDir()),
+      task: async (ctx, task) => {
+        let state = dockerHealth();
+        if (state === 'not-running') {
+          task.output = 'Docker daemon không phản hồi — đang thử khởi động tự động…';
+          if (tryStartDocker() && waitForDocker(60000)) {
+            state = 'ok';
+          }
+        }
+        if (state !== 'ok') {
+          ctx.dockerSkipped = state;
+          task.skip(state === 'not-installed'
+            ? 'Docker chưa cài — bỏ qua MCP refresh'
+            : 'Docker đang dừng — bỏ qua MCP refresh');
+          return;
+        }
+        task.output = 'Pulling image…';
+        composeCmd('pull');
+        task.output = 'Recreating container…';
+        composeCmd('up', '-d', '--force-recreate');
+        task.title = 'Đã làm mới MCP image';
+      },
+    },
+  ], {
+    rendererOptions: {collapseSubtasks: false, showSubtasks: true},
+    exitOnError: true,
+  });
+
+  try {
+    const ctx = await tasks.run();
+    // Reset update-check cache so next invocation doesn't show stale "X behind"
+    try {
+      fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+      fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ahead: 0, ts: Date.now()}));
+    } catch {}
+
+    if (ctx.dockerSkipped) {
+      console.log('');
+      printDockerGuide(ctx.dockerSkipped);
+    } else {
+      console.log('');
+      console.log(boxen(
+        `${C.green}✓ Cập nhật hoàn tất${C.reset}\n${C.gray}Repo + CLI + agents/skills + MCP image đã sẵn sàng${C.reset}`,
+        {padding: 1, margin: {top: 0, bottom: 1, left: 2, right: 2},
+         borderColor: 'green', borderStyle: 'round', title: 'ai-kit', titleAlignment: 'center'}
+      ));
+    }
+  } catch (e) {
+    console.log('');
+    console.log(boxen(
+      `${C.red}✗ Cập nhật thất bại${C.reset}\n${C.gray}${e.message || e}${C.reset}`,
+      {padding: 1, margin: {top: 0, bottom: 1, left: 2, right: 2},
+       borderColor: 'red', borderStyle: 'round', title: 'Lỗi', titleAlignment: 'center'}
+    ));
     process.exit(1);
   }
-  info('Đang pull team-ai-config mới nhất');
-  const r = sh('git', ['-C', REPO_DIR, 'pull', '--ff-only', '--quiet']);
-  if (r.exitCode !== 0) { err('git pull thất bại'); process.exit(1); }
-  ok('Repo đã cập nhật');
-
-  // Refresh CLI itself
-  info('Đang làm mới ai-kit CLI tại ~/.ai-kit/bin');
-  fs.mkdirSync(BIN_DIR, {recursive: true});
-  for (const f of ['ai-kit', 'ai-kit.cmd', 'ai-kit.ps1', 'ai-kit.mjs', 'ai-kit.legacy', 'ai-kit.legacy.ps1']) {
-    const src = path.join(REPO_DIR, 'bin', f);
-    const dst = path.join(BIN_DIR, f);
-    if (exists(src)) {
-      fs.copyFileSync(src, dst);
-      if (process.platform !== 'win32' && (f === 'ai-kit' || f === 'ai-kit.legacy')) {
-        try { fs.chmodSync(dst, 0o755); } catch {}
-      }
-    }
-  }
-  ok('CLI đã làm mới');
-
-  // Install Node deps into AI_KIT_HOME so ESM resolution from bin/ finds them
-  const pkgSrc = path.join(REPO_DIR, 'package.json');
-  if (exists(pkgSrc)) {
-    info('Đang cài Node deps vào ~/.ai-kit');
-    fs.copyFileSync(pkgSrc, path.join(AI_KIT_HOME, 'package.json'));
-    const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const npmArgs = ['install', '--omit=dev'];
-    if (QUIET) npmArgs.push('--silent');
-    const npmResult = sh(npmBin, npmArgs, {cwd: AI_KIT_HOME});
-    if (npmResult.exitCode !== 0) { err('npm install thất bại'); process.exit(1); }
-  }
-
-  // Snapshot current live configs before overwriting → enables ai-kit rollback
-  info('Đang sao lưu cấu hình hiện tại');
-  const _snapTs = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const _snapName = `ai-config-backup-${_snapTs}`;
-  const _cprSnap = (s, d) => {
-    if (!exists(s)) return;
-    fs.mkdirSync(d, {recursive: true});
-    for (const e of fs.readdirSync(s, {withFileTypes: true})) {
-      const sp = path.join(s, e.name), dp = path.join(d, e.name);
-      if (e.isDirectory()) _cprSnap(sp, dp);
-      else fs.copyFileSync(sp, dp);
-    }
-  };
-  for (const [base, items] of [
-    [path.join(os.homedir(), '.claude'), ['agents', 'skills']],
-    [path.join(os.homedir(), '.cursor'), ['agents', 'skills']],
-  ]) {
-    for (const item of items) {
-      const src = path.join(base, item);
-      if (exists(src)) _cprSnap(src, path.join(base, _snapName, item));
-    }
-  }
-  ok(`Đã sao lưu cấu hình (${_snapName}) — phục hồi bằng: ai-kit rollback`);
-
-  // Deploy configs to ~/.claude + ~/.cursor — atomic: write to .tmp then swap
-  info('Đang triển khai agents + skills vào ~/.claude và ~/.cursor');
-  const deploy = (subdir, target) => {
-    const src = path.join(REPO_DIR, subdir);
-    if (!exists(src)) return;
-    const dst = path.join(os.homedir(), target);
-    const dstTmp = dst + '.tmp';
-    if (exists(dstTmp)) fs.rmSync(dstTmp, {recursive: true, force: true});
-    if (cmdAvail('rsync')) {
-      fs.mkdirSync(dstTmp, {recursive: true});
-      sh('rsync', ['-a', '--delete', src + '/', dstTmp + '/']);
-    } else {
-      const cpr = (s, d) => {
-        if (!exists(s)) return;
-        fs.mkdirSync(d, {recursive: true});
-        for (const e of fs.readdirSync(s, {withFileTypes: true})) {
-          const sp = path.join(s, e.name), dp = path.join(d, e.name);
-          if (e.isDirectory()) cpr(sp, dp);
-          else fs.copyFileSync(sp, dp);
-        }
-      };
-      cpr(src, dstTmp);
-    }
-    // Atomic swap: remove old, rename tmp into place
-    if (exists(dst)) fs.rmSync(dst, {recursive: true, force: true});
-    fs.renameSync(dstTmp, dst);
-  };
-  deploy('claude/agents', '.claude/agents');
-  deploy('claude/skills', '.claude/skills');
-  deploy('cursor/agents', '.cursor/agents');
-  deploy('cursor/skills', '.cursor/skills');
-  ok('Đã triển khai cấu hình');
-
-  // MCP refresh — needs Docker. Friendly guidance + best-effort auto-start.
-  if (exists(composeDir())) {
-    info('Đang làm mới MCP image (pull + restart)');
-    let state = dockerHealth();
-    if (state === 'not-running') {
-      warn('Docker daemon không phản hồi — đang thử khởi động tự động…');
-      if (tryStartDocker() && waitForDocker(60000)) {
-        ok('Docker đã sẵn sàng');
-        state = 'ok';
-      } else {
-        state = 'not-running';
-      }
-    }
-    if (state === 'ok') {
-      composeCmd('pull');
-      composeCmd('up', '-d', '--force-recreate');
-      ok('MCP đã làm mới');
-    } else {
-      printDockerGuide(state);
-      warn('Bỏ qua bước refresh MCP. Repo + agents/skills đã cập nhật.');
-    }
-  }
-
-  // Reset update-check cache so next invocation does not show stale "X behind" notice.
-  // Background refresher will re-poll origin within 1h; until then, mark as up-to-date.
-  try {
-    fs.mkdirSync(AI_KIT_HOME, {recursive: true});
-    fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ahead: 0, ts: Date.now()}));
-  } catch {}
-
-  ok('Cập nhật hoàn tất');
 };
 
 // ─── mcp <verb> ────────────────────────────────────────────────────────
