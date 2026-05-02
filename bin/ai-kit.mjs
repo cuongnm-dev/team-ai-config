@@ -630,20 +630,20 @@ const renderDocSubset = (file, fromLine, toLine, headerSuffix) => {
   hintLessOnce();
 };
 
-// After rendering a section, ask user where to go next.
-// Returns 'menu' (back to section list) or 'exit' (quit doc).
-const promptContinue = async () => {
+// After rendering a doc/section, offer navigation back up.
+// `hasMenu`  → include "Quay lại menu mục" (only when section menu exists upstream).
+// Always offer index + exit. Returns 'menu' | 'index' | 'exit'.
+const promptAfterRender = async ({ hasMenu = false } = {}) => {
+  const choices = [];
+  if (hasMenu) choices.push({ name: '↩ Quay lại menu mục', value: 'menu' });
+  choices.push({ name: '📋 Mở danh sách tài liệu (lên 1 cấp)', value: 'index' });
+  choices.push({ name: '✕ Thoát', value: 'exit' });
   try {
-    return await select({
-      message: ' ',
-      choices: [
-        { name: '↩ Quay lại menu mục', value: 'menu' },
-        { name: '✕ Thoát', value: 'exit' },
-      ],
-      pageSize: 4,
-    });
+    return await select({ message: ' ', choices, pageSize: choices.length });
   } catch { return 'exit'; }
 };
+// Backward-compat alias used by older callsites
+const promptContinue = async () => promptAfterRender({ hasMenu: true });
 
 // One pass of section menu: pick H2 section → optional H3 pick → render subset.
 // Returns 'rendered' (a section was shown) or 'exit' (user quit menu).
@@ -701,23 +701,114 @@ const pickAndRenderSection = async (file, sections) => {
   return 'rendered';
 };
 
-// Loop: section menu → render → "đọc tiếp?" → menu / exit.
-// Used for any long doc (>2 H2 sections).
+// Open one doc, return user's final navigation choice ('index' | 'exit').
+// Long docs (>2 H2 sections) get a section menu loop. Short docs render direct.
+const openDocAndPrompt = async (file) => {
+  const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
+  if (sections.length > 2) return docSessionLoop(file);
+  clearScreen();
+  renderDoc(file);
+  return promptAfterRender({ hasMenu: false });
+};
+
+// Loop: section menu → render → "đọc tiếp?" → menu / index / exit.
+// Returns 'index' or 'exit' (final user choice).
 const docSessionLoop = async (file) => {
   const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
-  if (sections.length === 0) { renderDoc(file); return; }
+  if (sections.length === 0) {
+    clearScreen();
+    renderDoc(file);
+    return promptAfterRender({ hasMenu: false });
+  }
   while (true) {
     clearScreen();
     const result = await pickAndRenderSection(file, sections);
+    if (result === 'exit') return 'exit';
+    const next = await promptAfterRender({ hasMenu: true });
+    if (next === 'menu') continue;
+    return next; // 'index' | 'exit'
+  }
+};
+
+// Interactive top-level index — pickable list of all docs grouped by category.
+// Loops: pick a topic → open doc → return → pick again. Lets user browse without
+// re-running `ai-kit doc` for each topic.
+const interactiveIndex = async () => {
+  const docsDir = path.join(REPO_DIR, 'docs');
+  while (true) {
+    clearScreen();
+    const root = readDocItems(docsDir).filter(it => it.name !== 'README');
+    const workflows = readDocItems(path.join(docsDir, 'workflows'));
+    const reference = readDocItems(path.join(docsDir, 'reference'));
+    const choices = [];
+    const addGroup = (title, items, count) => {
+      if (!items.length) return;
+      choices.push({ name: `── ${title} (${count})`, value: '__sep_' + title, disabled: ' ' });
+      for (const it of items) {
+        const nm = (it.name || '').padEnd(22);
+        const desc = (it.title || '').slice(0, 70);
+        choices.push({ name: `  ${nm}  ${desc}`, value: it.name });
+      }
+    };
+    addGroup('General', root, root.length);
+    addGroup('Workflows', workflows, workflows.length);
+    addGroup('Reference', reference, reference.length);
+    choices.push({ name: '── Auto-indexes', value: '__sep_auto', disabled: ' ' });
+    choices.push({ name: '  skills                  Claude + Cursor skills (catalog)', value: 'skills' });
+    choices.push({ name: '  agents                  Claude + Cursor agents (catalog)', value: 'agents' });
+    choices.push({ name: '──', value: '__sep_end', disabled: ' ' });
+    choices.push({ name: '✕ Thoát', value: '__exit' });
+
+    let pick;
+    try {
+      pick = await select({
+        message: 'ai-kit Documentation — chọn tài liệu:',
+        choices,
+        pageSize: 25,
+      });
+    } catch { return; }
+    if (pick === '__exit' || !pick) return;
+
+    // Auto-index commands: print and continue.
+    if (pick === 'skills') {
+      clearScreen();
+      printSkillsIndex();
+      const next = await promptAfterRender({ hasMenu: false });
+      if (next === 'exit') return;
+      continue;
+    }
+    if (pick === 'agents') {
+      clearScreen();
+      printAgentsIndex();
+      const next = await promptAfterRender({ hasMenu: false });
+      if (next === 'exit') return;
+      continue;
+    }
+
+    // on-board → hub menu
+    if (pick === 'on-board') {
+      const result = await interactiveOnboardMenu();
+      if (result === 'exit') return;
+      continue; // 'index' or void → back to index loop
+    }
+
+    // Resolve doc and open
+    const candidates = [
+      path.join(docsDir, `${pick}.md`),
+      path.join(docsDir, 'workflows', `${pick}.md`),
+      path.join(docsDir, 'reference', `${pick}.md`),
+    ];
+    const file = candidates.find(exists);
+    if (!file) continue;
+    const result = await openDocAndPrompt(file);
     if (result === 'exit') return;
-    const next = await promptContinue();
-    if (next === 'exit') return;
-    // else loop back to section menu
+    // 'index' → loop back to top-level index
   }
 };
 
 // On-board hub: pick luồng → drill into chosen on-board doc with section loop.
 // Loops so user can read both luồng A and luồng B in one session.
+// Returns 'index' or 'exit'.
 const interactiveOnboardMenu = async () => {
   const docsDir = path.join(REPO_DIR, 'docs');
   while (true) {
@@ -730,25 +821,20 @@ const interactiveOnboardMenu = async () => {
           { name: '📋 Tổng quan (router — chọn luồng A hoặc B trước)', value: 'on-board' },
           { name: '🅰 SDLC — Sản xuất phần mềm (BA/SA/Dev/QA)', value: 'on-board-sdlc' },
           { name: '🅱 Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'on-board-tailieu' },
+          { name: '📋 Mở danh sách tài liệu (lên 1 cấp)', value: '__index' },
           { name: '✕ Thoát', value: '__exit' },
         ],
         pageSize: 10,
       });
-    } catch { return; }
-    if (pick === '__exit') return;
+    } catch { return 'exit'; }
+    if (pick === '__exit') return 'exit';
+    if (pick === '__index') return 'index';
     const file = path.join(docsDir, `${pick}.md`);
     if (!exists(file)) continue;
-    // 'on-board' itself is short (router) → render direct + continue prompt.
-    // sdlc/tailieu are long → use section loop.
-    const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
-    if (sections.length > 2) {
-      await docSessionLoop(file);
-    } else {
-      clearScreen();
-      renderDoc(file);
-      const next = await promptContinue();
-      if (next === 'exit') return;
-    }
+    const result = await openDocAndPrompt(file);
+    if (result === 'exit') return 'exit';
+    if (result === 'index') return 'index';
+    // void / 'menu' (shouldn't bubble) → loop back to hub
   }
 };
 
@@ -764,13 +850,15 @@ const docCommand = async (args) => {
   const interactive = process.stdout.isTTY && !noMenu;
 
   if (!sub || sub === 'index' || sub === '--toc' || sub === '-l' || sub === '--list') {
-    printDocsIndex();
+    if (interactive) await interactiveIndex();
+    else printDocsIndex();
     return;
   }
 
   // Multi-level menu: on-board has a special hub menu (luồng A vs B).
   if (interactive && sub === 'on-board') {
-    await interactiveOnboardMenu();
+    const r = await interactiveOnboardMenu();
+    if (r === 'index') await interactiveIndex();
     return;
   }
   if (sub === '--search' || sub === '-s') {
@@ -818,8 +906,24 @@ const docCommand = async (args) => {
     out.write(`\n  ${S.dim}${bar}${S.reset}\n\n`);
     return;
   }
-  if (sub === 'skills') { printSkillsIndex(); return; }
-  if (sub === 'agents') { printAgentsIndex(); return; }
+  if (sub === 'skills') {
+    clearScreen();
+    printSkillsIndex();
+    if (interactive) {
+      const next = await promptAfterRender({ hasMenu: false });
+      if (next === 'index') await interactiveIndex();
+    }
+    return;
+  }
+  if (sub === 'agents') {
+    clearScreen();
+    printAgentsIndex();
+    if (interactive) {
+      const next = await promptAfterRender({ hasMenu: false });
+      if (next === 'index') await interactiveIndex();
+    }
+    return;
+  }
 
   // Resolve doc page
   const candidates = [
@@ -846,14 +950,13 @@ const docCommand = async (args) => {
     printDocsIndex();
     process.exit(1);
   }
-  // For interactive sessions, auto-show section menu when doc has >2 H2 sections.
-  // Member can then navigate without scrolling. Short docs render directly.
+  // For interactive sessions, every doc gets a post-render prompt with
+  // "↩ Quay lại menu mục" / "📋 Mở danh sách tài liệu" / "✕ Thoát". Long docs
+  // (>2 H2 sections) auto-open with section menu loop. Short docs render direct.
   if (interactive) {
-    const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
-    if (sections.length > 2) {
-      await docSessionLoop(file);
-      return;
-    }
+    const result = await openDocAndPrompt(file);
+    if (result === 'index') await interactiveIndex();
+    return;
   }
   renderDoc(file);
 };
