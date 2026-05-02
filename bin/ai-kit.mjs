@@ -577,18 +577,153 @@ const renderStaticLater = (el) => {
   setImmediate(() => inst.unmount());
 };
 
+// ─── Multi-level menu helpers (interactive `select` for doc navigation) ─
+
+// Parse a markdown doc into top-level (H2) sections with their H3 children.
+// Returns [{ title, lineStart, lineEnd, level: 2, children: [{title, lineStart, level: 3}] }, ...]
+const parseDocSections = (mdText) => {
+  const lines = mdText.split('\n');
+  const sections = [];
+  let cur = null;
+  let inCodeFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^```/.test(line)) { inCodeFence = !inCodeFence; continue; }
+    if (inCodeFence) continue;
+    const m2 = line.match(/^##\s+(.+?)\s*$/);
+    const m3 = line.match(/^###\s+(.+?)\s*$/);
+    if (m2) {
+      if (cur) { cur.lineEnd = i - 1; sections.push(cur); }
+      cur = { level: 2, title: m2[1].replace(/[#*`]/g, ''), lineStart: i, children: [] };
+    } else if (m3 && cur) {
+      cur.children.push({ level: 3, title: m3[1].replace(/[#*`]/g, ''), lineStart: i });
+    }
+  }
+  if (cur) { cur.lineEnd = lines.length - 1; sections.push(cur); }
+  return sections;
+};
+
+// Render a subset of a doc (line range) using same pipeline as renderDoc.
+const renderDocSubset = (file, fromLine, toLine, headerSuffix) => {
+  const content = fs.readFileSync(file, 'utf8');
+  const stripped = stripFm(content);
+  const lines = stripped.split('\n');
+  const subset = lines.slice(fromLine, toLine + 1).join('\n');
+  const w = _cols();
+  const bar = '─'.repeat(w - 4);
+  const relPath = path.relative(REPO_DIR, file) + (headerSuffix ? `  →  ${headerSuffix}` : '');
+  const text = `\n  ${S.dim}${relPath}${S.reset}\n` +
+    `  ${S.dim}${bar}${S.reset}\n\n` +
+    marked.parse(subset).trimEnd() + '\n\n' +
+    `  ${S.dim}${bar}${S.reset}\n` +
+    `  ${S.gray}ai-kit doc  ·  ai-kit doc --search <term>${S.reset}\n`;
+  if (tryPager(text)) return;
+  process.stdout.write(text + '\n');
+  hintLessOnce();
+};
+
+// Interactive menu over a doc's H2 sections (with H3 sub-pick when present).
+// Renders selected section. ESC / Ctrl+C exits cleanly.
+const interactiveSectionMenu = async (file) => {
+  const content = fs.readFileSync(file, 'utf8');
+  const stripped = stripFm(content);
+  const sections = parseDocSections(stripped);
+  if (sections.length === 0) { renderDoc(file); return; }
+  const choices = [
+    { name: '📖 Xem toàn bộ', value: '__all' },
+    ...sections.map((s, idx) => ({
+      name: s.children.length > 0
+        ? `${s.title}  ${S.dim}(${s.children.length} mục con)${S.reset}`
+        : s.title,
+      value: String(idx),
+    })),
+    { name: '↩ Thoát', value: '__back' },
+  ];
+  let pick;
+  try {
+    pick = await select({
+      message: `Chọn mục từ ${path.basename(file, '.md')}:`,
+      choices,
+      pageSize: 15,
+    });
+  } catch { return; } // Ctrl+C / ESC
+  if (pick === '__back') return;
+  if (pick === '__all') { renderDoc(file); return; }
+  const sec = sections[parseInt(pick, 10)];
+  // If H2 has H3 children, offer 2nd-level pick
+  if (sec.children.length > 0) {
+    const sub = [
+      { name: `📖 Toàn bộ "${sec.title}"`, value: '__sec' },
+      ...sec.children.map((c, idx) => ({ name: c.title, value: String(idx) })),
+      { name: '↩ Quay lại', value: '__back' },
+    ];
+    let pick2;
+    try {
+      clearScreen();
+      pick2 = await select({ message: `${sec.title} →`, choices: sub, pageSize: 15 });
+    } catch { return; }
+    if (pick2 === '__back') { clearScreen(); return interactiveSectionMenu(file); }
+    if (pick2 === '__sec') {
+      renderDocSubset(file, sec.lineStart, sec.lineEnd, sec.title);
+      return;
+    }
+    const child = sec.children[parseInt(pick2, 10)];
+    const nextChild = sec.children[parseInt(pick2, 10) + 1];
+    const childEnd = nextChild ? nextChild.lineStart - 1 : sec.lineEnd;
+    renderDocSubset(file, child.lineStart, childEnd, `${sec.title} → ${child.title}`);
+    return;
+  }
+  renderDocSubset(file, sec.lineStart, sec.lineEnd, sec.title);
+};
+
+// On-board hub: 3-choice menu (Overview / SDLC / Tài liệu)
+const interactiveOnboardMenu = async () => {
+  const docsDir = path.join(REPO_DIR, 'docs');
+  let pick;
+  try {
+    pick = await select({
+      message: 'Hướng dẫn nhập môn — chọn luồng:',
+      choices: [
+        { name: '📋 Tổng quan (chọn luồng A hoặc B)', value: 'on-board' },
+        { name: '🅰 SDLC — Sản xuất phần mềm', value: 'on-board-sdlc' },
+        { name: '🅱 Tài liệu nhà nước (Đề án CĐS, đấu thầu CNTT)', value: 'on-board-tailieu' },
+        { name: '↩ Thoát', value: '__back' },
+      ],
+      pageSize: 10,
+    });
+  } catch { return; }
+  if (pick === '__back') return;
+  const file = path.join(docsDir, `${pick}.md`);
+  if (exists(file)) {
+    clearScreen();
+    renderDoc(file);
+  }
+};
+
 // ─── Doc command dispatcher ────────────────────────────────────────────
-const docCommand = (args) => {
+const docCommand = async (args) => {
   ensureRepo();
   // Clear console + scrollback so each doc invocation starts fresh at top.
   // Disable with NO_CLEAR=1 (CI, log capture). No-op when stdout is not a TTY.
   clearScreen();
   const docsDir = path.join(REPO_DIR, 'docs');
   const sub = args[0];
+  const noMenu = args.includes('--no-menu');
+  const interactive = process.stdout.isTTY && !noMenu;
 
   if (!sub || sub === 'index' || sub === '--toc' || sub === '-l' || sub === '--list') {
     printDocsIndex();
     return;
+  }
+
+  // Multi-level menus: on-board hub + faq sections.
+  if (interactive && sub === 'on-board') {
+    await interactiveOnboardMenu();
+    return;
+  }
+  if (interactive && sub === 'faq') {
+    const file = path.join(docsDir, 'faq.md');
+    if (exists(file)) { await interactiveSectionMenu(file); return; }
   }
   if (sub === '--search' || sub === '-s') {
     if (!args[1]) { console.error('Cách dùng: ai-kit doc --search <từ khoá>'); process.exit(1); }
@@ -2952,7 +3087,12 @@ switch (resolved) {
     break;
   }
   case 'docs':
-    docCommand(args);
+    docCommand(args).catch((e) => {
+      if (e && e.name !== 'ExitPromptError') {
+        console.error(e.message || e);
+        process.exit(1);
+      }
+    });
     break;
   case 'update':       cmdUpdate(); break;
   case 'upgrade':      cmdUpgrade(); break;
