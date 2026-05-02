@@ -181,6 +181,9 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
     h(Row, {label: 'logs', value: 'Tail MCP container logs'}),
     h(Row, {label: 'doctor | dr', value: 'Verify deps + paths'}),
     h(Row, {label: 'statistics | stats', value: 'Top skills/agents/tokens/cost (local-only)'}),
+    h(Row, {label: 'verify [--restore]', value: 'Kiểm tra toàn vẹn agents/skills (manifest SHA256)'}),
+    h(Row, {label: 'search <term>', value: 'Tìm xuyên docs+agents+skills (--scope)'}),
+    h(Row, {label: 'config get|set|list', value: 'Quản lý ~/.ai-kit/{billing,alerts}.json'}),
     h(Row, {label: 'version | -v', value: 'Show ai-kit + team-config + MCP versions'})
   ),
   h(Section, {title: 'Documentation'},
@@ -312,10 +315,38 @@ const buildDoctorData = () => {
   let nodeVersion = null;
   try { nodeVersion = execaSync('node', ['--version'], {stdio: ['ignore', 'pipe', 'ignore']}).stdout.trim(); } catch {}
   const nodeMajor = nodeVersion ? parseInt(nodeVersion.replace('v', '').split('.')[0], 10) : 0;
+  // gh CLI auth check (important when team-ai-config repo is private)
+  let ghAuth = null;
+  if (cmdAvail('gh')) {
+    try { execaSync('gh', ['auth', 'status'], {stdio: 'ignore'}); ghAuth = true; }
+    catch { ghAuth = false; }
+  }
+  // MCP healthz check (HTTP probe, not just container state)
+  let mcpHealthz = 'unknown';
+  try {
+    const res = execaSync('curl', ['-fsS', '--max-time', '2', 'http://localhost:8001/healthz'], {stdio: ['ignore', 'pipe', 'ignore']});
+    mcpHealthz = res.exitCode === 0 ? 'OK' : 'fail';
+  } catch { mcpHealthz = 'unreachable'; }
+  // Disk free at AI_KIT_HOME
+  let diskFreeGb = null;
+  try {
+    if (process.platform === 'win32') {
+      const out = execaSync('powershell', ['-NoProfile', '-Command', `(Get-PSDrive ${AI_KIT_HOME[0]}).Free / 1GB`], {stdio: ['ignore', 'pipe', 'ignore']});
+      diskFreeGb = parseFloat(out.stdout.trim());
+    } else {
+      const out = execaSync('df', ['-BG', AI_KIT_HOME], {stdio: ['ignore', 'pipe', 'ignore']});
+      const m = out.stdout.split('\n')[1]?.match(/(\d+)G\s+\S+\s+\S+%/);
+      if (m) diskFreeGb = parseInt(m[1], 10);
+    }
+  } catch {}
+
   const checks = [
     {name: 'git', required: true, ok: cmdAvail('git')},
     {name: 'docker', required: true, ok: cmdAvail('docker')},
     {name: `node ≥18 (found: ${nodeVersion || 'none'})`, required: true, ok: nodeMajor >= 18},
+    {name: 'gh CLI (cho repo private)', required: false, ok: cmdAvail('gh'), extra: ghAuth === true ? 'authenticated' : ghAuth === false ? 'NOT authenticated — chạy `gh auth login`' : null},
+    {name: `MCP /healthz (etc-platform)`, required: false, ok: mcpHealthz === 'OK', extra: `state: ${mcpHealthz}`},
+    {name: `Disk free`, required: false, ok: diskFreeGb === null ? true : diskFreeGb >= 5, extra: diskFreeGb !== null ? `${diskFreeGb.toFixed(1)} GB free at ${AI_KIT_HOME}` : null},
     {name: 'curl', required: false, ok: cmdAvail('curl')},
     {name: 'glow (markdown render)', required: false, ok: cmdAvail('glow')},
     {name: 'bat (alt renderer)', required: false, ok: cmdAvail('bat')},
@@ -338,10 +369,11 @@ const Doctor = ({checks, dockerDaemon, repoOk, pathOk, allRequiredOk}) =>
       dockerDaemon ? h(Ok, null, 'docker daemon running') : h(Err, null, 'docker daemon NOT running'),
       repoOk ? h(Ok, null, 'team-ai-config cloned') : h(Err, null, 'team-ai-config NOT cloned')
     ),
-    h(Section, {title: 'Optional (prettier output)'},
-      ...checks.filter(c => !c.required).map(c =>
-        c.ok ? h(Ok, null, c.name) : h(Warn, null, `${c.name} — install for richer output`)
-      )
+    h(Section, {title: 'Optional checks'},
+      ...checks.filter(c => !c.required).map(c => {
+        const txt = c.extra ? `${c.name} — ${c.extra}` : c.name;
+        return c.ok ? h(Ok, null, txt) : h(Warn, null, txt);
+      })
     ),
     h(Section, {title: 'PATH'},
       pathOk
@@ -887,6 +919,9 @@ const cmdUpdate = async () => {
       fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ahead: 0, ts: Date.now()}));
     } catch {}
 
+    // Auto-write integrity manifest after successful deploy
+    try { writeManifest(); } catch {}
+
     if (ctx.dockerSkipped) {
       console.log('');
       printDockerGuide(ctx.dockerSkipped);
@@ -1141,6 +1176,207 @@ const cmdUninstall = (args) => {
   }
   fs.rmSync(AI_KIT_HOME, {recursive: true, force: true});
   ok('Đã gỡ');
+};
+
+// ─── verify: integrity check of deployed agents/skills ─────────────────
+// Compute SHA256 manifest of ~/.claude + ~/.cursor; compare with .manifest.lock.
+// Detects local tampering (manual edits, drift). Optional --restore re-runs deploy.
+const MANIFEST_FILE = path.join(AI_KIT_HOME, '.manifest.lock');
+
+const computeManifest = () => {
+  const targets = [
+    path.join(os.homedir(), '.claude', 'agents'),
+    path.join(os.homedir(), '.claude', 'skills'),
+    path.join(os.homedir(), '.cursor',  'agents'),
+    path.join(os.homedir(), '.cursor',  'skills'),
+  ];
+  const manifest = {};
+  const walk = (root, base = root) => {
+    if (!exists(root)) return;
+    for (const e of fs.readdirSync(root, {withFileTypes: true})) {
+      const p = path.join(root, e.name);
+      if (e.isDirectory()) walk(p, base);
+      else if (e.isFile()) {
+        const rel = path.relative(os.homedir(), p).replace(/\\/g, '/');
+        manifest[rel] = crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex').slice(0, 16);
+      }
+    }
+  };
+  for (const t of targets) walk(t);
+  return manifest;
+};
+
+const writeManifest = () => {
+  const m = computeManifest();
+  fs.writeFileSync(MANIFEST_FILE, JSON.stringify({generated: new Date().toISOString(), files: m}, null, 2));
+  return m;
+};
+
+const cmdVerify = (args) => {
+  const restore = args.includes('--restore') || args.includes('-r');
+  const update = args.includes('--update');
+
+  if (update) {
+    const m = writeManifest();
+    ok(`Đã cập nhật manifest: ${Object.keys(m).length} files tracked`);
+    return;
+  }
+
+  if (!exists(MANIFEST_FILE)) {
+    warn('Chưa có manifest. Chạy "ai-kit verify --update" để tạo lần đầu (sau khi deploy).');
+    process.exit(2);
+  }
+
+  const expected = JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8'));
+  const actual = computeManifest();
+  const drift = {modified: [], removed: [], added: []};
+  for (const [f, h] of Object.entries(expected.files)) {
+    if (!(f in actual)) drift.removed.push(f);
+    else if (actual[f] !== h) drift.modified.push(f);
+  }
+  for (const f of Object.keys(actual)) {
+    if (!(f in expected.files)) drift.added.push(f);
+  }
+  const total = drift.modified.length + drift.removed.length + drift.added.length;
+  const out = process.stdout;
+  const w = _cols(), divider = '─'.repeat(Math.min(w - 4, 70));
+  out.write(`\n  ${brand('🔒 ai-kit verify')}\n  ${S.dim}${divider}${S.reset}\n`);
+  out.write(`  ${S.gray}Manifest từ ${S.reset}${expected.generated}\n`);
+  out.write(`  ${S.gray}Files tracked: ${S.reset}${S.bcyan}${Object.keys(expected.files).length}${S.reset}\n\n`);
+
+  if (total === 0) {
+    out.write(`  ${S.green}${S.bold}✓ Toàn vẹn${S.reset} ${S.gray}— không phát hiện thay đổi local${S.reset}\n\n`);
+    return;
+  }
+
+  out.write(`  ${S.red}${S.bold}⚠ Phát hiện ${total} drift${S.reset}\n`);
+  if (drift.modified.length) {
+    out.write(`\n  ${S.yellow}Modified (${drift.modified.length}):${S.reset}\n`);
+    drift.modified.slice(0, 20).forEach(f => out.write(`    ${S.yellow}~${S.reset} ${f}\n`));
+    if (drift.modified.length > 20) out.write(`    ${S.gray}... và ${drift.modified.length - 20} files khác${S.reset}\n`);
+  }
+  if (drift.removed.length) {
+    out.write(`\n  ${S.red}Removed (${drift.removed.length}):${S.reset}\n`);
+    drift.removed.slice(0, 10).forEach(f => out.write(`    ${S.red}-${S.reset} ${f}\n`));
+  }
+  if (drift.added.length) {
+    out.write(`\n  ${S.cyan}Added (${drift.added.length}):${S.reset}\n`);
+    drift.added.slice(0, 10).forEach(f => out.write(`    ${S.cyan}+${S.reset} ${f}\n`));
+  }
+
+  if (restore) {
+    out.write(`\n  ${S.gray}Đang restore từ team-ai-config...${S.reset}\n`);
+    cmdUpdate();
+    return;
+  }
+  out.write(`\n  ${S.gray}Khôi phục: ${S.reset}ai-kit verify --restore${S.gray}  (chạy update lại)${S.reset}\n`);
+  out.write(`  ${S.gray}Chấp nhận drift hiện tại: ${S.reset}ai-kit verify --update${S.reset}\n\n`);
+  process.exitCode = 1;
+};
+
+// ─── search: full-text across docs + agents + skills ─────────────────
+const cmdSearch = (args) => {
+  const term = args[0];
+  if (!term || term.startsWith('-')) { err('Cách dùng: ai-kit search <từ khoá> [--scope all|docs|agents|skills]'); process.exit(1); }
+  const scopeIdx = args.findIndex(a => a === '--scope');
+  const scope = scopeIdx >= 0 ? args[scopeIdx+1] : 'all';
+
+  ensureRepo();
+  const roots = {
+    docs:    [path.join(REPO_DIR, 'docs')],
+    agents:  [path.join(os.homedir(), '.claude', 'agents'), path.join(os.homedir(), '.cursor', 'agents')],
+    skills:  [path.join(os.homedir(), '.claude', 'skills'), path.join(os.homedir(), '.cursor', 'skills')],
+  };
+  const targets = scope === 'all' ? Object.keys(roots) : [scope].filter(s => roots[s]);
+  if (!targets.length) { err(`Scope không hợp lệ: ${scope}. Dùng: all|docs|agents|skills`); process.exit(1); }
+
+  const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const hits = [];
+  const walk = (dir, scopeName) => {
+    if (!exists(dir)) return;
+    for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p, scopeName);
+      else if (e.isFile() && /\.(md|mdx|json|yaml|yml)$/.test(e.name)) {
+        try {
+          const lines = fs.readFileSync(p, 'utf8').split('\n');
+          lines.forEach((ln, i) => {
+            if (re.test(ln)) hits.push({scope: scopeName, file: p, line: i+1, text: ln.trim().slice(0, 160)});
+          });
+        } catch {}
+      }
+    }
+  };
+  for (const s of targets) for (const r of roots[s]) walk(r, s);
+
+  const w = _cols(), divider = '─'.repeat(Math.min(w - 4, 80));
+  const out = process.stdout;
+  out.write(`\n  ${brand(`🔍 search "${term}"`)}  ${S.gray}— ${hits.length} hits  ·  scope: ${scope}${S.reset}\n  ${S.dim}${divider}${S.reset}\n`);
+  if (!hits.length) { out.write(`\n  ${S.gray}Không tìm thấy.${S.reset}\n\n`); return; }
+
+  // Group by file
+  const byFile = {};
+  for (const h of hits) (byFile[h.file] ||= []).push(h);
+  const sorted = Object.entries(byFile).sort((a,b) => b[1].length - a[1].length).slice(0, 30);
+  for (const [file, hs] of sorted) {
+    const rel = path.relative(os.homedir(), file).replace(/\\/g, '/');
+    out.write(`\n  ${S.magenta}~/${rel}${S.reset} ${S.gray}(${hs[0].scope}, ${hs.length} hits)${S.reset}\n`);
+    hs.slice(0, 5).forEach(h => out.write(`  ${S.gray}:${String(h.line).padStart(4)}${S.reset}  ${h.text}\n`));
+    if (hs.length > 5) out.write(`  ${S.dim}... +${hs.length - 5} dòng nữa${S.reset}\n`);
+  }
+  out.write(`\n  ${S.dim}${divider}${S.reset}\n  ${S.gray}--scope all|docs|agents|skills${S.reset}\n\n`);
+};
+
+// ─── config: get/set/list user prefs ───────────────────────────────────
+// Manages ~/.ai-kit/{billing,alerts}.json + future toggles.
+const CONFIG_FILES = {
+  billing: path.join(AI_KIT_HOME, 'billing.json'),
+  alerts:  path.join(AI_KIT_HOME, 'alerts.json'),
+};
+const cmdConfig = (args) => {
+  const verb = args[0];
+  if (!verb || verb === 'list' || verb === 'ls') {
+    const out = process.stdout;
+    out.write(`\n  ${brand('⚙ ai-kit config')}\n`);
+    for (const [k, f] of Object.entries(CONFIG_FILES)) {
+      const exists_ = exists(f);
+      out.write(`\n  ${S.bold}${k}${S.reset} ${S.gray}(${f})${S.reset}\n`);
+      if (exists_) {
+        try {
+          const data = JSON.parse(fs.readFileSync(f, 'utf8'));
+          for (const [kk, vv] of Object.entries(data)) {
+            out.write(`    ${S.cyan}${kk.padEnd(22)}${S.reset} ${S.gray}=${S.reset} ${JSON.stringify(vv)}\n`);
+          }
+        } catch { out.write(`    ${S.red}(invalid JSON)${S.reset}\n`); }
+      } else out.write(`    ${S.dim}(chưa cấu hình — dùng default)${S.reset}\n`);
+    }
+    out.write(`\n  ${S.gray}Cách dùng: ${S.reset}ai-kit config set <file>.<key> <value>\n`);
+    out.write(`  ${S.gray}           ${S.reset}ai-kit config get <file>.<key>\n\n`);
+    return;
+  }
+  if (verb === 'get' || verb === 'set') {
+    const dotKey = args[1];
+    if (!dotKey || !dotKey.includes('.')) { err('Format: <file>.<key>  (file ∈ billing|alerts)'); process.exit(1); }
+    const [file, key] = dotKey.split('.');
+    if (!CONFIG_FILES[file]) { err(`File không hợp lệ: ${file}. Dùng: ${Object.keys(CONFIG_FILES).join('|')}`); process.exit(1); }
+    const f = CONFIG_FILES[file];
+    let data = exists(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
+    if (verb === 'get') {
+      console.log(JSON.stringify(data[key]));
+      return;
+    }
+    let val = args[2];
+    if (val === undefined) { err('Thiếu giá trị: ai-kit config set <file>.<key> <value>'); process.exit(1); }
+    // Try parse as JSON (number/bool/string); fallback to raw string
+    try { val = JSON.parse(val); } catch { /* keep as string */ }
+    data[key] = val;
+    fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+    fs.writeFileSync(f, JSON.stringify(data, null, 2));
+    ok(`Đã set ${file}.${key} = ${JSON.stringify(val)}`);
+    return;
+  }
+  err(`Verb không hợp lệ: ${verb}. Dùng: list | get | set`);
+  process.exit(1);
 };
 
 // ─── install (alias for bootstrap message) ────────────────────────────
@@ -1804,6 +2040,9 @@ const COMMAND_HELP = {
   pack:    { usage: 'ai-kit pack',                              desc: 'Snapshot ~/.claude+~/.cursor agents/skills → repo working tree.' },
   diff:    { usage: 'ai-kit diff',                              desc: 'Show local repo vs origin diff (git status + diff --stat).' },
   statistics: { usage: 'ai-kit statistics [--since 30d] [--top 10] [--json]', desc: 'Local-only telemetry: top skills/agents/tools/models + token cost. Parses ~/.claude/projects/*.jsonl.', flags: {'--since': 'Time window: 7d, 30d, 3m, 24h (default 30d)', '--top': 'Top-N rows per table (default 10)', '--json': 'Machine-readable JSON'}, notes: ['No data leaves the machine.', 'Cost is estimated using public Anthropic pricing — actual billing may differ.'] },
+  verify:     { usage: 'ai-kit verify [--restore | --update]', desc: 'Kiểm tra toàn vẹn ~/.claude+~/.cursor (manifest SHA256). Phát hiện local drift.', flags: {'--restore | -r': 'Chạy update để khôi phục từ team config', '--update': 'Chấp nhận trạng thái hiện tại — ghi manifest mới'} },
+  search:     { usage: 'ai-kit search <term> [--scope all|docs|agents|skills]', desc: 'Tìm full-text xuyên docs + agents + skills. Group theo file, top 30 file.' },
+  config:     { usage: 'ai-kit config <list|get|set> [<file>.<key>] [<value>]', desc: 'Quản lý ~/.ai-kit/{billing,alerts}.json. File ∈ billing|alerts.', notes: ['Ví dụ: ai-kit config set billing.monthly_usd 200', 'Ví dụ: ai-kit config get alerts.total_cost_warn'] },
 };
 const cmdHelp = (topic) => {
   const resolved = ({up:'update',st:'status',dr:'doctor',upg:'upgrade'})[topic] || topic;
@@ -1886,6 +2125,7 @@ const KNOWN_COMMANDS = [
   'update', 'upgrade', 'status', 'doctor', 'doc', 'docs', 'logs', 'mcp',
   'reset', 'rollback', 'list-backups', 'clean', 'pack', 'publish', 'diff',
   'edit', 'uninstall', 'install', 'help', 'version', 'history', 'statistics',
+  'verify', 'search', 'config',
 ];
 
 // suggestCommand moved to ./lib/util.mjs — wrapper using local KNOWN_COMMANDS list
@@ -2108,6 +2348,9 @@ switch (resolved) {
   case 'rollback':     cmdRollback(args); break;
   case 'clean':        cmdClean(args); break;
   case 'statistics':   cmdStatistics(args); break;
+  case 'verify':       cmdVerify(args); break;
+  case 'search':       cmdSearch(args); break;
+  case 'config':       cmdConfig(args); break;
   case 'pack':         cmdPack(); break;
   case 'publish':      cmdPublish(args); break;
   case 'diff':         cmdDiff(); break;
