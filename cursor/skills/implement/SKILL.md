@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Triển khai code theo đúng kế hoạch đã được duyệt (từ /plan-feature hoặc tech-lead). Dev chạy từng task trong plan, cập nhật test và tài liệu liên quan. Dùng cho task ad-hoc nằm ngoài pipeline; nếu đang trong pipeline đang chạy thì dùng /pm thay thế.
+description: Triển khai code theo đúng kế hoạch đã được duyệt (từ /plan-feature hoặc tech-lead). Dev chạy từng task trong plan, cập nhật test và tài liệu liên quan. Dùng cho task ad-hoc nằm ngoài pipeline; nếu đang trong pipeline đang chạy thì dùng /pm hoặc /resume-feature thay thế. Trigger - đã có plan-id từ /plan; cần thực thi 1 wave hoặc cả plan ngoài pipeline SDLC chính thức. Anti-trigger - chưa có plan thì /plan trước; có _state.md đang active thì /resume-feature; bug cần fix thì /code-change. Example - "/implement plan-id=plan-20260328-auth wave=1".
 ---
 
 # Implement Feature

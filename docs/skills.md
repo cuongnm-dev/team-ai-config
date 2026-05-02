@@ -14,7 +14,18 @@ Tài liệu này giúp anh/chị **chọn đúng skill** cho từng tình huốn
 
 ---
 
-## Decision matrix — Tôi đang ở tình huống nào?
+## ⭐ Hai luồng công việc — KHÔNG dùng chéo skill
+
+`team-ai-config` phục vụ **2 luồng độc lập**:
+
+- **🅰 SDLC** — sản xuất phần mềm (code + nghiệm thu)
+- **🅱 Tài liệu nhà nước** — Đề án CĐS, đấu thầu CNTT (1 tài liệu Word)
+
+Phân biệt rõ trước khi chọn skill. Xem [README §Hai luồng công việc](README.md#hai-luồng-công-việc--chọn-đúng-luồng-trước-khi-tìm-skill).
+
+---
+
+## Decision matrix — 🅰 Luồng SDLC
 
 | Tình huống bạn đang gặp | Skill primary | Skill follow-up |
 |---|---|---|
@@ -26,9 +37,37 @@ Tài liệu này giúp anh/chị **chọn đúng skill** cho từng tình huốn
 | Feature đã reviewer Pass | `/close-feature F-NNN` | (sau đó `/generate-docs` nếu cần Office) |
 | Code thay đổi auth/RBAC/route → intel stale | `/intel-refresh` | Check `_meta.json.stale` |
 | Cần fill ATTT/NFR/dự toán (chỉ con người biết) | `/intel-fill` | (interactive interview) |
-| Đề án CĐS chiến lược (không phải feature SDLC) | `/new-strategic-document` | `/strategic-critique` |
-| Tạo 1 tài liệu hành chính riêng lẻ (TKCS/HSMT/...) | `/new-document-workspace` | (theo wizard) |
-| Muốn đóng gói deliverable ZIP | `/zip-disk` | (sau `/generate-docs`) |
+| Bug nghiêm trọng cần ship gấp (root cause đã biết) | `/hotfix` | `/quality review` post-merge |
+| Bug chưa rõ root cause, scope ≤3 files | `/code-change fix` | `/quality review` |
+| Refactor scoped, không đổi public API | `/code-change refactor` | `/quality review` |
+| Có plan đã duyệt, cần triển khai ad-hoc | `/implement` | `/quality review` |
+| Review PR / sinh test / OWASP / GDPR / CVE | `/quality {mode}` | — |
+| Khảo sát kiến trúc tổng thể, build tech-debt backlog | `/arch-review` | `/adr` cho quyết định mới |
+| Quyết định kiến trúc mới cần ghi nhận | `/adr` | (link vào tech-lead plan) |
+| Điều tra spike trước khi quyết hướng đi | `/spike` | `/adr` ghi nhận quyết định |
+| Postmortem sự cố P0/P1 | `/incident` | `/runbook` để cập nhật quy trình |
+| Sự cố production đang xảy ra | `/incident respond` | `/hotfix` nếu code-related |
+| Tạo runbook vận hành cho service mới | `/runbook` | — |
+| Quản lý phát hành phiên bản | `/release {prepare\|go-nogo\|rollback}` | — |
+| Khởi tạo workspace mới hoàn toàn | `/new-workspace` | `/new-feature` để bắt đầu |
+| Thêm app/service vào monorepo | `/new-project` | `/new-feature` |
+| Repo có code, thiếu .cursor/AGENTS.md | `/configure-workspace` | (interactive setup) |
+| Quét cache discipline trước publish | `/cache-lint` | (auto-fix nếu cần) |
+| Đóng gói deliverable ZIP cho khách | `/zip-disk` | (sau `/generate-docs`) |
+
+---
+
+## Decision matrix — 🅱 Luồng Tài liệu nhà nước
+
+| Tình huống bạn đang gặp | Skill primary | Skill follow-up |
+|---|---|---|
+| Soạn Đề án Chuyển đổi số / CNTT cấp Bộ/Tỉnh/Sở | `/new-strategic-document` | `/strategic-critique` trước khi nộp |
+| Tạo 1 tài liệu hành chính riêng lẻ (TKCS/HSMT/HSDT/dự toán/NCKT) | `/new-document-workspace` | (wizard chọn loại) |
+| Tiếp tục Đề án/tài liệu đang dở dang | `/resume-document` | (đọc `_doc_state.md` hoặc `_strategy_state.md`) |
+| Adversarial review Đề án CĐS trước khi nộp Bộ/Tỉnh | `/strategic-critique <draft.docx>` | Sửa theo findings, re-run |
+| Cần update KB chính sách CNTT VN | (agent `policy-researcher` qua orchestrator) | — |
+
+> **Lưu ý**: Luồng B output **1 tài liệu Word duy nhất**, KHÔNG phải bộ 5 file nghiệm thu như Luồng A. KHÔNG dùng `/generate-docs` cho Luồng B (skill đó chỉ cho phần mềm SDLC).
 
 ---
 

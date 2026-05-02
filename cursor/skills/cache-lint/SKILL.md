@@ -1,6 +1,6 @@
 ---
 name: cache-lint
-description: Quét toàn bộ file cấu hình agent và skill để phát hiện vi phạm quy tắc tối ưu prompt cache (giúp Claude chạy nhanh và tiết kiệm chi phí). Bắt các lỗi: khoảng trắng dư, dữ liệu thay đổi nằm sai chỗ, thiếu header chuẩn, định dạng tên sai, line ending Windows. Có thể chạy thủ công hoặc tự động khi sửa file.
+description: Quét toàn bộ file cấu hình agent và skill để phát hiện vi phạm quy tắc tối ưu prompt cache (giúp Claude chạy nhanh và tiết kiệm chi phí). Bắt các lỗi - khoảng trắng dư, dữ liệu thay đổi nằm sai chỗ, thiếu header chuẩn, định dạng tên sai, line ending Windows (CRLF). Có thể chạy thủ công hoặc tự động khi sửa file. Trigger - vừa edit agent/skill .md; trước khi publish.ps1; cache hit rate đang thấp (<90%) trên ai-kit statistics. Anti-trigger - review code thông thường thì /quality review; review kiến trúc thì /arch-review. Example - "/cache-lint" (scan toàn bộ ~/.claude + ~/.cursor) hoặc "/cache-lint ~/.claude/agents/doc-writer.md" (1 file).
 disable-model-invocation: true
 ---
 

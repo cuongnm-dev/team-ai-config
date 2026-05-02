@@ -1,6 +1,6 @@
 ---
 name: feature-status
-description: Xem trạng thái pipeline đang chạy và sức khỏe tổng thể dự án. 4 chế độ: standup (xem nhanh tất cả pipeline để báo cáo daily), detail (chi tiết 1 pipeline cụ thể), health (xu hướng các chỉ số KPI theo thời gian), overview (tóm tắt cả workspace).
+description: Xem trạng thái pipeline đang chạy và sức khỏe tổng thể dự án. 4 chế độ - standup (xem nhanh tất cả pipeline để báo cáo daily), detail (chi tiết 1 pipeline cụ thể), health (xu hướng KPI theo thời gian), overview (tóm tắt cả workspace). READ-ONLY - không sửa _state.md, không advance stage. Trigger - daily standup, báo cáo manager, check sức khỏe trước retro. Anti-trigger - muốn tiếp tục pipeline thì /resume-feature; muốn close thì /close-feature. Example - "/feature-status standup" hoặc "/feature-status detail F-001".
 ---
 
 # Pipeline Status

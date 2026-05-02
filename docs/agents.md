@@ -9,6 +9,38 @@ order: 3
 
 54 agents được phân thành **stage agents** (làm chính cho SDLC) + **4 class** (A/B/C/D — phụ trợ).
 
+> ⚠ **2 luồng độc lập** (xem [README §Hai luồng](README.md#hai-luồng-công-việc--chọn-đúng-luồng-trước-khi-tìm-skill)). Agent Luồng A khác hoàn toàn agent Luồng B — đừng dispatch chéo.
+
+---
+
+## Phân nhóm agents theo luồng
+
+### 🅰 Luồng A — SDLC (sản xuất phần mềm)
+
+**Stage agents** (Cursor — interactive trong pipeline `/resume-feature`):
+`ba` `sa` `tech-lead` `dev` `fe-dev` `qa` `reviewer` `pm` `dispatcher` (+ pro variants)
+
+**Tdoc agents** (Claude — `/from-code` và `/generate-docs` orchestration):
+`tdoc-researcher` `tdoc-actor-enum` `tdoc-test-runner` `tdoc-screenshot-reviewer` `tdoc-data-writer` `tdoc-exporter` `tdoc-tkkt-writer` `tdoc-tkcs-writer` `tdoc-tkct-writer` (writer cho NĐ 45/2026 phần mềm) `tdoc-testcase-writer` `tdoc-manual-writer`
+
+**Class A/B/C/D** (phụ trợ): orchestrator, validator, merger, snapshot, ... — đa phần phục vụ Luồng A.
+
+### 🅱 Luồng B — Tài liệu nhà nước (Đề án CĐS / đấu thầu)
+
+**Strategic agents** (Claude — `/new-strategic-document` 4 spirals):
+- `strategy-analyst` — Bộ não chiến lược, dẫn interview, phân tích gap, DEDUP
+- `policy-researcher` — Nghiên cứu chính sách CNTT VN (QĐ/CT/NĐ), map ecosystem (NDXP/LGSP/CSDLQG)
+- `structure-advisor` — Kiến trúc sư outline Đề án CĐS
+
+**Doc-line agents** (Claude — `/new-document-workspace` cho HSMT/HSDT/dự toán/NCKT):
+- `doc-orchestrator` — Điều phối pipeline tài liệu hành chính
+- `doc-writer` — Viết section, văn phong nghị định, có web research
+- `doc-reviewer` — Rà soát chất lượng theo NĐ 30/2020 + compliance pháp lý
+- `doc-diagram` — Sinh sơ đồ PlantUML/Mermaid theo Khung CPĐT 4.0
+- `tdoc-nckt-writer` — Specialist viết block nckt.* (NCKT NĐ 45/2026 Đ12 — 19 chương)
+
+> Lưu ý: `tdoc-tkcs-writer` và `tdoc-tkct-writer` xuất hiện ở CẢ 2 luồng. Trong Luồng A là 1 phần của bộ nghiệm thu phần mềm; trong Luồng B là tài liệu thầu/dự toán độc lập theo NĐ 45/2026 Đ13/Đ14. Skill orchestrator phân biệt qua `content-data.json` schema.
+
 ---
 
 ## Production-line analogy

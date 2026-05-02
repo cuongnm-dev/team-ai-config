@@ -8,10 +8,52 @@ order: 1
 Tài liệu này giúp anh/chị **hình dung toàn cảnh** trước khi đi vào từng skill cụ thể.
 
 > Đọc xong tài liệu này, bạn nên trả lời được:
+> - Tôi đang ở luồng công việc nào — SDLC hay Tài liệu nhà nước?
 > - Hệ thống có bao nhiêu thành phần?
 > - Dữ liệu chảy như thế nào từ "source" đến "Office docs"?
 > - Skill nào nằm ở đâu trong pipeline?
 > - Khi nào dùng Cursor, khi nào dùng Claude Code?
+
+---
+
+## 0. Bạn đang làm gì? Chọn luồng trước
+
+`team-ai-config` phục vụ **2 luồng công việc khác nhau**. **PHẢI xác định luồng trước** rồi mới vào skill detail — nếu nhầm, anh/chị sẽ dùng sai skill, sai agent, sai output dir.
+
+### 🅰 Luồng A — SDLC (sản xuất phần mềm)
+
+Anh/chị đang **làm phần mềm để bàn giao cho khách hàng**. Có 2 input phổ biến:
+
+- **Input là tài liệu yêu cầu (SRS/BRD)** → bắt đầu `/from-doc` (Claude) → seed feature-catalog → Cursor SDLC pipeline
+- **Input là codebase đã ship** → bắt đầu `/from-code` (Claude) → reverse-engineer intel → `/generate-docs` để sinh nghiệm thu
+
+Kết quả cuối: **code chạy được + 5 file Office nghiệm thu** (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026.
+
+Đối tượng: BA, SA, Dev, FE-Dev, QA, Reviewer, PM.
+
+### 🅱 Luồng B — Tài liệu nhà nước (Đề án CĐS / đấu thầu)
+
+Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/Sở). Phổ biến:
+
+- **Đề án Chuyển đổi số / CNTT** → `/new-strategic-document` (4 spirals: research → DEDUP → outline → write)
+- **Hồ sơ thầu CNTT** (HSMT/HSDT/dự toán/NCKT/TKCS độc lập) → `/new-document-workspace` (wizard chọn loại)
+- **Adversarial review trước khi nộp** → `/strategic-critique <draft.docx>` (role-play cán bộ thẩm định)
+
+Kết quả cuối: **1 tài liệu Word duy nhất** (không phải bộ tài liệu nghiệm thu phần mềm), tuân thủ NĐ 45/2026 + CT 34 + QĐ 749 + TT 04/2020.
+
+Đối tượng: cán bộ phòng CNTT/QLDA, người soạn đề án, người duyệt thầu.
+
+### Quyết định
+
+| Câu trả lời | Luồng | Skill bắt đầu |
+|---|---|---|
+| "Tôi đang code phần mềm" | 🅰 SDLC | `/from-doc` hoặc `/from-code` hoặc `/new-feature` |
+| "Tôi soạn Đề án Chuyển đổi số" | 🅱 Tài liệu | `/new-strategic-document` |
+| "Tôi làm HSMT/HSDT/dự toán" | 🅱 Tài liệu | `/new-document-workspace` |
+| "Tôi nghiệm thu phần mềm cho khách" | 🅰 SDLC | `/from-code` → `/generate-docs` |
+| "Tôi review Đề án trước nộp" | 🅱 Tài liệu | `/strategic-critique` |
+
+> **Nguyên tắc**: 2 luồng KHÔNG dùng skill chéo. KHÔNG dùng `/strategic-critique` cho code review (đã có `/quality review`). KHÔNG dùng `/from-code` để soạn Đề án CĐS. Phần còn lại của tài liệu này tập trung **Luồng A SDLC**. Cho Luồng B, xem [strategic-critique SKILL.md](https://github.com/cuongnm-dev/team-ai-config/blob/main/cursor/skills/strategic-critique/SKILL.md) và [new-strategic-document SKILL.md](https://github.com/cuongnm-dev/team-ai-config/blob/main/claude/skills/new-strategic-document/SKILL.md).
 
 ---
 

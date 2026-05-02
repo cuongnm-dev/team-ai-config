@@ -1,6 +1,6 @@
 ---
 name: configure-workspace
-description: Trang bị cấu hình pipeline `.cursor/` cho repo có sẵn, đồng thời đồng bộ phiên bản mới nhất từ master config về máy. Đã gộp luôn skill sync-master cũ.
+description: Trang bị cấu hình pipeline `.cursor/` cho repo có sẵn, đồng thời đồng bộ phiên bản mới nhất từ master config về máy. Đã gộp luôn skill sync-master cũ. Trigger - repo đã có code nhưng thiếu .cursor/AGENTS.md; cần sync master agents/skills mới về workspace; team mới onboard repo legacy. Anti-trigger - tạo workspace mới hoàn toàn thì /new-workspace; thêm service mới thì /new-project. Example - "/configure-workspace" (interactive — detect stack, propose AGENTS.md, sync master).
 ---
 
 # Skill: Configure Workspace

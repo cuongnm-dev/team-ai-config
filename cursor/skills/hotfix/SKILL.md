@@ -1,6 +1,6 @@
 ---
 name: hotfix
-description: Pipeline rút gọn dành riêng cho lỗi nghiêm trọng đã xác định rõ nguyên nhân. Bỏ qua bước phân tích nghiệp vụ (BA) và kiến trúc (SA), chạy thẳng tech-lead → dev → QA → reviewer để vá nhanh, đẩy lên production.
+description: Pipeline rút gọn dành riêng cho lỗi nghiêm trọng đã xác định rõ nguyên nhân. Bỏ qua bước phân tích nghiệp vụ (BA) và kiến trúc (SA), chạy thẳng tech-lead → dev → QA → reviewer để vá nhanh, đẩy lên production. Scope ≤3 files, max 1 wave. Trigger - bug prod severity Critical/High; root cause đã biết file/function cụ thể; cần rollback path. Anti-trigger - root cause chưa rõ thì /code-change fix; tính năng mới (không phải regression) thì /new-feature; cần BA/SA thì pipeline đầy đủ. Example - "/hotfix 'NullReference khi user null trong AuthGuard'".
 disable-model-invocation: true
 ---
 

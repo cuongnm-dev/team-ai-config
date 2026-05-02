@@ -1,6 +1,6 @@
 ---
 name: code-change
-description: Sửa lỗi hoặc tái cấu trúc code một cách an toàn. Có 2 chế độ: fix (điều tra nguyên nhân → sửa lỗi → kiểm thử lại) và refactor (tái cấu trúc trong phạm vi hẹp, có kiểm chứng trước-sau).
+description: Sửa lỗi hoặc tái cấu trúc code một cách an toàn. Có 2 chế độ - fix (điều tra nguyên nhân → sửa lỗi → kiểm thử lại) và refactor (tái cấu trúc trong phạm vi hẹp, có kiểm chứng trước-sau). Scope ≤3 files; chưa có pipeline _state.md. Trigger - bug chưa rõ root cause cần điều tra; refactor scoped không đổi public API. Anti-trigger - bug đã biết root cause + cần ship gấp thì /hotfix; có plan đã duyệt thì /implement; đang trong pipeline có _state.md thì /resume-feature; scope >3 files thì /new-feature. Example - "/code-change fix 'API trả 500 khi body rỗng'".
 ---
 
 # Code Change

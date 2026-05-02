@@ -1,6 +1,6 @@
 ---
 name: new-workspace
-description: Tạo workspace mới cho dự án — chọn giữa mini-repo (1 service đơn lẻ) hoặc monorepo (nhiều service). Có sẵn các preset công nghệ phổ biến, kiểm tra điều kiện trước khi cài, sinh starter code chạy được ngay sau khi cài đặt.
+description: Tạo workspace mới cho dự án — chọn giữa mini-repo (1 service đơn lẻ) hoặc monorepo (nhiều service). Có sẵn các preset công nghệ phổ biến (NestJS, Next.js, FastAPI, Go, Rust, Flutter, ...), kiểm tra điều kiện trước khi cài, sinh starter code chạy được ngay sau khi cài đặt. Trigger - thư mục hoàn toàn trống cần khởi tạo; chọn stack từ đầu. Anti-trigger - workspace đã setup, chỉ cần thêm app/service thì /new-project; repo có code sẵn cần cấu hình pipeline thì /configure-workspace. Example - "/new-workspace --preset=standard --stack=nestjs --auth=keycloak".
 ---
 
 # Skill: New Project Setup

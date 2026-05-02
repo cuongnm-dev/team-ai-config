@@ -38,12 +38,27 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
 
 ## Học theo vai trò
 
+### Luồng 🅰 SDLC
+
 | Vai trò | Bắt đầu ở đâu | Skills quan trọng nhất |
 |---|---|---|
 | **BA** (nghiệp vụ) | [from-doc](workflows/from-doc.md) | `/from-doc`, agent `ba` |
 | **SA** (kiến trúc) | [agents reference](reference/agents.md) | agent `sa`, agent `tech-lead` |
 | **Dev** | [resume-feature](workflows/resume-feature.md) | `/resume-feature`, agent `dev`/`fe-dev` |
 | **QA** | [resume-feature](workflows/resume-feature.md#qa) | agent `qa`, test-evidence |
+
+### Luồng 🅱 Tài liệu nhà nước
+
+| Vai trò | Bắt đầu ở đâu | Skills quan trọng nhất |
+|---|---|---|
+| **Cán bộ soạn Đề án CĐS** | `/new-strategic-document` | `new-strategic-document`, `strategic-critique` |
+| **Cán bộ làm thầu CNTT** | `/new-document-workspace` | `new-document-workspace` (chọn TKCS/HSMT/HSDT/dự toán/NCKT) |
+| **Người duyệt** | `/strategic-critique <draft>` | `strategic-critique` adversarial review |
+
+### Chung
+
+| Vai trò | Bắt đầu ở đâu | Skills quan trọng nhất |
+|---|---|---|
 | **PM/Maintainer** | [maintainer](maintainer.md) | `ai-kit publish`, `release-mcp` |
 | **Người mới** | [glossary](glossary.md) → [faq](faq.md) | `ai-kit doc` |
 
@@ -87,7 +102,13 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
 
 ---
 
-## Đường dây sản xuất (Production line)
+## ⭐ Hai luồng công việc — Chọn đúng luồng trước khi tìm skill
+
+`team-ai-config` phục vụ **2 nhóm công việc khác nhau**. Đừng nhầm lẫn skill/agent giữa 2 luồng:
+
+### 🅰 Luồng A — SDLC (sản xuất phần mềm để bàn giao)
+
+**Đối tượng**: dev / BA / QA / SA team. **Input**: tài liệu yêu cầu HOẶC codebase. **Output**: code + Office docs nghiệm thu (TKKT/TKCS/TKCT/HDSD/test-cases) theo NĐ 45/2026.
 
 ```
   Tài liệu (SRS/BRD)              Codebase
@@ -97,13 +118,6 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
         │                            │
         └──────► docs/intel/ ◄───────┘
                      │
-                     │  canonical artifacts:
-                     │   • actor-registry.json
-                     │   • permission-matrix.json
-                     │   • sitemap.json
-                     │   • feature-catalog.json
-                     │   • test-evidence/{id}.json
-                     ▼
         ┌────────────┼────────────┐
         ▼            ▼            ▼
   /new-feature  /resume-feature  /generate-docs
@@ -113,6 +127,46 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
    _state.md    Stage agents   Office docs
                 (ba→sa→...)    (TKKT/TKCS/HDSD/test-cases)
 ```
+
+Skills luồng A: `from-doc` `from-code` `new-feature` `resume-feature` `close-feature` `feature-status` `generate-docs` `intel-fill` `intel-refresh` `new-workspace` `new-project` `configure-workspace` `plan` `implement` `code-change` `hotfix` `quality` `arch-review` `adr` `spike` `ui-catalog` `release` `incident` `runbook` `cache-lint` `zip-disk`.
+
+Agents luồng A: stage agents (`ba` `sa` `tech-lead` `dev` `fe-dev` `qa` `reviewer` `pm` `dispatcher`) + tdoc-* (researcher/test-runner/data-writer/exporter/tkkt/tkcs/tkct/testcase/manual writers).
+
+### 🅱 Luồng B — Tài liệu nhà nước (Đề án CĐS / đấu thầu CNTT)
+
+**Đối tượng**: cán bộ soạn Đề án Chuyển đổi số, hồ sơ thầu CNTT, NCKT cấp Bộ/Tỉnh/Sở. **Input**: nhu cầu chiến lược + KB chính sách + DEDUP catalog (NDXP/LGSP/CSDLQG/Gov Cloud). **Output**: Đề án CĐS, NCKT, HSMT, HSDT, dự toán, TKCS độc lập theo NĐ 45/2026 + CT 34.
+
+```
+  Nhu cầu chiến lược             Tài liệu sẵn có
+        │                            │
+        ▼                            ▼
+  /new-strategic-document     /new-document-workspace
+   (4 spirals: research →       (TKCS/HSMT/HSDT/dự toán/
+    DEDUP → outline → write)     NCKT — wizard chọn loại)
+        │                            │
+        └──────────────┬─────────────┘
+                       │
+                       ▼
+                /resume-document      /strategic-critique
+                (tiếp tục dở dang)    (adversarial review
+                                       trước khi nộp)
+```
+
+Skills luồng B: `new-strategic-document` `new-document-workspace` `resume-document` `strategic-critique`.
+
+Agents luồng B: `strategy-analyst` `policy-researcher` `structure-advisor` `doc-orchestrator` `doc-writer` `doc-reviewer` `doc-diagram`.
+
+### Phân biệt nhanh
+
+| Câu hỏi | Luồng |
+|---|---|
+| "Tôi có code/SRS, cần sinh tài liệu nghiệm thu phần mềm" | 🅰 SDLC |
+| "Tôi cần soạn Đề án Chuyển đổi số nộp Sở/Bộ" | 🅱 Tài liệu nhà nước |
+| "Tôi cần làm hồ sơ thầu HSMT/HSDT" | 🅱 Tài liệu nhà nước |
+| "Tôi cần quản lý vòng đời tính năng (BA→SA→Dev→QA)" | 🅰 SDLC |
+| "Tôi cần adversarial review Đề án trước khi nộp" | 🅱 Tài liệu nhà nước |
+
+> **Quy tắc**: 2 luồng dùng intel layer (`docs/intel/`) khác nhau, output dir khác nhau, agents khác nhau. KHÔNG mix skill giữa 2 luồng (vd không dùng `/strategic-critique` để review code, không dùng `/quality` để critique Đề án CĐS).
 
 Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có `ROLE`, `READ-GATES`, `OWN-WRITE`, `FORBID`, `EXIT-GATES`. Xem [on-board](on-board.md) và [agents reference](reference/agents.md).
 

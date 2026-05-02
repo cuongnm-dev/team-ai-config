@@ -1,6 +1,6 @@
 ---
 name: resume-feature
-description: Tiếp tục pipeline đang dở từ checkpoint cuối cùng. Hỗ trợ cả pipeline phát triển tính năng (SDLC) và pipeline sinh tài liệu. Đọc _state.md để biết đang ở đâu, chạy dispatcher loop tự động giao việc cho đúng agent, có cơ chế PM escalation khi gặp blocker, hoàn thành tới checkpoint tiếp theo.
+description: Tiếp tục pipeline đang dở từ checkpoint cuối cùng. Hỗ trợ cả pipeline phát triển tính năng (SDLC) và pipeline sinh tài liệu. Đọc _state.md để biết đang ở đâu, chạy dispatcher loop tự động giao việc cho đúng agent, có cơ chế PM escalation khi gặp blocker, hoàn thành tới checkpoint tiếp theo. Trigger - feature-id đang in-progress hoặc blocked; muốn advance qua stage tiếp theo. Anti-trigger - feature chưa tạo thì /new-feature; feature đã reviewer-Pass thì /close-feature; chỉ muốn readonly view thì /feature-status. Example - "/resume-feature F-001" (auto-loop tới done hoặc blocked).
 ---
 
 # Resume Pipeline

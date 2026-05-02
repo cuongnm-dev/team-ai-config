@@ -1,6 +1,6 @@
 ---
 name: arch-review
-description: Khảo sát toàn bộ kiến trúc dự án và đăng ký nợ kỹ thuật. Có 2 chế độ: review (phân tích kiến trúc hiện tại để đánh giá điểm mạnh/yếu) và tech-debt (kiểm kê và xếp ưu tiên các vấn đề tồn đọng cần xử lý).
+description: Khảo sát toàn bộ kiến trúc dự án và đăng ký nợ kỹ thuật. Có 2 chế độ - review (phân tích kiến trúc hiện tại để đánh giá điểm mạnh/yếu) và tech-debt (kiểm kê và xếp ưu tiên các vấn đề tồn đọng cần xử lý). Phạm vi system-wide, không phải 1 PR. Trigger - định kỳ quarterly review kiến trúc; chuẩn bị refactor lớn; onboard SA mới cần map current state; build tech-debt backlog. Anti-trigger - review code 1 PR thì /quality review; review 1 quyết định kiến trúc thì /adr; điều tra trước khi quyết hướng đi thì /spike. Example - "/arch-review review" hoặc "/arch-review tech-debt".
 disable-model-invocation: true
 ---
 

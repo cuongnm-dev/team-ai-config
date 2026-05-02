@@ -1,6 +1,6 @@
 ---
 name: new-project
-description: Thêm 1 app, service hoặc package mới vào workspace monorepo hiện tại. Đọc .cursor/AGENTS.md để xác nhận loại workspace, scaffold member mới, cập nhật cấu hình workspace và AGENTS.md. Chỉ dùng cho monorepo — muốn tạo workspace mới hoàn toàn thì dùng /new-workspace.
+description: Thêm 1 app, service hoặc package mới vào workspace monorepo hiện tại. Đọc .cursor/AGENTS.md để xác nhận loại workspace, scaffold member mới, cập nhật cấu hình workspace và AGENTS.md. Chỉ dùng cho monorepo — muốn tạo workspace mới hoàn toàn thì dùng /new-workspace. Trigger - monorepo đã setup, cần thêm app/service/package mới (vd "thêm seal-iot service"). Anti-trigger - chưa có workspace thì /new-workspace; mini-repo (chỉ 1 service) thì không hỗ trợ - convert mono trước. Example - "/new-project type=service name=seal-iot stack=go".
 ---
 
 # Skill: New Project (Add to Monorepo)

@@ -1,6 +1,6 @@
 ---
 name: quality
-description: Review chất lượng code, sinh test, và kiểm toán dự án. 5 chế độ - review (xem PR/diff góp ý), gen-tests (sinh test unit/integration), security (quét lỗ hổng OWASP), compliance (PII/GDPR/PCI/SOC2), dependencies (CVE + license + outdated).
+description: Review chất lượng code, sinh test, và kiểm toán dự án. 5 chế độ - review (xem PR/diff góp ý must-fix/should-fix/nit), gen-tests (sinh test unit/integration), security (quét lỗ hổng OWASP Top 10), compliance (PII/GDPR/PCI/HIPAA/SOC2), dependencies (CVE + license + outdated). Trigger - 1 PR/diff cần review; 1 module cần OWASP scan; sinh test cho code thiếu coverage; audit thư viện. Anti-trigger - review kiến trúc tổng thể thì /arch-review; review prompt cache cho agent/skill thì /cache-lint; review Đề án CĐS thì /strategic-critique. Example - "/quality review" hoặc "/quality security src/auth/" hoặc "/quality dependencies".
 ---
 
 # Quality

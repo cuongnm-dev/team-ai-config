@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: Khởi tạo pipeline cho 1 tính năng MỚI (không có _state.md trước đó), hoặc cập nhật tính năng đã hoàn thành (status:done) khi có change request. Pipeline đang dở (status:in-progress|blocked) sẽ được redirect sang /resume-feature. Tự đọc AGENTS.md, intel layer (CD-10), tạo _state.md + feature-brief.md + feature-map.yaml + canonical intel entries theo contract chuẩn.
+description: Khởi tạo pipeline cho 1 tính năng MỚI (không có _state.md trước đó), hoặc cập nhật tính năng đã hoàn thành (status:done) khi có change request. Pipeline đang dở (status:in-progress|blocked) sẽ được redirect sang /resume-feature. Tự đọc AGENTS.md, intel layer (CD-10), tạo _state.md + feature-brief.md + feature-map.yaml + canonical intel entries theo contract chuẩn. Trigger - feature-id chưa tồn tại; user nói "thêm tính năng mới"; change request cho feature đã done. Anti-trigger - feature đang in-progress/blocked thì dùng /resume-feature; chỉ muốn xem status thì /feature-status. Example - "/new-feature" (interactive) hoặc "/new-feature F-042" để mở lại feature done.
 ---
 
 # Pipeline Entry Point
