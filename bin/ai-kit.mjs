@@ -182,16 +182,16 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
   h(Header, {title: `ai-kit ${VERSION}`, subtitle: 'Team AI config manager'}),
   h(Section, {title: 'User commands'},
     h(Row, {label: 'install', value: 'First-time setup (use bootstrap)'}),
-    h(Row, {label: 'update | up', value: 'Pull team config + redeploy + refresh MCP'}),
-    h(Row, {label: 'status | st', value: 'Versions + deployed counts + MCP health'}),
-    h(Row, {label: 'logs', value: 'Tail MCP container logs'}),
-    h(Row, {label: 'doctor | dr', value: 'Verify deps + paths'}),
-    h(Row, {label: 'statistics | stats', value: 'Top skills/agents/tokens/cost (local-only)'}),
-    h(Row, {label: 'verify [--restore]', value: 'Kiểm tra toàn vẹn agents/skills (manifest SHA256)'}),
-    h(Row, {label: 'search <term>', value: 'Tìm xuyên docs+agents+skills (--scope)'}),
-    h(Row, {label: 'config get|set|list', value: 'Quản lý ~/.ai-kit/{billing,alerts}.json'}),
-    h(Row, {label: 'schedule update', value: 'Cron/Task Scheduler tự động update'}),
-    h(Row, {label: 'version | -v', value: 'Show ai-kit + team-config + MCP versions'})
+    h(Row, {label: 'update | up | -u', value: 'Pull team config + redeploy + refresh MCP'}),
+    h(Row, {label: 'status | st | -s', value: 'Versions + deployed counts + MCP health'}),
+    h(Row, {label: 'logs | -l', value: 'Tail MCP container logs'}),
+    h(Row, {label: 'doctor | dr | -dr', value: 'Verify deps + paths'}),
+    h(Row, {label: 'statistics | stats | -stat', value: 'Top skills/agents/tokens/cost (local-only)'}),
+    h(Row, {label: 'verify | vfy | -vfy', value: 'Kiểm tra toàn vẹn agents/skills (manifest SHA256)'}),
+    h(Row, {label: 'search | src | -src', value: 'Tìm xuyên docs+agents+skills (--scope)'}),
+    h(Row, {label: 'config | cfg | -cfg', value: 'Quản lý ~/.ai-kit/{billing,alerts}.json'}),
+    h(Row, {label: 'schedule | sch | -sch', value: 'Cron/Task Scheduler tự động update'}),
+    h(Row, {label: 'version | ver | -v', value: 'Show ai-kit + team-config + MCP versions'})
   ),
   h(Section, {title: 'Documentation'},
     h(Row, {label: 'doc', value: 'Show docs index'}),
@@ -2765,13 +2765,31 @@ if (cmd === '!!') {
 if (cmd === 'history') { cmdShowHistory(); process.exit(0); }
 
 const aliasMap = {
-  '-v': 'version', '--version': 'version',
-  '-h': 'help', '--help': 'help',
-  'up': 'update', 'st': 'status', 'dr': 'doctor', 'doc': 'docs',
+  // ── word aliases (no dash) ───────────────────────────────────────
+  'up': 'update',  'st': 'status',  'dr': 'doctor',  'doc': 'docs',
   'upg': 'upgrade', 'stat': 'statistics', 'stats': 'statistics',
-  // 1-letter shortcuts (Batch 3)
+  'ver': 'version', 'vfy': 'verify', 'cfg': 'config', 'sch': 'schedule',
+  'hist': 'history', 'src': 'search',
+  // 1-letter shortcuts
   's': 'status', 'u': 'update', 'd': 'docs', 'm': 'mcp',
   'r': 'rollback', 'h': 'help', 'v': 'version', 'l': 'logs',
+  // ── dash aliases (single-dash multi-letter, like -v) ─────────────
+  '-v': 'version', '--version': 'version',
+  '-h': 'help',    '--help': 'help',
+  '-s':   'status',     '-st':   'status',     '--status':   'status',
+  '-u':   'update',     '-up':   'update',     '--update':   'update',
+  '-d':   'docs',       '-doc':  'docs',       '--docs':     'docs',
+  '-dr':  'doctor',     '-dor':  'doctor',     '--doctor':   'doctor',
+  '-m':   'mcp',        '--mcp':  'mcp',
+  '-r':   'rollback',   '-rb':   'rollback',   '--rollback': 'rollback',
+  '-l':   'logs',       '--logs': 'logs',
+  '-stat':'statistics', '-stats':'statistics', '--stats':    'statistics', '--statistics':'statistics',
+  '-vfy': 'verify',     '--verify': 'verify',
+  '-cfg': 'config',     '--config': 'config',
+  '-sch': 'schedule',   '--schedule': 'schedule',
+  '-src': 'search',     '--search':   'search',
+  '-hist':'history',    '--history':  'history',
+  '-upg': 'upgrade',    '--upgrade':  'upgrade',
 };
 
 // No-arg interactive menu (Batch 1) — only when stdin is TTY and not piped
