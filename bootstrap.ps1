@@ -176,6 +176,23 @@ if (-not (Get-Command glow -ErrorAction SilentlyContinue)) {
   }
 }
 
+# Auto-install less (interactive pager for `ai-kit doc <topic>`)
+# UTF-8 support + ANSI colors. Windows `more` mangles Vietnamese — `less` mandatory.
+if (-not (Get-Command less -ErrorAction SilentlyContinue)) {
+  Write-Info 'Installing less (pager for ai-kit doc paging)'
+  if (Get-Command winget -ErrorAction SilentlyContinue) {
+    & winget install --id jftuga.less -e --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
+    if (Get-Command less -ErrorAction SilentlyContinue) {
+      Write-Ok 'less installed (open NEW terminal to use)'
+    } else {
+      Write-Host '  ! less install via winget failed — try: scoop install less | choco install less'
+    }
+  } else {
+    Write-Host '  ! winget not available — install less manually for paginated docs:'
+    Write-Host '    scoop install less | choco install less'
+  }
+}
+
 # Install Node deps into $AiKitHome (where ai-kit.cmd + ai-kit looks for node_modules)
 $pkgSrc = Join-Path $RepoDir 'package.json'
 $pkgDst = Join-Path $AiKitHome 'package.json'

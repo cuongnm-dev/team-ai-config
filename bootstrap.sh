@@ -217,6 +217,31 @@ if ! command -v glow >/dev/null 2>&1; then
   esac
 fi
 
+# ─── ensure less (interactive pager for `ai-kit doc <topic>`) ─────────
+# less is preinstalled on virtually all macOS + Linux distros; this block runs
+# only on the rare distro/setup that ships without it.
+if ! command -v less >/dev/null 2>&1; then
+  info "Installing less (pager for ai-kit doc paging)"
+  case "$OS" in
+    macos)
+      command -v brew >/dev/null 2>&1 && brew install less >/dev/null 2>&1 && ok "less installed" || \
+        warn "Skip less (no brew). Manual: brew install less"
+      ;;
+    debian)
+      sudo apt-get install -y less >/dev/null 2>&1 && ok "less installed" || warn "Skip less. Manual: sudo apt-get install less"
+      ;;
+    rhel)
+      sudo dnf install -y less >/dev/null 2>&1 && ok "less installed" || warn "Skip less. Manual: sudo dnf install less"
+      ;;
+    arch)
+      sudo pacman -S --noconfirm less >/dev/null 2>&1 && ok "less installed" || warn "Skip less. Manual: sudo pacman -S less"
+      ;;
+    *)
+      warn "Skip less (unknown OS). Manual: install 'less' via your package manager"
+      ;;
+  esac
+fi
+
 # ─── install Node deps into AI_KIT_HOME (canonical, matches ai-kit launcher) ──
 if [ -f "$REPO_DIR/package.json" ] && [ ! -d "$AI_KIT_HOME/node_modules" ]; then
   info "Installing Node.js dependencies"

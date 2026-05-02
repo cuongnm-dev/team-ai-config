@@ -357,6 +357,7 @@ const buildDoctorData = () => {
     {name: 'curl', required: false, ok: cmdAvail('curl')},
     {name: 'glow (markdown render)', required: false, ok: cmdAvail('glow')},
     {name: 'bat (alt renderer)', required: false, ok: cmdAvail('bat')},
+    {name: 'less (doc pager)', required: false, ok: cmdAvail('less')},
   ];
   let dockerDaemon = false;
   try { execaSync('docker', ['info'], {stdio: 'ignore'}); dockerDaemon = true; } catch {}
@@ -876,6 +877,45 @@ const cmdUpdate = async () => {
         if (r.exitCode !== 0) throw new Error('npm install thất bại');
         fs.writeFileSync(hashFile, newHash);
         task.title = 'Đã cài Node deps';
+      },
+    },
+    {
+      title: 'Đảm bảo `less` (pager cho ai-kit doc)',
+      // less is mandatory for clean doc pagination — Windows `more` mangles UTF-8.
+      // Already-installed → instant skip. Missing → silent install via platform PM.
+      task: (_, task) => {
+        if (cmdAvail('less')) {
+          task.title = 'less đã cài';
+          task.skip();
+          return;
+        }
+        const plat = process.platform;
+        let cmd, args;
+        if (plat === 'win32' && cmdAvail('winget')) {
+          cmd = 'winget';
+          args = ['install', '--id', 'jftuga.less', '-e',
+            '--accept-source-agreements', '--accept-package-agreements', '--silent'];
+        } else if (plat === 'darwin' && cmdAvail('brew')) {
+          cmd = 'brew'; args = ['install', 'less'];
+        } else {
+          // Linux: less almost always preinstalled; if missing, sudo prompt would
+          // block this Listr task → just hint instead.
+          task.title = 'less thiếu — cài thủ công (apt/dnf/pacman install less)';
+          task.skip();
+          return;
+        }
+        try {
+          shQuiet(cmd, args);
+          if (cmdAvail('less')) {
+            task.title = 'Đã cài less';
+          } else {
+            task.title = 'Cài less không thành công — chạy thủ công';
+            task.skip();
+          }
+        } catch {
+          task.title = 'Cài less không thành công — chạy thủ công';
+          task.skip();
+        }
       },
     },
     {
