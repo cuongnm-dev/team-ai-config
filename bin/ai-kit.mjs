@@ -14,6 +14,9 @@ import path from 'node:path';
 import React, { useEffect, useState } from 'react';
 import { Listr } from 'listr2';
 import boxen from 'boxen';
+import figlet from 'figlet';
+import { distance } from 'fastest-levenshtein';
+import { select } from '@inquirer/prompts';
 
 const _pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const VERSION = _pkg.version;
@@ -1154,17 +1157,143 @@ const cmdHelp = (topic) => {
   out.write(`\n  ${S.dim}${bar}${S.reset}\n\n`);
 };
 
+// ─── History (Batch 4) ─────────────────────────────────────────────────
+const HISTORY_FILE = path.join(AI_KIT_HOME, 'history');
+const HISTORY_MAX = 100;
+const recordHistory = (argv) => {
+  if (!argv?.length) return;
+  const line = argv.join(' ');
+  if (['!!', 'history', '-h', '--help', '-v', '--version'].includes(argv[0])) return;
+  try {
+    fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+    let lines = exists(HISTORY_FILE) ? fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean) : [];
+    if (lines[lines.length - 1] === line) return;  // dedupe consecutive
+    lines.push(line);
+    if (lines.length > HISTORY_MAX) lines = lines.slice(-HISTORY_MAX);
+    fs.writeFileSync(HISTORY_FILE, lines.join('\n') + '\n');
+  } catch {}
+};
+const lastHistory = () => {
+  if (!exists(HISTORY_FILE)) return null;
+  const lines = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
+  return lines[lines.length - 1] || null;
+};
+const cmdShowHistory = () => {
+  if (!exists(HISTORY_FILE)) { info('Chưa có lịch sử.'); return; }
+  const lines = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
+  const w = _cols(), bar = '─'.repeat(w - 4);
+  process.stdout.write(`\n  ${brand('Lịch sử lệnh')}  ${S.gray}${lines.length}/${HISTORY_MAX}${S.reset}\n  ${S.dim}${bar}${S.reset}\n\n`);
+  lines.slice(-30).forEach((l, i) => {
+    const idx = lines.length - Math.min(lines.length, 30) + i + 1;
+    process.stdout.write(`  ${S.gray}${String(idx).padStart(3)}${S.reset}  ai-kit ${S.cyan}${l}${S.reset}\n`);
+  });
+  process.stdout.write(`\n  ${S.gray}Chạy lại lệnh cuối: ${S.reset}ai-kit !!\n\n`);
+};
+
+// ─── Splash banner (Batch 1) ───────────────────────────────────────────
+const printSplash = () => {
+  let banner = '';
+  try {
+    banner = figlet.textSync('ai-kit', {font: 'Slant', horizontalLayout: 'fitted'});
+  } catch { banner = 'ai-kit'; }
+  const lines = banner.split('\n').filter(l => l.trim());
+  process.stdout.write('\n');
+  lines.forEach(l => process.stdout.write('  ' + (USE_TRUECOLOR ? gradient(l, BRAND) : `${S.bcyan}${l}${S.reset}`) + '\n'));
+  process.stdout.write(`  ${S.gray}Team AI config manager  ·  v${VERSION}${S.reset}\n`);
+};
+
+const printStatusBadges = () => {
+  const sd = (() => { try { return buildStatusData(); } catch { return null; } })();
+  const dock = dockerHealth();
+  const dockBadge = dock === 'running' ? `${S.green}● Docker${S.reset}` : `${S.yellow}○ Docker${S.reset}`;
+  const counts = sd
+    ? `${S.gray}agents ${S.reset}${sd.claudeAgents}+${sd.cursorAgents}  ${S.gray}skills ${S.reset}${sd.claudeSkills}+${sd.cursorSkills}`
+    : `${S.gray}repo: chưa cài${S.reset}`;
+  process.stdout.write(`  ${dockBadge}  ${S.gray}·${S.reset}  ${counts}\n\n`);
+};
+
+// ─── Known commands list (for did-you-mean + menu) ─────────────────────
+const KNOWN_COMMANDS = [
+  'update', 'upgrade', 'status', 'doctor', 'doc', 'docs', 'logs', 'mcp',
+  'reset', 'rollback', 'list-backups', 'clean', 'pack', 'publish', 'diff',
+  'edit', 'uninstall', 'install', 'help', 'version', 'history',
+];
+
+const suggestCommand = (input) => {
+  if (!input) return [];
+  const scored = KNOWN_COMMANDS.map(c => ({c, d: distance(input, c)}))
+    .filter(x => x.d <= Math.max(2, Math.floor(input.length / 3)))
+    .sort((a, b) => a.d - b.d);
+  return scored.slice(0, 3).map(x => x.c);
+};
+
+// ─── Interactive menu (Batch 1) ────────────────────────────────────────
+const runInteractiveMenu = async () => {
+  printSplash();
+  printStatusBadges();
+  try {
+    const choice = await select({
+      message: 'Chọn lệnh:',
+      pageSize: 12,
+      choices: [
+        {name: 'update      — Pull team config + redeploy + refresh MCP', value: 'update'},
+        {name: 'status      — Versions + deployed counts + MCP health', value: 'status'},
+        {name: 'doc         — Mở docs index', value: 'doc'},
+        {name: 'mcp status  — Trạng thái MCP container', value: 'mcp:status'},
+        {name: 'doctor      — Kiểm tra môi trường', value: 'doctor'},
+        {name: 'rollback    — Khôi phục từ backup', value: 'rollback'},
+        {name: 'history     — Xem lịch sử lệnh', value: 'history'},
+        {name: 'help        — Xem toàn bộ lệnh', value: 'help'},
+        {name: 'thoát', value: '__exit__'},
+      ],
+    });
+    if (choice === '__exit__') process.exit(0);
+    const [c, ...rest] = choice.split(':');
+    return [c, ...rest];
+  } catch (e) {
+    // Ctrl+C / non-TTY
+    process.exit(0);
+  }
+};
+
 // ─── Dispatch ──────────────────────────────────────────────────────────
-const cmd = _rawArgs[0];
-const args = _rawArgs.slice(1);
+let cmd = _rawArgs[0];
+let args = _rawArgs.slice(1);
+
+// `!!` — re-run last command
+if (cmd === '!!') {
+  const last = lastHistory();
+  if (!last) { err('Chưa có lệnh nào trong lịch sử.'); process.exit(1); }
+  process.stdout.write(`${S.gray}  ↻ ai-kit ${last}${S.reset}\n`);
+  const parts = last.split(/\s+/);
+  cmd = parts[0]; args = parts.slice(1);
+}
+
+// `history` builtin
+if (cmd === 'history') { cmdShowHistory(); process.exit(0); }
 
 const aliasMap = {
   '-v': 'version', '--version': 'version',
   '-h': 'help', '--help': 'help',
   'up': 'update', 'st': 'status', 'dr': 'doctor', 'doc': 'docs',
   'upg': 'upgrade',
+  // 1-letter shortcuts (Batch 3)
+  's': 'status', 'u': 'update', 'd': 'docs', 'm': 'mcp',
+  'r': 'rollback', 'h': 'help', 'v': 'version', 'l': 'logs',
 };
+
+// No-arg interactive menu (Batch 1) — only when stdin is TTY and not piped
+if (!cmd && process.stdin.isTTY && process.stdout.isTTY && !process.env.CI) {
+  const picked = await runInteractiveMenu();
+  cmd = picked[0]; args = picked.slice(1);
+}
+
 const resolved = aliasMap[cmd] || cmd || 'help';
+
+// Record history (after resolution, before dispatch) — Batch 4
+if (cmd && resolved !== 'help' && resolved !== 'version') {
+  recordHistory([cmd, ...args]);
+}
 
 switch (resolved) {
   case 'help':
@@ -1232,17 +1361,14 @@ switch (resolved) {
   case 'uninstall':    cmdUninstall(args); break;
   case 'install':      cmdInstall(); break;
   default: {
-    // Last-resort fallback to legacy shell (should rarely fire now)
-    const isWin = process.platform === 'win32';
-    const legacy = path.join(REPO_DIR, 'bin', isWin ? 'ai-kit.legacy.ps1' : 'ai-kit.legacy');
-    if (exists(legacy)) {
-      const child = isWin
-        ? execaSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', legacy, cmd, ...args], {stdio: 'inherit', reject: false})
-        : execaSync('bash', [legacy, cmd, ...args], {stdio: 'inherit', reject: false});
-      process.exit(child.exitCode || 0);
+    console.error(`${C.red}  ✗ Lệnh không xác định: ${cmd}${C.reset}`);
+    const sugg = suggestCommand(cmd);
+    if (sugg.length) {
+      console.error(`${S.gray}    Có phải bạn định gõ:${S.reset}`);
+      sugg.forEach(s => console.error(`      ${S.cyan}ai-kit ${s}${S.reset}`));
+    } else {
+      console.error(`${S.gray}    Gõ ${S.reset}ai-kit help${S.gray} để xem danh sách lệnh.${S.reset}`);
     }
-    console.error(`${C.red}  ✗ Unknown command: ${cmd}${C.reset}`);
-    renderStaticLater(h(Help));
     process.exit(1);
   }
 }
