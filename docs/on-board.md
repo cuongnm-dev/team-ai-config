@@ -1,9 +1,9 @@
 ---
-title: Architecture — Bản đồ tổng thể hệ thống AI tooling
+title: On-board — Nhập môn ai-kit (luồng làm việc + hợp đồng vòng đời)
 order: 1
 ---
 
-# Architecture — Bản đồ tổng thể
+# On-board — Nhập môn ai-kit
 
 Tài liệu này giúp anh/chị **hình dung toàn cảnh** trước khi đi vào từng skill cụ thể.
 
