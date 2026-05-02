@@ -90,7 +90,15 @@ const T = {
 };
 
 // ─── marked-terminal setup ─────────────────────────────────────────────
-const _cols = () => Math.min(process.stdout.columns || 100, 100);
+// Doc/UI render width. Default = full terminal width so tables, code blocks,
+// dividers fill the screen on wide monitors (matching glow/bat/ripgrep behavior).
+// Override with AI_KIT_DOC_WIDTH=N if you prefer narrower prose (e.g. 100 for
+// book-like reading on a 200-col terminal).
+const _cols = () => {
+  const envW = Number.parseInt(process.env.AI_KIT_DOC_WIDTH, 10);
+  if (envW > 20) return envW;
+  return process.stdout.columns || 100;
+};
 marked.use(markedTerminal({reflowText: true, width: _cols()}, {useNewRenderer: true}));
 // Override heading + code renderers — only when color output is active
 if (USE_COLOR) marked.use({
