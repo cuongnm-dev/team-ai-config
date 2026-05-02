@@ -710,6 +710,14 @@ const cmdUpdate = () => {
     composeCmd('up', '-d', '--force-recreate');
     ok('MCP refreshed');
   }
+
+  // Reset update-check cache so next invocation does not show stale "X behind" notice.
+  // Background refresher will re-poll origin within 1h; until then, mark as up-to-date.
+  try {
+    fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+    fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ahead: 0, ts: Date.now()}));
+  } catch {}
+
   ok('Update complete');
 };
 
