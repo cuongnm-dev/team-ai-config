@@ -3076,15 +3076,18 @@ const menuDocs = async () => {
   let topics = [];
   try {
     const docsDir = path.join(REPO_DIR, 'docs');
-    const root = readDocItems(docsDir).filter(it => it.name !== 'README');
+    // Apply same curation as `ai-kit doc` index: hide sub-pages of hub menus
+    // (on-board-sdlc/tailieu) and maintainer-only docs (maintainer/contributing/decision-log).
+    const root = readDocItems(docsDir)
+      .filter(it => it.name !== 'README' && !HIDDEN_FROM_INDEX.has(it.name))
+      .sort((a, b) => orderRank(a.name) - orderRank(b.name) || a.name.localeCompare(b.name));
     const wf = readDocItems(path.join(docsDir, 'workflows')).map(it => ({...it, name: `workflows/${it.name}`}));
     const ref = readDocItems(path.join(docsDir, 'reference')).map(it => ({...it, name: `reference/${it.name}`}));
     topics = [...root, ...wf, ...ref];
   } catch {}
+  // Skills/agents already in topics list — don't duplicate at top.
   const choices = [
-    {name: 'index       — Mục lục tài liệu', value: 'index'},
-    {name: 'skills      — Danh mục skills', value: 'skills'},
-    {name: 'agents      — Danh mục agents', value: 'agents'},
+    {name: 'index       — Mục lục tài liệu (interactive)', value: 'index'},
     {name: 'search      — Tìm kiếm full-text', value: '__search__'},
     ...(topics.length ? [{name: '── chọn topic ──', value: '__sep__', disabled: ' '}] : []),
     ...topics.slice(0, 30).map(t => ({name: `${t.name.padEnd(28)}— ${t.title}`, value: t.name})),
