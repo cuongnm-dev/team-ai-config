@@ -16,7 +16,7 @@ import React, { useEffect, useState } from 'react';
 import { Listr } from 'listr2';
 import boxen from 'boxen';
 import figlet from 'figlet';
-import { select } from '@inquirer/prompts';
+import { select, input } from '@inquirer/prompts';
 import {
   fmtN, fmtInt, fmtUsd, fmtPct,
   parseSince, priceOf, costOf,
@@ -647,8 +647,10 @@ const promptAfterRender = async () => {
 };
 
 // One pass of section menu: pick H2 section → optional H3 pick → render subset.
-// Returns 'rendered' (section shown), 'back' (up 1 level), or 'exit'.
-const pickAndRenderSection = async (file, sections) => {
+// H2-level pick. Returns one of:
+//   { kind: 'render-all' } | { kind: 'render-section', sec } | { kind: 'enter-h3', sec }
+//   | { kind: 'back' } | { kind: 'exit' }
+const pickH2 = async (file, sections) => {
   const choices = [
     { name: '📖 Xem toàn bộ tài liệu', value: '__all' },
     ...sections.map((s, idx) => ({
@@ -667,43 +669,48 @@ const pickAndRenderSection = async (file, sections) => {
       choices,
       pageSize: 15,
     });
-  } catch { return 'exit'; }
-  if (pick === '__exit') return 'exit';
-  if (pick === '__back') return 'back';
-  if (pick === '__all') { clearScreen(); renderDoc(file); return 'rendered'; }
-
+  } catch { return { kind: 'exit' }; }
+  if (pick === '__exit') return { kind: 'exit' };
+  if (pick === '__back') return { kind: 'back' };
+  if (pick === '__all') return { kind: 'render-all' };
   const sec = sections[parseInt(pick, 10)];
-  // Drill into H3 children when present
-  if (sec.children.length > 0) {
-    const sub = [
+  if (sec.children.length > 0) return { kind: 'enter-h3', sec };
+  return { kind: 'render-section', sec };
+};
+
+// H3 sub-loop: stays inside the H2 section so user can read multiple H3 children
+// without losing position. Returns 'back' (to H2 list) or 'exit'.
+const h3Loop = async (file, sec) => {
+  while (true) {
+    clearScreen();
+    const choices = [
       { name: `📖 Toàn bộ "${sec.title}"`, value: '__sec' },
       ...sec.children.map((c, idx) => ({ name: c.title, value: String(idx) })),
       { name: '↩ Quay lại', value: '__back' },
       { name: '✕ Thoát', value: '__exit' },
     ];
-    let pick2;
+    let pick;
     try {
-      clearScreen();
-      pick2 = await select({ message: `${sec.title} →`, choices: sub, pageSize: 15 });
+      pick = await select({ message: `${sec.title} →`, choices, pageSize: 15 });
     } catch { return 'exit'; }
-    if (pick2 === '__exit') return 'exit';
-    if (pick2 === '__back') return pickAndRenderSection(file, sections); // re-pick top-level
-    if (pick2 === '__sec') {
+    if (pick === '__exit') return 'exit';
+    if (pick === '__back') return 'back';
+
+    if (pick === '__sec') {
       clearScreen();
       renderDocSubset(file, sec.lineStart, sec.lineEnd, sec.title);
-      return 'rendered';
+    } else {
+      const cIdx = parseInt(pick, 10);
+      const child = sec.children[cIdx];
+      const nextChild = sec.children[cIdx + 1];
+      const childEnd = nextChild ? nextChild.lineStart - 1 : sec.lineEnd;
+      clearScreen();
+      renderDocSubset(file, child.lineStart, childEnd, `${sec.title} → ${child.title}`);
     }
-    const cIdx = parseInt(pick2, 10);
-    const child = sec.children[cIdx];
-    const nextChild = sec.children[cIdx + 1];
-    const childEnd = nextChild ? nextChild.lineStart - 1 : sec.lineEnd;
-    clearScreen();
-    renderDocSubset(file, child.lineStart, childEnd, `${sec.title} → ${child.title}`);
-    return 'rendered';
+    const next = await promptAfterRender();
+    if (next === 'exit') return 'exit';
+    // 'back' → loop, stay on H3 list (preserves position)
   }
-  clearScreen();
-  renderDocSubset(file, sec.lineStart, sec.lineEnd, sec.title);
-  return 'rendered';
 };
 
 // Docs whose H2 headings are NOT meaningful section names (e.g., glossary uses
@@ -726,8 +733,8 @@ const openDocAndPrompt = async (file) => {
   return promptAfterRender();
 };
 
-// Loop: section menu → render → "đọc tiếp?" → back / exit.
-// Returns 'back' (user wants up from section menu) or 'exit'.
+// Section menu loop: H2 list → drill H3 sub-list (with position memory) → render → back.
+// Returns 'back' (up from H2 list) or 'exit'.
 const docSessionLoop = async (file) => {
   const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
   if (sections.length === 0) {
@@ -737,13 +744,28 @@ const docSessionLoop = async (file) => {
   }
   while (true) {
     clearScreen();
-    const result = await pickAndRenderSection(file, sections);
-    if (result === 'exit') return 'exit';
-    if (result === 'back') return 'back';
-    // result === 'rendered' → ask: back to section menu, or exit
+    const action = await pickH2(file, sections);
+    if (action.kind === 'exit') return 'exit';
+    if (action.kind === 'back') return 'back';
+
+    if (action.kind === 'enter-h3') {
+      const r = await h3Loop(file, action.sec);
+      if (r === 'exit') return 'exit';
+      // 'back' → continue main loop (back to H2 list)
+      continue;
+    }
+
+    // Render branch (H2 leaf or whole doc)
+    if (action.kind === 'render-all') {
+      clearScreen();
+      renderDoc(file);
+    } else { // 'render-section'
+      clearScreen();
+      renderDocSubset(file, action.sec.lineStart, action.sec.lineEnd, action.sec.title);
+    }
     const next = await promptAfterRender();
     if (next === 'exit') return 'exit';
-    // 'back' → loop back to section menu
+    // 'back' → loop back to H2 list
   }
 };
 
@@ -767,6 +789,149 @@ const orderRank = (name) => {
   return i === -1 ? GENERAL_ORDER.length : i;
 };
 
+// Run a full-text search across docs + agents and print results to stdout.
+const runSearch = (term) => {
+  const search = (root) => {
+    if (!exists(root)) return [];
+    const results = [];
+    const walk = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (e.name.endsWith('.md')) {
+          const lines = fs.readFileSync(p, 'utf8').split('\n');
+          lines.forEach((line, i) => {
+            if (line.toLowerCase().includes(term.toLowerCase())) {
+              results.push({ path: path.relative(REPO_DIR, p), line: i + 1, text: line.trim() });
+            }
+          });
+        }
+      }
+    };
+    walk(root);
+    return results;
+  };
+  return [
+    ...search(path.join(REPO_DIR, 'docs')),
+    ...search(path.join(REPO_DIR, 'claude', 'agents')),
+    ...search(path.join(REPO_DIR, 'cursor', 'agents')),
+  ];
+};
+
+const printSearchResults = (term, results) => {
+  const w = _cols();
+  const bar = '─'.repeat(w - 4);
+  const out = process.stdout;
+  out.write(`\n  ${brand('Search results')}  ${S.gray}"${term}"  ·  ${results.length} hit${results.length !== 1 ? 's' : ''}${S.reset}\n`);
+  out.write(`  ${S.dim}${bar}${S.reset}\n\n`);
+  let lastFile = '';
+  results.forEach(r => {
+    if (r.path !== lastFile) {
+      if (lastFile) out.write('\n');
+      out.write(`  ${S.magenta}${r.path}${S.reset}\n`);
+      lastFile = r.path;
+    }
+    out.write(`  ${S.gray}:${String(r.line).padStart(4)}${S.reset}  ${r.text}\n`);
+  });
+  out.write(`\n  ${S.dim}${bar}${S.reset}\n\n`);
+};
+
+// Read SKILL.md / agent .md descriptions for drilldown menus.
+const readSkillEntries = (dir) => {
+  if (!exists(dir)) return [];
+  const items = [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!e.isDirectory()) continue;
+    const skillFile = path.join(dir, e.name, 'SKILL.md');
+    if (!exists(skillFile)) continue;
+    const content = fs.readFileSync(skillFile, 'utf8');
+    const m = content.match(/^description:\s*(.+(?:\n\s+.+)*)$/m);
+    const desc = m ? m[1].replace(/\n\s+/g, ' ').replace(/^["']|["']$/g, '') : '';
+    items.push({ name: e.name, desc, path: skillFile });
+  }
+  return items.sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const readAgentEntries = (dir) => {
+  if (!exists(dir)) return [];
+  const items = [];
+  for (const e of fs.readdirSync(dir)) {
+    if (!e.endsWith('.md')) continue;
+    const file = path.join(dir, e);
+    const content = fs.readFileSync(file, 'utf8');
+    const m = content.match(/^description:\s*(.+(?:\n\s+.+)*)$/m);
+    const desc = m ? m[1].replace(/\n\s+/g, ' ').replace(/^["']|["']$/g, '') : '';
+    items.push({ name: e.replace(/\.md$/, ''), desc, path: file });
+  }
+  return items.sort((a, b) => a.name.localeCompare(b.name));
+};
+
+// Drilldown for "skills" pick: list every Claude + Cursor skill, render SKILL.md on pick.
+const interactiveSkillsBrowser = async () => {
+  while (true) {
+    clearScreen();
+    const claudeSkills = readSkillEntries(path.join(REPO_DIR, 'claude', 'skills'));
+    const cursorSkills = readSkillEntries(path.join(REPO_DIR, 'cursor', 'skills'));
+    const choices = [];
+    const addGroup = (label, items) => {
+      if (!items.length) return;
+      choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
+      for (const it of items) {
+        const nm = (it.name || '').padEnd(26);
+        const desc = (it.desc || '').slice(0, 70);
+        choices.push({ name: `  ${nm}  ${S.gray}${desc}${S.reset}`, value: it.path });
+      }
+    };
+    addGroup('Claude skills', claudeSkills);
+    addGroup('Cursor skills', cursorSkills);
+    choices.push({ name: '──', value: '__sep_end', disabled: ' ' });
+    choices.push({ name: '↩ Quay lại', value: '__back' });
+    choices.push({ name: '✕ Thoát', value: '__exit' });
+    let pick;
+    try {
+      pick = await select({ message: 'Chọn skill để xem chi tiết:', choices, pageSize: 30 });
+    } catch { return 'exit'; }
+    if (pick === '__exit') return 'exit';
+    if (pick === '__back') return 'back';
+    if (!exists(pick)) continue;
+    const r = await openDocAndPrompt(pick);
+    if (r === 'exit') return 'exit';
+    // 'back' → loop, stay in skill list (preserves position)
+  }
+};
+
+const interactiveAgentsBrowser = async () => {
+  while (true) {
+    clearScreen();
+    const claudeAgents = readAgentEntries(path.join(REPO_DIR, 'claude', 'agents'));
+    const cursorAgents = readAgentEntries(path.join(REPO_DIR, 'cursor', 'agents'));
+    const choices = [];
+    const addGroup = (label, items) => {
+      if (!items.length) return;
+      choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
+      for (const it of items) {
+        const nm = (it.name || '').padEnd(26);
+        const desc = (it.desc || '').slice(0, 70);
+        choices.push({ name: `  ${nm}  ${S.gray}${desc}${S.reset}`, value: it.path });
+      }
+    };
+    addGroup('Claude agents', claudeAgents);
+    addGroup('Cursor agents', cursorAgents);
+    choices.push({ name: '──', value: '__sep_end', disabled: ' ' });
+    choices.push({ name: '↩ Quay lại', value: '__back' });
+    choices.push({ name: '✕ Thoát', value: '__exit' });
+    let pick;
+    try {
+      pick = await select({ message: 'Chọn agent để xem chi tiết:', choices, pageSize: 30 });
+    } catch { return 'exit'; }
+    if (pick === '__exit') return 'exit';
+    if (pick === '__back') return 'back';
+    if (!exists(pick)) continue;
+    const r = await openDocAndPrompt(pick);
+    if (r === 'exit') return 'exit';
+  }
+};
+
 // Interactive top-level index — pickable list of all docs grouped by category.
 // Loops: pick a topic → open doc → return → pick again. Lets user browse without
 // re-running `ai-kit doc` for each topic.
@@ -782,7 +947,7 @@ const interactiveIndex = async () => {
     const choices = [];
     const addGroup = (title, items) => {
       if (!items.length) return;
-      choices.push({ name: `── ${title} (${items.length})`, value: '__sep_' + title, disabled: ' ' });
+      choices.push({ name: `── ${title}`, value: '__sep_' + title, disabled: ' ' });
       for (const it of items) {
         const nm = (it.name || '').padEnd(22);
         const desc = (it.title || '').slice(0, 70);
@@ -792,7 +957,8 @@ const interactiveIndex = async () => {
     addGroup('General', root);
     addGroup('Workflows', workflows);
     addGroup('Reference', reference);
-    choices.push({ name: '──', value: '__sep_end', disabled: ' ' });
+    choices.push({ name: '──', value: '__sep_actions', disabled: ' ' });
+    choices.push({ name: '🔍 Tìm kiếm full-text', value: '__search' });
     choices.push({ name: '✕ Thoát', value: '__exit' });
 
     let pick;
@@ -805,19 +971,30 @@ const interactiveIndex = async () => {
     } catch { return; }
     if (pick === '__exit' || !pick) return;
 
-    // Auto-index commands: print and continue.
-    if (pick === 'skills') {
+    // Search action: prompt for term, run, display, then loop back.
+    if (pick === '__search') {
+      let term;
+      try {
+        term = await input({ message: '🔍 Từ khoá tìm kiếm:' });
+      } catch { continue; }
+      if (!term || !term.trim()) continue;
+      const results = runSearch(term.trim());
       clearScreen();
-      printSkillsIndex();
+      printSearchResults(term.trim(), results);
       const next = await promptAfterRender();
       if (next === 'exit') return;
-      continue; // 'back' → back to top-level index (which is here)
+      continue;
+    }
+
+    // Skills/agents → drilldown into individual skill/agent SKILL.md.
+    if (pick === 'skills') {
+      const r = await interactiveSkillsBrowser();
+      if (r === 'exit') return;
+      continue;
     }
     if (pick === 'agents') {
-      clearScreen();
-      printAgentsIndex();
-      const next = await promptAfterRender();
-      if (next === 'exit') return;
+      const r = await interactiveAgentsBrowser();
+      if (r === 'exit') return;
       continue;
     }
 
@@ -854,7 +1031,6 @@ const interactiveOnboardMenu = async () => {
       pick = await select({
         message: 'Hướng dẫn nhập môn — chọn luồng công việc:',
         choices: [
-          { name: '📋 Tổng quan (router — chọn luồng A hoặc B trước)', value: 'on-board' },
           { name: '🅰 SDLC — Sản xuất phần mềm (BA/SA/Dev/QA)', value: 'on-board-sdlc' },
           { name: '🅱 Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'on-board-tailieu' },
           { name: '↩ Quay lại', value: '__back' },
@@ -899,64 +1075,26 @@ const docCommand = async (args) => {
   if (sub === '--search' || sub === '-s') {
     if (!args[1]) { console.error('Cách dùng: ai-kit doc --search <từ khoá>'); process.exit(1); }
     const term = args[1];
-    const search = (root) => {
-      if (!exists(root)) return [];
-      const results = [];
-      const walk = (d) => {
-        for (const e of fs.readdirSync(d, {withFileTypes: true})) {
-          const p = path.join(d, e.name);
-          if (e.isDirectory()) walk(p);
-          else if (e.name.endsWith('.md')) {
-            const lines = fs.readFileSync(p, 'utf8').split('\n');
-            lines.forEach((line, i) => {
-              if (line.toLowerCase().includes(term.toLowerCase())) {
-                results.push({path: path.relative(REPO_DIR, p), line: i + 1, text: line.trim()});
-              }
-            });
-          }
-        }
-      };
-      walk(root);
-      return results;
-    };
-    const results = [
-      ...search(path.join(REPO_DIR, 'docs')),
-      ...search(path.join(REPO_DIR, 'claude', 'agents')),
-      ...search(path.join(REPO_DIR, 'cursor', 'agents')),
-    ];
-    const w = _cols();
-    const bar = '─'.repeat(w - 4);
-    const out = process.stdout;
-    out.write(`\n  ${brand('Search results')}  ${S.gray}"${term}"  ·  ${results.length} hit${results.length !== 1 ? 's' : ''}${S.reset}\n`);
-    out.write(`  ${S.dim}${bar}${S.reset}\n\n`);
-    let lastFile = '';
-    results.forEach(r => {
-      if (r.path !== lastFile) {
-        if (lastFile) out.write('\n');
-        out.write(`  ${S.magenta}${r.path}${S.reset}\n`);
-        lastFile = r.path;
-      }
-      out.write(`  ${S.gray}:${String(r.line).padStart(4)}${S.reset}  ${r.text}\n`);
-    });
-    out.write(`\n  ${S.dim}${bar}${S.reset}\n\n`);
+    printSearchResults(term, runSearch(term));
     return;
   }
+  // Skills/agents catalogs: interactive browser drilldown when TTY, flat dump otherwise.
   if (sub === 'skills') {
-    clearScreen();
-    printSkillsIndex();
     if (interactive) {
-      const next = await promptAfterRender();
-      if (next === 'back') await interactiveIndex();
+      const r = await interactiveSkillsBrowser();
+      if (r === 'back') await interactiveIndex();
+      return;
     }
+    printSkillsIndex();
     return;
   }
   if (sub === 'agents') {
-    clearScreen();
-    printAgentsIndex();
     if (interactive) {
-      const next = await promptAfterRender();
-      if (next === 'back') await interactiveIndex();
+      const r = await interactiveAgentsBrowser();
+      if (r === 'back') await interactiveIndex();
+      return;
     }
+    printAgentsIndex();
     return;
   }
 
