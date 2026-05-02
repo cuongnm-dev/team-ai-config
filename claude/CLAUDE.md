@@ -16,6 +16,13 @@ Khi cần dispatch nhiều agents:
 - Parent tổng hợp, validate, merge
 - KHÔNG dùng JSON handoff files — Agent tool result là cơ chế handoff
 
+## Tool Usage Discipline
+
+- **Read before Edit/Write (mandatory):** MUST Read the target file (or relevant range via offset+limit / Grep) before any Edit/Write call. Eliminates "File has not been read yet" + "String not found" errors (24% workflow errors per ai-kit statistics 2026-05). Sub-agents inherit this rule — include reminder in dispatch prompts when Edit/Write is expected.
+- **Grep before bulk Read:** for files >2K lines or unknown structure, use Grep first to locate, then Read with `offset` + `limit`.
+- **Parallel independent calls:** when multiple tool calls have no dependency, batch in 1 message.
+- **Specialist-first dispatch (cost guardrail):** before dispatching `general-purpose`, check whether a specialist agent (Explore for code lookup, Plan for design, doc-writer/doc-reviewer for admin docs, tdoc-* for technical docs, policy-researcher for legal/policy, strategy-analyst for CĐS) fits the task. `general-purpose` is the FALLBACK, not the default. ai-kit statistics 2026-05 flagged $230 spent on `general-purpose` (98 dispatches) — most could have been Explore/Plan at lower cost.
+
 ## Cache Discipline (mandatory)
 
 Every prompt template (FROZEN_HEADER, 4-block dispatcher, agent .md) MUST follow cache discipline:

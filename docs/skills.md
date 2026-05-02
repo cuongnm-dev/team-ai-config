@@ -141,6 +141,8 @@ Phase 5 Scaffold:
 
 **Khác `/from-doc`**: `/from-doc` xử lý hàng loạt từ tài liệu; `/new-feature` interactive cho 1 feature.
 
+> **Từ 2026-05-02 (P2.1 dedup)**: `/new-feature {id}` chỉ xử lý 2 case — NEW (chưa có `_state.md`) hoặc UPDATE (`status:done` + change request). Nếu pipeline đang dở (`status:in-progress|blocked`) → skill auto-redirect sang `/resume-feature {id}` để dùng dispatcher loop với cost-fix discipline.
+
 **Input** (hỏi user):
 - Feature name (ngắn, tiếng Việt)
 - Business goal (≥100 chars)
@@ -398,6 +400,28 @@ Re-running:
 **Khi nào**: Sau `/generate-docs`, project sẵn sàng nghiệm thu.
 
 **Output**: `{project-name}-ban-giao-{YYYYMMDD}.zip` (root chứa file VN có dấu, src/ folder có Docker).
+
+---
+
+### `/quality` — Review code, sinh test, kiểm toán (5 modes)
+
+**Một câu**: 1 skill cho review PR, generate test, OWASP scan, GDPR/PII audit, dependency CVE check.
+
+**Modes** (chọn lúc invoke):
+- `review` — xem PR/diff, classify must-fix / should-fix / nit
+- `gen-tests` — QA scenarios + dev viết test theo repo conventions
+- `security` — OWASP Top 10 scan
+- `compliance` — GDPR/PCI/HIPAA/SOC2/PII data handling
+- `dependencies` — CVE + license + outdated packages
+
+**Ví dụ**:
+```
+$ /quality review               # PR review
+$ /quality security src/auth/   # OWASP scan trên 1 module
+$ /quality dependencies         # full repo CVE audit
+```
+
+> **Từ 2026-05-02 (P2.2)**: `/audit` đã được gộp vào `/quality` (modes security/compliance/dependencies). Skill `/audit` còn stub redirect, sẽ xoá 2026-08-01.
 
 ---
 

@@ -141,6 +141,32 @@ Format theo [ADR](https://github.com/joelparkerhenderson/architecture-decision-r
 
 ---
 
+## ADR-009: Cursor skills — cache discipline refactor + dedup feature lifecycle
+
+**Ngày**: 2026-05-02 · **Trạng thái**: ✅ Adopted
+
+**Bối cảnh**: `ai-kit statistics` 30 ngày báo $12K cost-equivalent + 24% workflow errors. 7 Cursor skills > 400 dòng (`new-feature` 633, `generate-docs` 483, `new-workspace` 435, `resume-feature` 434, `new-project` 432, `zip-disk` 422, `strategic-critique` 405). `new-feature` chồng lấn `resume-feature` (cả 2 đều handle "tiếp tục pipeline đang dở"). `quality` + `audit` chồng lấn (cả 2 review code). Cursor skills load full SKILL.md vào context mỗi invocation → big SKILL.md = cost cao + cache khó hit.
+
+**Quyết định**:
+1. **Cache discipline refactor**: Tách 7 skills thành SKILL.md ≤ 200 dòng (dispatcher) + `notepads/*.md` (load-on-demand chi tiết). Tổng giảm 3,244 → 1,092 dòng SKILL.md (-66%). 21 notepads mới.
+2. **Dedup feature lifecycle**: `new-feature` chỉ NEW + UPDATE; `_state.md` đang `in-progress|blocked` → auto-redirect sang `/resume-feature`.
+3. **Merge quality + audit**: `/quality` có 5 modes (review | gen-tests | security | compliance | dependencies). `/audit` thành stub deprecated, xoá 2026-08-01.
+4. **Read-before-Edit rule**: Inject vào `~/.cursor/rules/00-agent-behavior.mdc` § Execution Principles + `~/.claude/CLAUDE.md` § Tool Usage Discipline + 2 skills (`code-change`, `hotfix`). Mục tiêu giảm 24% workflow errors.
+5. **Specialist-first dispatch**: Rule mới trong `~/.claude/CLAUDE.md` nudge Claude main thread chọn specialist agent (Explore/Plan/doc-writer/tdoc-*) trước khi fallback `general-purpose`. Mục tiêu giảm $230 (98 dispatches) `general-purpose` cost.
+
+**Hệ quả**:
+- ✅ SKILL.md token saving ước ~30-40% per invocation
+- ✅ Phân biệt rạch ròi `new-feature` ↔ `resume-feature` ↔ `feature-status`
+- ✅ Quality skills tập trung 1 entry point
+- ✅ Workflow errors có rule phòng ngừa
+- ❌ Notepads → agent phải Read on-demand (1 extra tool call)
+- ❌ Cross-references update: `hotfix.md` line 149 đã fix → trỏ vào notepad
+- 📊 Validation: chạy `ai-kit statistics` 7 ngày sau publish → so sánh baseline (cost giảm ≥30%, workflow errors giảm ≥60%)
+
+Plan + execution log: `D:\AI-Platform\maintainer-notes\cursor-skills-optimization-plan.md` (ngoài repo, maintainer-only).
+
+---
+
 ## Đề xuất ADR mới
 
 Khi thay đổi kiến trúc lớn:

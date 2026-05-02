@@ -15,113 +15,17 @@ description: Tạo workspace mới cho dự án — chọn giữa mini-repo (1 s
 
 Skill must complete scaffold even if MCP fails — print warning, fall through silently.
 
-## § File Load Map — Read ONLY when reaching that step
+## § Reference tables (File Load Map + Stack ID Mapping)
 
-| Step | File | Condition |
-|---|---|---|
-| Phase 6 Step 2 | `ref-stack-{stack-id}.md` | always — contains dir tree, starter code, conventions, .env, .gitignore |
-| Phase 6 Step 3 | `ref-workspace.md` | always — .cursor/AGENTS.md + project-knowledge templates |
-| Phase 6 Step 12 | `ref-docs.md` | always — ADR-001/002, CLAUDE.md, CONTRIBUTING.md |
-| Phase 7 | `ref-checklist.md` | always — scaffold checklist + verification commands |
-| Phase 6 Step 5 | `ref-auth.md` | only if auth ≠ none |
-| Phase 6 Step 7 | `ref-docker.md` | always — Docker is always enabled |
-| Phase 6 Step 8 | `ref-ci.md` | only if CI ≠ skip |
-| Phase 6 Step 9 | `ref-tooling.md` | only if Node.js stack |
-
-**Stack ID mapping:**
-
-| User choice | stack-id |
-|---|---|
-| React SPA (Vite) | `react-spa` |
-| Next.js | `nextjs` |
-| Vue / Nuxt | `vue` |
-| SvelteKit | `svelte` |
-| NestJS | `nestjs` |
-| Node.js (Fastify/Express) | `node-api` |
-| Python FastAPI | `fastapi` |
-| Go | `go` |
-| Rust (Axum) | `rust` |
-| .NET | `dotnet` |
-| React Native | `react-native` |
-| Flutter | `flutter` |
-| Monorepo | `mono` |
+→ Read `notepads/reference.md` when picking the stack (Phase 4) and before Phase 6 scaffold so the correct `ref-*.md` files are loaded at the right step.
 
 ---
 
-## § Phase 0 — Pre-flight (automatic, no questions)
+## § Phase 0 — Pre-flight (intel detection + standard detect + prereq check)
 
-**Intel detection (check FIRST — before everything else):**
+→ Read `notepads/preflight.md` and execute.
 
-Check for `intel/tech-brief.md` in current directory or any parent directory (up to 2 levels):
-
-```
-./intel/tech-brief.md
-./docs/intel/tech-brief.md
-../intel/tech-brief.md
-```
-
-If found → **Intel-driven mode**:
-
-1. Read `intel/tech-brief.md` — extract: `repo-type`, `workspace-name`, `services[]`, `infra`, `auth`, `scaffold-order`
-2. Read `intel/doc-brief.md` (if exists) — extract: system name, feature-id prefix
-3. Show intel summary and ask user to confirm before proceeding:
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Intel-driven workspace detected
-  source: intel/tech-brief.md
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  system     : {system name from doc-brief}
-  Repo type  : {mono | mini}
-  services   : {count} — {service names and stacks}
-                e.g. seal-api (nestjs), seal-web (nextjs), seal-iot (go)
-  infra      : {postgresql, redis, ...}
-  auth       : {model + provider}
-  preset     : Standard (recommended for all intel-driven scaffolds)
-
-  Scaffold order:
-    1. {first service} ({stack})
-    2. {second service} ({stack})
-    ...
-
-  Stack confidence: {High | Medium | Low}
-  {If Low: "Note: {confidence notes from tech-brief}"}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use this configuration? (yes / adjust / no — enter manually)
-```
-
-  - `yes` → skip Phase 1–4 entirely, jump to Phase 5 with pre-populated values
-  - `adjust` → show Phase 1–4 with pre-populated defaults, allow override
-  - `no` → proceed with standard interactive flow
-
-If **not found** → standard flow below.
-
----
-
-**Standard detect (when no intel found):**
-
-| Signal | Source | Inference |
-|---|---|---|
-| Package manager | lockfile / `packageManager` field | Use detected PM everywhere |
-| Stack hints | `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pubspec.yaml` | Existing project — confirm before continuing |
-| `.cursor/AGENTS.md` exists | File check | Offer update vs overwrite |
-| Parent monorepo | Parent dir has `nx.json`, `turbo.json`, `pnpm-workspace.yaml` | Offer Scope B (add to existing mono) |
-| `CI=true` | env var | Skip prompts, use Standard defaults |
-| Git identity | `git config user.name` | If missing: warn before git init |
-
-**Prerequisite check** (only for stacks actually selected):
-Node ≥ 20 / pnpm / Python ≥ 3.11 / uv / Go / Rust+cargo / Flutter / Docker (always required)
-If missing: show install command and pause.
-
-**Output one block:**
-```
-Pre-flight:
-  Project name: {folder} (change? y/N)
-  Package manager: {pm} {version}
-  git: {user@email | NOT CONFIGURED}
-  docker: {version | NOT INSTALLED — required}
-  context: {standalone | inside monorepo at ../name}
-```
+Covers: intel-driven mode (`intel/tech-brief.md` discovery + summary card), standard detect (lockfile, parent monorepo, CI env), prerequisite check (Node/pnpm/Python/uv/Go/Rust/Flutter/Docker), pre-flight summary block.
 
 ---
 
@@ -199,126 +103,11 @@ CI context → Standard automatically, skip prompt.
 
 ---
 
-## § Phase 6 — Scaffold
+## § Phase 6 — Scaffold (14 steps)
 
-Report each step: `[N/14] {action}...  ✓` or `✗ {reason}`.
-Keep manifest of created files. On any failure: remove all created files, report error.
+→ Read `notepads/scaffold.md` and execute steps 1-14.
 
-**[1/14] Git init**
-```bash
-git init && git config core.autocrlf false
-```
-
-**[2/14] Project skeleton + starter code**
-→ Read `ref-stack-{stack-id}.md` now.
-Create dirs and files from the Directory Tree section. Create Starter Code files (not empty — working code). Create Conventions file at `.cursor/rules/project-conventions.mdc`.
-Create `.env.example` — all vars with placeholder values for documentation.
-Create `.env` — dev defaults pre-filled using docker-compose service names as hostnames (read `.env` template from `ref-docker.md` for chosen stack, substitute `{name}` with project name). Uncomment Redis vars if cache=Redis selected. `.env` must work with `docker compose up` without any manual edits.
-
-**[3/14] Cursor workspace + Master Sync**
-→ Read `ref-workspace.md` now.
-Create `.cursor/AGENTS.md` and `.cursor/rules/40-project-knowledge.mdc`.
-
-Then run Master Sync — link agents and skills from master, copy generic pipeline rules:
-```powershell
-$master = "$env:USERPROFILE\.cursor"
-if (Test-Path "$master\agents") {
-  # Junctions — transparent to Cursor, auto-update from master
-  if (-not (Test-Path ".cursor\agents")) {
-    New-Item -ItemType Junction -Path ".cursor\agents" -Target "$master\agents"
-  }
-  if (-not (Test-Path ".cursor\skills")) {
-    New-Item -ItemType Junction -Path ".cursor\skills" -Target "$master\skills"
-  }
-  # Copy generic pipeline rules (project keeps its own copy, can override)
-  New-Item -ItemType Directory -Force -Path ".cursor\rules" | Out-Null
-  @("00-agent-behavior.mdc", "90-delivery-pipeline.mdc") | ForEach-Object {
-    if (-not (Test-Path ".cursor\rules\$_") -and (Test-Path "$master\rules\$_")) {
-      Copy-Item "$master\rules\$_" ".cursor\rules\$_"
-    }
-  }
-  Write-Host "✓ Master sync: agents/ and skills/ linked, pipeline rules copied"
-} else {
-  Write-Host "⚠ Master not found at $master — agents/skills not linked"
-}
-
-**[4/14] Config files**
-From `ref-stack-{stack-id}.md` (already in context): create `.gitignore`.
-Create `.editorconfig` (universal — inline below):
-```ini
-root=true
-[*]
-charset=utf-8
-end_of_line=lf
-insert_final_newline=true
-trim_trailing_whitespace=true
-indent_style=space
-indent_size=2
-[*.{py,rs}]
-indent_size=4
-[Makefile]
-indent_style=tab
-```
-Create `.gitleaks.toml` (from `ref-stack-{stack-id}.md` or inline):
-```toml
-[extend]
-useDefault = true
-[allowlist]
-paths = [".env.example", ".env.test"]
-```
-
-**[5/14] Auth scaffold** (skip if auth = none)
-→ Read `ref-auth.md` now.
-Generate auth files for chosen provider + stack combination.
-
-**[6/14] Database scaffold** (skip if ORM = none)
-Run init commands from `ref-stack-{stack-id}.md` (already in context).
-Generate starter schema with example User model.
-For SQLite: run `prisma db push` / `alembic upgrade head`. For PostgreSQL: requires Docker first.
-
-**[7/14] Docker** (always)
-→ Read `ref-docker.md` now.
-Create `Dockerfile` (multi-stage — use section matching stack language).
-Create `docker-compose.yml` — compose from blocks in ref-docker.md:
-  - Always: `app` service block with port matching stack default
-  - Add `db` service block if database ≠ SQLite (PostgreSQL/MySQL/MongoDB)
-  - Add `cache` service block if cache = Redis
-  - Add `depends_on` to `app` for each added service
-  - Merge `volumes:` into one block at file end
-Create `.dockerignore`.
-**Note:** `.env` was already created in Step 2 with matching defaults — do not recreate, only verify alignment.
-
-**[8/14] CI/CD** (skip if CI = skip)
-→ Read `ref-ci.md` now.
-Create CI config. If team=yes: create PR/MR template.
-
-**[9/14] Tooling** (Node.js stacks only)
-→ Read `ref-tooling.md` now.
-Install Biome or ESLint+Prettier. Install Vitest. If team=yes: install husky+lint-staged+commitlint, run `npx husky init`.
-
-**[10/14] Security baseline**
-Helmet + rate-limiter already in starter code (`ref-stack-{stack-id}.md`).
-
-**[11/14] Observability** (skip if observability = no, or non-API stack)
-Structured logger + `/health` endpoint already in starter code (`ref-stack-{stack-id}.md`).
-
-**[12/14] Docs & ADRs**
-→ Read `ref-docs.md` now.
-Create `docs/architecture/adr/ADR-001-tech-stack.md` (fill from Phase 4 choices).
-Create `docs/architecture/adr/ADR-002-repo-structure.md` (fill docs-path formula).
-Create `docs/features/` (.gitkeep). Create `README.md`. Create `CLAUDE.md`.
-If team=yes: create `CONTRIBUTING.md`.
-
-**[13/14] Install dependencies**
-```bash
-{pnpm|uv|cargo|flutter pub} install
-```
-Show live output. Stop on failure — do not proceed.
-
-**[14/14] Post-install codegen**
-- Prisma: `npx prisma generate` → `npx prisma db push` (SQLite only)
-- Tailwind: build initial CSS pass
-- Rust: `cargo build` (verify compilation)
+Covers: git init, project skeleton + starter code, Cursor workspace + Master Sync, config files (.editorconfig, .gitleaks.toml), auth scaffold (conditional), database scaffold (conditional), Docker (always), CI/CD (conditional), tooling (Node.js only), security baseline, observability, docs & ADRs, install deps, post-install codegen.
 
 ---
 
@@ -347,44 +136,7 @@ Generated by /new-workspace"
 
 ## § Phase 9 — Summary Card
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✓ {project-name} is ready!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  stack: {stack} | Repo: {mini|mono} | Prefix: {PREFIX} | PM: {pm}
-
-  Start (services first):
-    docker compose up -d          ← starts db, cache, app
-    {exact dev command}           ← hot-reload on local code
-
-  [only if database selected and ORM ≠ none]
-  DB migrate: {pnpm db:push | uv run alembic upgrade head | go run ./cmd/migrate}
-
-  [only if auth selected and needs env vars]
-  auth: Fill {VAR_NAME} in .env  (all other vars have dev defaults)
-
-  Test / Lint / Build:
-    {test cmd} → {lint cmd} → {build cmd}
-
-  docs:  {docs_path per .cursor/AGENTS.md} | ADRs: docs/architecture/adr/
-
-  {teaching line — see below}
-
-  next: /new-feature
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**Teaching lines (one per stack — include in summary):**
-- Next.js: `Server Components fetch data. 'use client' only for interactivity.`
-- NestJS: `Controller → Service → Repository. Never skip a layer.`
-- FastAPI: `Pydantic validates at the boundary. SQLAlchemy stays in repositories.`
-- Go: `Return errors, don't panic. Handlers are just functions with Context.`
-- Rust: `The compiler prevents data races. Trust it, don't fight it.`
-- React SPA: `Colocate state with the component that owns it. Lift only when forced.`
-- Vue/Nuxt: `composables/ is your hooks equivalent. Keep templates declarative.`
-- React Native: `Platform.OS for divergence. StyleSheet.create for performance.`
-- Flutter: `Widgets are immutable. State lives in State objects or providers.`
-- Monorepo: `Run any command twice — the second run hits the cache.`
+→ Read `notepads/summary.md` and render the summary card with stack-specific teaching line.
 
 ---
 

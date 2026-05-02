@@ -147,6 +147,34 @@ cp -R ~/ai-config-backup-<timestamp>/.cursor ~/.cursor
 ai-kit clean --keep 1   # giữ 1 backup gần nhất + docker prune
 ```
 
+## Workflow errors thường gặp
+
+### `<tool_use_error>File has not been read yet. Read it first before writing to it.`
+**Nguyên nhân**: Agent gọi Edit/Write nhưng chưa Read file mục tiêu trước. Chiếm ~10% workflow errors theo `ai-kit statistics`.
+
+**Fix (từ 2026-05-02 — P3 Read-before-Edit rule)**:
+- Rule mới đã inject vào `~/.cursor/rules/00-agent-behavior.mdc` § Execution Principles + `~/.claude/CLAUDE.md` § Tool Usage Discipline
+- Nếu vẫn gặp: agent đang chạy với cache cũ → restart Cursor / Claude Code session
+- Manual workaround: bảo agent "Read file trước khi Edit"
+
+### `<tool_use_error>String to replace not found in file.`
+**Nguyên nhân**: Edit `old_string` không match (có thể do whitespace, line endings, hoặc file đã đổi).
+
+**Fix**:
+- Read lại file để lấy bytes chính xác
+- Dùng Grep tìm anchor unique hơn (≥ 3 dòng context)
+- Nếu file > 2K dòng: dùng Grep + offset Read thay vì Read full
+
+### Cost cao đột biến — `general-purpose` agent dispatch nhiều lần
+**Nguyên nhân**: Claude Code main thread fallback `general-purpose` thay vì specialist (Explore/Plan/doc-writer/policy-researcher).
+
+**Fix (từ 2026-05-02 — P4.1 Specialist-first dispatch)**:
+- `~/.claude/CLAUDE.md` § Tool Usage Discipline đã có rule "Specialist-first dispatch"
+- Trước khi gọi `Agent`, check xem có specialist phù hợp không
+- `Explore` cho code lookup; `Plan` cho design; `doc-writer/doc-reviewer` cho admin docs; `tdoc-*` cho technical docs
+
+---
+
 ## Dọn dẹp hoàn toàn
 
 ```bash

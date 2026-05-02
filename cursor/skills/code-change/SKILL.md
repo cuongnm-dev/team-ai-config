@@ -61,6 +61,7 @@ output: `{project-path}/docs/refactors/{slug}.md` — scope + validation results
 - Fix scope > 3 files → escalate to `/new-feature`
 - Refactor touches public API → escalate to `/new-feature` with `/plan` first
 - Always run tests before claiming done
+- Dev MUST Read every target file (or relevant range) before any Edit/Write — no exceptions
 
 ## What's next
 

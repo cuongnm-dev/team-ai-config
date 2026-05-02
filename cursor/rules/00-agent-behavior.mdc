@@ -67,15 +67,15 @@ IF unrelated to any pipeline:
 <!-- AUTO-VERIFY: this list is hand-maintained. Source of truth = `~/.cursor/skills/*/SKILL.md` frontmatter `name:` fields.
      When adding/removing skills under ~/.cursor/skills/, update this list AND keep groupings sensible.
      Sanity check (rerun if list feels stale): `ls ~/.cursor/skills/` should match the union below.
-     LAST_VERIFIED_BUMP: 2026-04-26 (kept in this comment so date does NOT enter LLM context — preserves alwaysApply cache). -->
-Available skills (24):
+     LAST_VERIFIED_BUMP: 2026-05-02 (kept in this comment so date does NOT enter LLM context — preserves alwaysApply cache). -->
+Available skills (23 active + 1 deprecated):
 - Project: `/new-workspace` `/new-project` `/configure-workspace` `/ui-catalog`
 - Pipeline: `/new-feature` `/hotfix` `/resume-feature` `/feature-status` `/close-feature`
 - Dev: `/plan` `/implement` `/code-change`
 - Architecture: `/spike` `/adr` `/arch-review`
 - Release: `/release`
 - Ops: `/incident` `/runbook`
-- Quality: `/quality` `/audit`
+- Quality: `/quality` (modes: review | gen-tests | security | compliance | dependencies). `/audit` is DEPRECATED → redirects to `/quality`.
 - Docs: `/from-doc` `/generate-docs` `/strategic-critique` `/zip-disk`
 
 ## Boundary 3 — PM session continuity
@@ -91,6 +91,7 @@ IF PM asked question AND user replied without tagging agent:
 
 - **MCP-first:** MCP before file reads or bash. IF MCP replaces 3+ reads → always use MCP.
 - **Plan before executing:** Non-trivial work → output `## Plan` (actions → outcomes) before starting. Skip for single-step tasks.
+- **Read before Edit/Write:** MUST Read the target file (or relevant range via offset+limit / Grep) before any Edit/Write call. Eliminates the "File has not been read yet" + "String not found" errors (24% of workflow errors per ai-kit statistics). For files >2K lines, use Grep to locate then Read with offset.
 - **Verify before done:** Run lint/test. No completion claim without evidence.
 
 ---

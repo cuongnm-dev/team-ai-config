@@ -146,7 +146,7 @@ Hotfix targets one of two cases:
   - Append to `tags[]`: `"hotfix-{hotfix-id}"`
   - Append to `evidence[]`: `{ "kind": "hotfix", "file": "docs/hotfixes/{hotfix-id}/_state.md", "pattern": "hotfix initiated" }`
   - Do NOT change `status` (still `implemented`); close-feature for hotfix will append to `implementation_evidence.commits[]`
-- **New micro-feature** (rare; hotfix introduces small new capability): CREATE entry as in `new-feature` Step 4.5 but with `tags: ["hotfix-initiated"]` and `priority: critical`.
+- **New micro-feature** (rare; hotfix introduces small new capability): CREATE entry as in `new-feature/notepads/new-flow.md` Step 4.5 but with `tags: ["hotfix-initiated"]` and `priority: critical`.
 
 After write: `python ~/.claude/scripts/intel/meta_helper.py update docs/intel/ feature-catalog.json --producer hotfix --append-merged-from`
 
@@ -196,6 +196,7 @@ output-mode: lean
 - Do not skip QA — even hotfixes need regression verification
 - Do not skip reviewer — security/data bugs especially need review
 - Max 1 wave — if fix needs multiple waves, it is not a hotfix
+- Dev MUST Read every target file (or relevant range) before any Edit/Write — no exceptions
 
 ## What's next
 
