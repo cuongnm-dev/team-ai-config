@@ -1176,7 +1176,15 @@ const fmtN = (n) => {
   if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
   return String(n|0);
 };
-const fmtUsd = (n) => '$' + (n < 1 ? n.toFixed(3) : n.toFixed(2));
+// Thousands separator (vi-VN style: 10.958, 1.234.567)
+const fmtInt = (n) => Math.round(n).toLocaleString('vi-VN');
+const fmtUsd = (n) => {
+  const sign = n < 0 ? '-' : '';
+  const v = Math.abs(n);
+  if (v < 1) return sign + '$' + v.toFixed(3);
+  return sign + '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+};
+const fmtPct = (n) => n.toFixed(1) + '%';
 
 // Threshold colorers
 const colorCost = (n) => {
@@ -1195,7 +1203,7 @@ const colorTokens = (n) => {
   return `${S.gray}${s}${S.reset}`;
 };
 const colorCount = (n, hi=50, mid=10) => {
-  const s = String(n);
+  const s = fmtInt(n);
   if (n >= hi)  return `${S.bcyan}${s}${S.reset}`;
   if (n >= mid) return `${S.cyan}${s}${S.reset}`;
   return `${S.gray}${s}${S.reset}`;
@@ -1230,10 +1238,19 @@ const collectStats = (sinceMs) => {
     sessions: new Set(), days: new Set(),
     totalTokens: 0, totalCost: 0, requests: 0,
     byModel: {}, byTool: {}, byAgent: {}, bySkill: {}, byProject: {},
-    byDay: {},           // 'YYYY-MM-DD' -> {tokens, cost, requests}
+    byDay: {},
     bySubagentFile: {},
     errors: 0,
     parsedFiles: 0,
+    // New dimensions
+    cacheReadTokens: 0, cacheCreationTokens: 0, inputTokens: 0, outputTokens: 0,
+    requestTokens: [],            // per-request total tokens (for p95)
+    byHour: new Array(24).fill(0),    // requests per hour-of-day
+    byWeekday: new Array(7).fill(0),  // requests per day-of-week (0=Sun)
+    toolErrors: {},               // tool name -> error count
+    errorMessages: {},            // first 80 chars -> count
+    linesAdded: 0, linesRemoved: 0,   // approx from Edit/Write
+    editAccepts: 0, editRejects: 0,   // Edit/Write tool calls vs error
   };
   if (!exists(projectsRoot)) return S;
 
@@ -1251,6 +1268,7 @@ const collectStats = (sinceMs) => {
   const agentToolIds = {};       // toolu_xxx -> subagent_type
   const promptIdToAgent = {};    // promptId  -> subagent_type
   const subagentFileTokens = {}; // file      -> {tokens, cost, promptIds: Set}
+  const toolUseIdToName = {};    // toolu_xxx -> tool name (for error attribution)
 
   const parseFile = (file) => {
     let data; try { data = fs.readFileSync(file, 'utf8'); } catch { return; }
@@ -1280,16 +1298,24 @@ const collectStats = (sinceMs) => {
       if (msg.role === 'assistant' && msg.usage) {
         const model = msg.model || 'unknown';
         const u = msg.usage;
-        const tok = (u.input_tokens||0)+(u.output_tokens||0)+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0);
+        const inT = u.input_tokens||0, outT = u.output_tokens||0;
+        const crT = u.cache_read_input_tokens||0, cwT = u.cache_creation_input_tokens||0;
+        const tok = inT + outT + crT + cwT;
         const cost = costOf(model, u);
         S.totalTokens += tok; S.totalCost += cost; S.requests++;
+        S.inputTokens += inT; S.outputTokens += outT;
+        S.cacheReadTokens += crT; S.cacheCreationTokens += cwT;
+        S.requestTokens.push(tok);
         fileTokens += tok; fileCost += cost;
         const mb = S.byModel[model] ||= {tokens:0, cost:0, requests:0};
         mb.tokens += tok; mb.cost += cost; mb.requests++;
         if (ts) {
-          const day = new Date(ts).toISOString().slice(0, 10);
+          const d = new Date(ts);
+          const day = d.toISOString().slice(0, 10);
           const db = S.byDay[day] ||= {tokens:0, cost:0, requests:0};
           db.tokens += tok; db.cost += cost; db.requests++;
+          S.byHour[d.getHours()]++;
+          S.byWeekday[d.getDay()]++;
         }
 
         if (Array.isArray(msg.content)) {
@@ -1297,6 +1323,7 @@ const collectStats = (sinceMs) => {
             if (c.type !== 'tool_use') continue;
             const tn = c.name;
             S.byTool[tn] = (S.byTool[tn]||0) + 1;
+            if (c.id) toolUseIdToName[c.id] = tn;
             if (tn === 'Agent' && c.input?.subagent_type) {
               const at = c.input.subagent_type;
               const ab = S.byAgent[at] ||= {tokens:0, cost:0, dispatches:0};
@@ -1308,14 +1335,35 @@ const collectStats = (sinceMs) => {
               const sb = S.bySkill[sk] ||= {invocations:0};
               sb.invocations++;
             }
+            // LoC heuristic for Edit/Write
+            if (tn === 'Edit' && typeof c.input?.new_string === 'string') {
+              const oldL = (c.input.old_string || '').split('\n').length;
+              const newL = c.input.new_string.split('\n').length;
+              if (newL > oldL) S.linesAdded += (newL - oldL);
+              else S.linesRemoved += (oldL - newL);
+            }
+            if (tn === 'Write' && typeof c.input?.content === 'string') {
+              S.linesAdded += c.input.content.split('\n').length;
+            }
           }
         }
       }
-      // tool_result lines (user role) carry promptId at top level + tool_use_id inside
-      if (msg.role === 'user' && Array.isArray(msg.content) && obj.promptId) {
+      // tool_result lines: error tracking + agent attribution
+      if (msg.role === 'user' && Array.isArray(msg.content)) {
         for (const c of msg.content) {
-          if (c.type === 'tool_result') {
-            if (c.is_error) S.errors++;
+          if (c.type !== 'tool_result') continue;
+          if (c.is_error) {
+            S.errors++;
+            // Find the tool name via tool_use_id (we need a pass to map; skip for now and track by id prefix)
+            const tuid = c.tool_use_id;
+            const toolName = toolUseIdToName[tuid] || 'unknown';
+            S.toolErrors[toolName] = (S.toolErrors[toolName]||0) + 1;
+            // Capture first line of error message
+            const txt = Array.isArray(c.content) ? (c.content.find(x => x.type === 'text')?.text || '') : (typeof c.content === 'string' ? c.content : '');
+            const first = txt.split('\n')[0].slice(0, 80).trim();
+            if (first) S.errorMessages[first] = (S.errorMessages[first]||0) + 1;
+          }
+          if (obj.promptId) {
             const tuid = c.tool_use_id;
             if (tuid && agentToolIds[tuid]) promptIdToAgent[obj.promptId] = agentToolIds[tuid];
           }
@@ -1468,6 +1516,8 @@ const cmdStatistics = (args) => {
   const cli = collectCliHistory(sinceMs);
 
   if (json) {
+    const sortedTok = [...stats.requestTokens].sort((a,b) => a - b);
+    const totalIn = stats.inputTokens + stats.cacheReadTokens + stats.cacheCreationTokens;
     console.log(JSON.stringify({
       since: new Date(sinceMs).toISOString(),
       sessions: stats.sessions.size,
@@ -1476,11 +1526,29 @@ const cmdStatistics = (args) => {
       totalTokens: stats.totalTokens,
       totalCost: stats.totalCost,
       errors: stats.errors,
+      tokens: {
+        input: stats.inputTokens,
+        output: stats.outputTokens,
+        cache_read: stats.cacheReadTokens,
+        cache_creation: stats.cacheCreationTokens,
+        cache_hit_rate: totalIn > 0 ? stats.cacheReadTokens / totalIn : 0,
+        avg_per_request: stats.requests ? stats.totalTokens / stats.requests : 0,
+        p50: sortedTok[Math.floor(sortedTok.length * 0.5)] || 0,
+        p95: sortedTok[Math.floor(sortedTok.length * 0.95)] || 0,
+        p99: sortedTok[Math.floor(sortedTok.length * 0.99)] || 0,
+        max: sortedTok[sortedTok.length - 1] || 0,
+      },
+      loc: {added: stats.linesAdded, removed: stats.linesRemoved},
+      byHour: stats.byHour,
+      byWeekday: stats.byWeekday,
+      toolErrors: stats.toolErrors,
+      errorMessages: stats.errorMessages,
       byModel: stats.byModel,
       byTool: stats.byTool,
       byAgent: stats.byAgent,
       bySkill: stats.bySkill,
       byProject: stats.byProject,
+      byDay: stats.byDay,
       cli: cli.commands,
     }, null, 2));
     return;
@@ -1507,8 +1575,8 @@ const cmdStatistics = (args) => {
 
   // Summary card
   const summary = [
-    `${S.gray}Sessions      ${S.reset}${S.bcyan}${String(stats.sessions.size).padStart(6)}${S.reset}    ${S.gray}Ngày hoạt động ${S.reset}${S.bcyan}${String(stats.days.size).padStart(4)}${S.reset}`,
-    `${S.gray}API requests  ${S.reset}${S.bcyan}${String(stats.requests).padStart(6)}${S.reset}    ${S.gray}Lỗi tool       ${S.reset}${S.bcyan}${String(stats.errors).padStart(4)}${S.reset} ${S.gray}(${colorRate(errRate)}${S.gray})${S.reset}`,
+    `${S.gray}Sessions      ${S.reset}${S.bcyan}${fmtInt(stats.sessions.size).padStart(8)}${S.reset}    ${S.gray}Ngày hoạt động ${S.reset}${S.bcyan}${String(stats.days.size).padStart(4)}${S.reset}`,
+    `${S.gray}API requests  ${S.reset}${S.bcyan}${fmtInt(stats.requests).padStart(8)}${S.reset}    ${S.gray}Lỗi tool       ${S.reset}${S.bcyan}${fmtInt(stats.errors).padStart(4)}${S.reset} ${S.gray}(${colorRate(errRate)}${S.gray})${S.reset}`,
     `${S.gray}Tổng tokens   ${S.reset}${colorTokens(stats.totalTokens)}`,
     `${S.gray}Giá trị API tương đương ${S.reset}${colorCost(stats.totalCost)} ${S.dim}(nếu dùng pay-as-you-go API)${S.reset}`,
     `${S.gray}Thực trả gói "${plan.plan}" ${S.reset}${S.green}${fmtUsd(planPro)}${S.reset} ${S.dim}(\$${plan.monthly_usd}/tháng × ${sinceDays}d/30d)${S.reset}    ${savingsRatio >= 1 ? `${S.green}${S.bold}tiết kiệm ${savingsRatio.toFixed(1)}×${S.reset}` : `${S.gray}đang dùng ${(savingsRatio*100).toFixed(0)}% giá trị gói${S.reset}`}`,
@@ -1563,6 +1631,76 @@ const cmdStatistics = (args) => {
       {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'},
       {label: '', align: 'l'},
     ]);
+  }
+
+  // ── Performance & efficiency indicators ──────────────────────────────
+  const totalIn = stats.inputTokens + stats.cacheReadTokens + stats.cacheCreationTokens;
+  const cacheHitRate = totalIn > 0 ? (stats.cacheReadTokens / totalIn) * 100 : 0;
+  const avgTokens = stats.requests > 0 ? stats.totalTokens / stats.requests : 0;
+  const sortedReqTokens = [...stats.requestTokens].sort((a,b) => a - b);
+  const p50 = sortedReqTokens[Math.floor(sortedReqTokens.length * 0.5)] || 0;
+  const p95 = sortedReqTokens[Math.floor(sortedReqTokens.length * 0.95)] || 0;
+  const p99 = sortedReqTokens[Math.floor(sortedReqTokens.length * 0.99)] || 0;
+  const maxReq = sortedReqTokens[sortedReqTokens.length - 1] || 0;
+  const colorCacheRate = (r) => {
+    const s = fmtPct(r);
+    if (r >= 80) return `${S.green}${S.bold}${s}${S.reset}`;
+    if (r >= 60) return `${S.green}${s}${S.reset}`;
+    if (r >= 40) return `${S.yellow}${s}${S.reset}`;
+    return `${S.red}${s}${S.reset}`;
+  };
+
+  const perfCard = [
+    `${S.gray}Cache hit rate    ${S.reset}${colorCacheRate(cacheHitRate)} ${S.dim}(${fmtN(stats.cacheReadTokens)} cached / ${fmtN(totalIn)} input total)${S.reset}`,
+    `${S.gray}Input tokens      ${S.reset}${colorTokens(stats.inputTokens)}    ${S.gray}Output tokens ${S.reset}${colorTokens(stats.outputTokens)}`,
+    `${S.gray}Cache creation    ${S.reset}${colorTokens(stats.cacheCreationTokens)}    ${S.gray}Cache read    ${S.reset}${colorTokens(stats.cacheReadTokens)}`,
+    `${S.gray}Tokens/request    ${S.reset}avg ${S.cyan}${fmtInt(avgTokens)}${S.reset}  ${S.gray}p50${S.reset} ${fmtInt(p50)}  ${S.gray}p95${S.reset} ${S.yellow}${fmtInt(p95)}${S.reset}  ${S.gray}p99${S.reset} ${S.red}${fmtInt(p99)}${S.reset}  ${S.gray}max${S.reset} ${S.red}${S.bold}${fmtInt(maxReq)}${S.reset}`,
+    `${S.gray}LoC modified      ${S.reset}${S.green}+${fmtInt(stats.linesAdded)}${S.reset}  ${S.red}−${fmtInt(stats.linesRemoved)}${S.reset}  ${S.gray}(net ${(stats.linesAdded - stats.linesRemoved >= 0 ? '+' : '')}${fmtInt(stats.linesAdded - stats.linesRemoved)})${S.reset}`,
+  ].join('\n');
+  out.write('\n' + boxen(perfCard, {
+    padding: {top: 0, bottom: 0, left: 1, right: 1},
+    borderStyle: 'round', borderColor: 'magenta',
+    title: 'Hiệu suất & phân bố token', titleAlignment: 'left',
+    margin: {top: 0, bottom: 0, left: 2, right: 0},
+  }) + '\n');
+
+  // Hourly heatmap (24 bars)
+  const maxHour = Math.max(...stats.byHour, 1);
+  const hourBars = stats.byHour.map(v => {
+    const blocks = '▁▂▃▄▅▆▇█';
+    return v === 0 ? `${S.dim}·${S.reset}` : `${S.cyan}${blocks[Math.min(7, Math.floor((v / maxHour) * 7))]}${S.reset}`;
+  }).join('');
+  const hourLabel = '0    6    12   18   23';
+  out.write(`\n  ${S.bold}Phân bố theo giờ${S.reset} ${S.gray}(0h-23h, theo local time)${S.reset}\n`);
+  out.write(`  ${hourBars}\n`);
+  out.write(`  ${S.dim}${hourLabel}${S.reset}\n`);
+  // Peak hour
+  const peakHour = stats.byHour.indexOf(maxHour);
+  out.write(`  ${S.gray}Peak: ${S.reset}${S.bcyan}${peakHour}h${S.reset} ${S.gray}(${fmtInt(maxHour)} requests)${S.reset}\n`);
+
+  // Weekday distribution
+  const wkLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  const maxWk = Math.max(...stats.byWeekday, 1);
+  printTable('Phân bố theo thứ', stats.byWeekday.map((v, i) => [
+    `${S.cyan}${wkLabels[i]}${S.reset}`,
+    colorCount(v, 1000, 100),
+    `${S.dim}${bar(v / maxWk)}${S.reset}`,
+  ]), [{label: 'Thứ'}, {label: 'Requests', align: 'r'}, {label: '', align: 'l'}]);
+
+  // Top errors
+  if (Object.keys(stats.toolErrors).length) {
+    const errEntries = Object.entries(stats.toolErrors).sort((a,b) => b[1] - a[1]).slice(0, top);
+    printTable('Tool có nhiều lỗi nhất', errEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      `${S.red}${fmtInt(v)}${S.reset}`,
+      `${S.dim}${bar(v / errEntries[0][1])}${S.reset}`,
+    ]), [{label: 'Tool'}, {label: 'Errors', align: 'r'}, {label: '', align: 'l'}]);
+
+    const msgEntries = Object.entries(stats.errorMessages).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    if (msgEntries.length) {
+      out.write(`\n  ${S.bold}Top error messages${S.reset}\n`);
+      msgEntries.forEach(([m, c]) => out.write(`  ${S.red}${String(c).padStart(4)}${S.reset} ${S.gray}${m}${S.reset}\n`));
+    }
   }
 
   // Top skills
