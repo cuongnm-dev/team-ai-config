@@ -966,7 +966,10 @@ const interactiveAgentsBrowser = async () => {
 // Interactive top-level index — pickable list of all docs grouped by category.
 // Loops: pick a topic → open doc → return → pick again. Lets user browse without
 // re-running `ai-kit doc` for each topic.
-const interactiveIndex = async () => {
+//
+// `allowBack: true` → adds "↩ Quay lại menu chính" option, returns 'back' so caller
+// (e.g. launcher) can continue its own loop. Default (no opt) only has "✕ Thoát".
+const interactiveIndex = async ({ allowBack = false } = {}) => {
   const docsDir = path.join(REPO_DIR, 'docs');
   while (true) {
     clearScreen();
@@ -990,6 +993,7 @@ const interactiveIndex = async () => {
     addGroup('Reference', reference);
     choices.push({ name: '──', value: '__sep_actions', disabled: ' ' });
     choices.push({ name: '🔍 Tìm kiếm full-text', value: '__search' });
+    if (allowBack) choices.push({ name: '↩ Quay lại menu chính', value: '__back' });
     choices.push({ name: '✕ Thoát', value: '__exit' });
 
     let pick;
@@ -999,8 +1003,9 @@ const interactiveIndex = async () => {
         choices,
         pageSize: 25,
       });
-    } catch { return; }
-    if (pick === '__exit' || !pick) return;
+    } catch { return allowBack ? 'back' : 'exit'; }
+    if (pick === '__back') return 'back';
+    if (pick === '__exit' || !pick) return 'exit';
 
     // Search action: prompt for term, run, display, then loop back.
     if (pick === '__search') {
@@ -1013,26 +1018,26 @@ const interactiveIndex = async () => {
       clearScreen();
       printSearchResults(term.trim(), results);
       const next = await promptAfterRender();
-      if (next === 'exit') return;
+      if (next === 'exit') return 'exit';
       continue;
     }
 
     // Skills/agents → drilldown into individual skill/agent SKILL.md.
     if (pick === 'skills') {
       const r = await interactiveSkillsBrowser();
-      if (r === 'exit') return;
+      if (r === 'exit') return 'exit';
       continue;
     }
     if (pick === 'agents') {
       const r = await interactiveAgentsBrowser();
-      if (r === 'exit') return;
+      if (r === 'exit') return 'exit';
       continue;
     }
 
     // on-board → hub menu
     if (pick === 'on-board') {
       const result = await interactiveOnboardMenu();
-      if (result === 'exit') return;
+      if (result === 'exit') return 'exit';
       continue; // 'back' → back to top-level index
     }
 
@@ -1045,7 +1050,7 @@ const interactiveIndex = async () => {
     const file = candidates.find(exists);
     if (!file) continue;
     const result = await openDocAndPrompt(file);
-    if (result === 'exit') return;
+    if (result === 'exit') return 'exit';
     // 'back' → loop back to top-level index
   }
 };
@@ -3247,38 +3252,13 @@ const menuMcp = async () => {
   return v === BACK ? null : v === EXIT ? (process.exit(0), null) : ['mcp', v];
 };
 
+// Doc menu — single source of truth: delegate to `interactiveIndex` so launcher
+// and `ai-kit doc` show the same polished menu (groups, search, drilldowns).
+// Member who picks "↩ Quay lại" inside index returns to launcher; "✕ Thoát" exits.
 const menuDocs = async () => {
-  printBreadcrumb(['doc']);
-  let topics = [];
-  try {
-    const docsDir = path.join(REPO_DIR, 'docs');
-    // Apply same curation as `ai-kit doc` index: hide sub-pages of hub menus
-    // (on-board-sdlc/tailieu) and maintainer-only docs (maintainer/contributing/decision-log).
-    const root = readDocItems(docsDir)
-      .filter(it => it.name !== 'README' && !HIDDEN_FROM_INDEX.has(it.name))
-      .sort((a, b) => orderRank(a.name) - orderRank(b.name) || a.name.localeCompare(b.name));
-    const wf = readDocItems(path.join(docsDir, 'workflows')).map(it => ({...it, name: `workflows/${it.name}`}));
-    const ref = readDocItems(path.join(docsDir, 'reference')).map(it => ({...it, name: `reference/${it.name}`}));
-    topics = [...root, ...wf, ...ref];
-  } catch {}
-  // Skills/agents already in topics list — don't duplicate at top.
-  const choices = [
-    {name: 'index       — Mục lục tài liệu (interactive)', value: 'index'},
-    {name: 'search      — Tìm kiếm full-text', value: '__search__'},
-    ...(topics.length ? [{name: '── chọn topic ──', value: '__sep__', disabled: ' '}] : []),
-    ...topics.slice(0, 30).map(t => ({name: `${t.name.padEnd(28)}— ${t.title}`, value: t.name})),
-    {name: '← Quay lại', value: BACK},
-    {name: 'thoát', value: EXIT},
-  ];
-  const v = await askSelect('Chọn tài liệu:', choices);
-  if (v === BACK) return null;
-  if (v === EXIT) process.exit(0);
-  if (v === 'index') return ['doc'];
-  if (v === '__search__') {
-    process.stdout.write(`  ${S.gray}Mở terminal mới và chạy: ${S.reset}ai-kit doc --search <từ khoá>\n\n`);
-    process.exit(0);
-  }
-  return ['doc', v];
+  const r = await interactiveIndex({ allowBack: true });
+  if (r === 'exit') process.exit(0);
+  return null; // 'back' or undefined → launcher loop continues
 };
 
 const menuBackups = async () => {
