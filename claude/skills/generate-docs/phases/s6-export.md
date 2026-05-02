@@ -37,7 +37,7 @@ HTTP /healthz responds 200?
 
 ---
 
-## Job-based export (recommended — etc-docgen v2.0.0+)
+## Job-based export (recommended — etc-platform v2.0.0+)
 
 The agent flows through 5 phases, each phase being a single short tool call.
 Bytes only ever live on disk and on the wire — never in the agent's context.
@@ -46,7 +46,7 @@ Bytes only ever live on disk and on the wire — never in the agent's context.
 
 ```bash
 # Reach the unified server (HTTP + MCP).
-curl -fsS "${ETC_DOCGEN_URL:-http://localhost:8001}/healthz"
+curl -fsS "${ETC_PLATFORM_URL:-http://localhost:8001}/healthz"
 # expect: {"status":"ok"}
 
 # (Optional) inspect runner capacity before submitting.
@@ -79,7 +79,7 @@ everything; identical content re-uploaded later returns the same `workspace_id`
 ```bash
 DATA_PATH="$DOCS_PATH/output/content-data.json"
 SCREENSHOTS_DIR="$DOCS_PATH/screenshots"
-ETC_URL="${ETC_DOCGEN_URL:-http://localhost:8001}"
+ETC_URL="${ETC_PLATFORM_URL:-http://localhost:8001}"
 
 # Build curl form: 1 part for content-data.json + 1 part per screenshot.
 ARGS=( -F "files[content-data.json]=@${DATA_PATH};type=application/json" )
@@ -98,7 +98,7 @@ WORKSPACE_ID=$(echo "$WS_RESPONSE" | python -c "import sys,json; print(json.load
 echo "WORKSPACE_ID=$WORKSPACE_ID"
 ```
 
-If `ETC_DOCGEN_API_KEY` is set on the server, append `-H "X-API-Key: $ETC_DOCGEN_API_KEY"`.
+If `ETC_PLATFORM_API_KEY` is set on the server, append `-H "X-API-Key: $ETC_PLATFORM_API_KEY"`.
 
 Server returns 201 with `{workspace_id, sha256, parts[], total_size, expires_at}`.
 
@@ -163,7 +163,7 @@ while True:
 
 ```bash
 JOB_ID="j_..."
-ETC_URL="${ETC_DOCGEN_URL:-http://localhost:8001}"
+ETC_URL="${ETC_PLATFORM_URL:-http://localhost:8001}"
 OUT_DIR="$DOCS_PATH/output/exported"
 mkdir -p "$OUT_DIR"
 

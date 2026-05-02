@@ -101,7 +101,7 @@ Three delivery paths. **PM selects path after BA completes** (dispatcher escalat
 
 ## etc-platform MCP (centralized shared state)
 
-`localhost:8001/sse` (separate from `etc-docgen` on 8000). Tools: `template_registry_load`, `outline_load`, `kb_query/save`, `dedup_check/register`, `intel_cache_lookup/contribute`. **Default ON** for any agent/skill referencing local KB / DEDUP / templates / outlines. Local file fallback when MCP unavailable. Full contract: `~/.claude/CLAUDE.md` § MCP-1 to MCP-5.
+`localhost:8001/sse` (separate from `etc-platform` on 8000). Tools: `template_registry_load`, `outline_load`, `kb_query/save`, `dedup_check/register`, `intel_cache_lookup/contribute`. **Default ON** for any agent/skill referencing local KB / DEDUP / templates / outlines. Local file fallback when MCP unavailable. Full contract: `~/.claude/CLAUDE.md` § MCP-1 to MCP-5.
 
 Anonymization mandate (`intel_cache_contribute`): `contributor_consent=True` required; server scan rejects PII / customer hints. Explicit user opt-in per project.
 

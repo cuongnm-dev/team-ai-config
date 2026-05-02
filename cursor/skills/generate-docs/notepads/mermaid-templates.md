@@ -5,7 +5,7 @@ Ngoài ra 3 SVG hero templates cho diagram "trang bìa" cần thẩm mỹ cao.
 
 **Usage**: `@Notepads mermaid-templates` khi Phase 3 generate `diagrams.*` block.
 
-**Key concept**: content-data.json có top-level `diagrams` block. etc-docgen MCP
+**Key concept**: content-data.json có top-level `diagrams` block. etc-platform MCP
 `export` auto-detect mỗi entry theo shape:
 - **string** → Mermaid source, render qua `mmdc` CLI
 - **object có `template`** → SVG hero Jinja2, render qua Chromium
@@ -484,7 +484,7 @@ hardcoded trong template.
 
 ## Sample data đầy đủ
 
-Xem trong repo etc-docgen:
+Xem trong repo etc-platform:
 - `examples/diagrams-data/T1-sample.json`
 - `examples/diagrams-data/T2-sample.json`
 - `examples/diagrams-data/T3-sample.json`

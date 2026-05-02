@@ -21,7 +21,7 @@ Rà soát tài liệu sau mỗi wave hoặc khi hoàn thành. Kiểm tra 4 chi�
 ## Review Mode Detection (from orchestrator prompt)
 
 ```
-Nếu prompt chứa "REVIEW_FORMAT: JSON" → etc-docgen mode (review content-data.json)
+Nếu prompt chứa "REVIEW_FORMAT: JSON" → etc-platform mode (review content-data.json)
 Nếu prompt chứa "REVIEW_FORMAT: Markdown" hoặc không chỉ định → Pandoc mode (review .md files)
 ```
 
@@ -93,9 +93,9 @@ Nếu prompt chứa "REVIEW_FORMAT: Markdown" hoặc không chỉ định → Pa
 | Viết tắt chưa giải thích lần đầu | `warning` |
 | Số liệu mâu thuẫn giữa sections | `error` |
 
-## etc-docgen Review Dimensions (content-data.json)
+## etc-platform Review Dimensions (content-data.json)
 
-Khi review etc-docgen types, thêm các checks sau:
+Khi review etc-platform types, thêm các checks sau:
 
 ### JSON Schema Compliance
 
@@ -104,7 +104,7 @@ Khi review etc-docgen types, thêm các checks sau:
 | Field missing theo section_schema | `error` |
 | Field type sai (string thay array) | `error` |
 | Array item thiếu required fields | `error` |
-| `etc-docgen validate` fail (from orchestrator) | `error` |
+| `etc-platform validate` fail (from orchestrator) | `error` |
 
 ### Field Completeness
 
@@ -121,7 +121,7 @@ Khi review etc-docgen types, thêm các checks sau:
 - Specificity check: prose field generic → `warning`
 - Văn phong hành chính check áp dụng cho prose fields
 
-**Review protocol for etc-docgen:**
+**Review protocol for etc-platform:**
 1. Read content-data.json (via Read tool)
 2. Read section_schema (from orchestrator prompt)
 3. Parse `validation_result` (from orchestrator — orchestrator runs MCP validate BEFORE dispatching reviewer)

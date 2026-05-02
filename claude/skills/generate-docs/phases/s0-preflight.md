@@ -54,9 +54,9 @@ echo "📂 DOCS_PATH = $DOCS_PATH"
 
 **Output**: `$DOCS_PATH` env var (used by all subsequent stages)
 
-### 0.1.5 — etc-docgen v2.0.0 architecture: small JSON via MCP, bytes via HTTP
+### 0.1.5 — etc-platform v2.0.0 architecture: small JSON via MCP, bytes via HTTP
 
-`etc-docgen` v2.0.0 splits the wire protocol by payload size:
+`etc-platform` v2.0.0 splits the wire protocol by payload size:
 
 * **MCP tools** carry only short JSON (schema, partial blocks, validation reports, ids).
   The agent context never holds a full `content_data` dict.
@@ -113,7 +113,7 @@ GET    {ETC_URL}/readyz                          readiness + runner stats
 ```
 
 `ETC_URL` defaults to `http://localhost:8001`. Optional `X-API-Key` header
-when `ETC_DOCGEN_API_KEY` is set on the server.
+when `ETC_PLATFORM_API_KEY` is set on the server.
 
 **Token economics**:
 
@@ -126,7 +126,7 @@ when `ETC_DOCGEN_API_KEY` is set on the server.
 | **Per export**            | **~120K**           | **~80**             |
 
 **Size limits**:
-- Single upload: 10 MB default (env `ETC_DOCGEN_MAX_UPLOAD_BYTES`)
+- Single upload: 10 MB default (env `ETC_PLATFORM_MAX_UPLOAD_BYTES`)
 - Job output: bounded only by disk; downloads stream
 - Inline `validate(content_data=…)`: keep dict ≤ 50 KB; for larger, prefer
   upload + `validate_uploaded(upload_id)`

@@ -13,8 +13,8 @@ description: Tạo workspace mới để soạn tài liệu hành chính tiếng
 ```
 Doc type              Renderer       Output format
 ─────────────────     ──────────     ─────────────────────────
-TKCS                  etc-docgen     content-data.json → .docx
-TKCT                  etc-docgen     content-data.json → .docx
+TKCS                  etc-platform     content-data.json → .docx
+TKCT                  etc-platform     content-data.json → .docx
 TKKT                  etc-platform   content-data.json → .docx
 HDSD                  etc-platform   content-data.json → .docx
 Test Cases            etc-platform   content-data.json → .xlsx
@@ -27,7 +27,7 @@ Báo cáo chủ trương    Pandoc         Markdown → .docx
 Thuyết minh           Pandoc         Markdown → .docx
 ```
 
-**etc-docgen doc types**: doc-writer produces structured JSON → merges into content-data.json → `etc-docgen export` renders deterministic Office files. Tiết kiệm token, output chuẩn template.
+**etc-platform doc types**: doc-writer produces structured JSON → merges into content-data.json → `etc-platform export` renders deterministic Office files. Tiết kiệm token, output chuẩn template.
 
 **Pandoc doc types**: doc-writer produces Markdown prose → Pandoc export. Không thay đổi so với pipeline cũ.
 
@@ -269,18 +269,18 @@ Bước thực hiện:
 
 ## § Step 4 — Create Project + Init
 
-**For etc-docgen doc types (TKCS, TKCT, TKKT, HDSD):**
+**For etc-platform doc types (TKCS, TKCT, TKKT, HDSD):**
 ```
 projects/{slug}/
 ├── _doc_state.md          ← from template, populated with section tracker
 ├── dcb.md                 ← from template, filled with interview + inherited data
-├── content-data.json      ← etc-docgen data contract (skeleton from interview)
-└── output/                ← etc-docgen renders here
+├── content-data.json      ← etc-platform data contract (skeleton from interview)
+└── output/                ← etc-platform renders here
 ```
 
 Init `content-data.json` skeleton from interview data:
 ```python
-# Use etc-docgen MCP tools:
+# Use etc-platform MCP tools:
 # 1. section_schema({doc_type}) → get field definitions
 # 2. field_map({doc_type}) → get interview→field mapping
 # 3. Pre-fill shared fields (project, meta, overview) from interview
@@ -302,13 +302,13 @@ projects/{slug}/
 
 ## § Step 5 — Write (doc-orchestrator)
 
-### 5a. etc-docgen doc types (TKCS, TKCT, TKKT, HDSD)
+### 5a. etc-platform doc types (TKCS, TKCT, TKKT, HDSD)
 
 **doc-writer output = structured JSON, NOT Markdown prose.**
 
 ```
 doc-orchestrator:
-  1. Gọi etc-docgen MCP: section_schema({doc_type}) + field_map({doc_type})
+  1. Gọi etc-platform MCP: section_schema({doc_type}) + field_map({doc_type})
   2. Plan waves based on field dependencies (NOT outline sections)
   3. Per wave:
      Dispatch doc-writer (parallel, Agent tool, background):
@@ -326,8 +326,8 @@ doc-orchestrator:
          }
        }
      
-     Merge: etc-docgen MCP merge_content(content-data.json, writer_output)
-     Validate: etc-docgen MCP validate(content-data.json)
+     Merge: etc-platform MCP merge_content(content-data.json, writer_output)
+     Validate: etc-platform MCP validate(content-data.json)
      
      Dispatch doc-reviewer:
        - Check content quality, pháp lý, cross-refs
@@ -338,12 +338,12 @@ doc-orchestrator:
      "Góp ý? (ok / sửa field X / thêm info)"
 ```
 
-**doc-writer prompt for etc-docgen types:**
+**doc-writer prompt for etc-platform types:**
 ```
 ## Writer: {doc_type} — Wave {N}
 
 Output format: JSON (NOT Markdown prose)
-Target: content-data.json → etc-docgen sẽ render .docx
+Target: content-data.json → etc-platform sẽ render .docx
 
 ### Fields to fill this wave:
 {from section_schema + field_map}
@@ -395,16 +395,16 @@ doc-orchestrator:
 
 ## § Step 6 — Review + Export
 
-### etc-docgen doc types:
+### etc-platform doc types:
 ```
 # Final review
 Agent("doc-reviewer"):
   "FINAL review content-data.json.
    Nội dung, pháp lý, cross-ref, nhất quán.
-   Kiểm tra: etc-docgen MCP validate(content-data.json)"
+   Kiểm tra: etc-platform MCP validate(content-data.json)"
 
-# Final export via etc-docgen v2.0.0 (job-based — bytes never enter LLM context)
-ETC_URL = $ETC_DOCGEN_URL or "http://localhost:8001"
+# Final export via etc-platform v2.0.0 (job-based — bytes never enter LLM context)
+ETC_URL = $ETC_PLATFORM_URL or "http://localhost:8001"
 
 # 1) Upload content-data (out-of-band, 0 LLM tokens)
 Bash(f"curl -fsS -X POST {ETC_URL}/uploads -F file=@projects/{slug}/content-data.json -F label={slug}")
@@ -435,11 +435,11 @@ Bash("./export/export.ps1 -DocPath projects/{slug} -Open")
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ✓ {doc-type}: {project-name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Renderer:  {etc-docgen | Pandoc}
+  Renderer:  {etc-platform | Pandoc}
   Sections:  {N} | Words: {M} | Pages: ~{P}
   Placeholders remaining: {K}
   
-  Output: projects/{slug}/output/{name}.docx  (etc-docgen)
+  Output: projects/{slug}/output/{name}.docx  (etc-platform)
       OR: projects/{slug}/export/{name}.docx  (Pandoc)
 
   Tài liệu tiếp theo trong chuỗi:
@@ -465,16 +465,16 @@ Bash("./export/export.ps1 -DocPath projects/{slug} -Open")
 Mỗi doc downstream **kế thừa** data từ doc upstream qua DCB injection.
 User không cần copy-paste — orchestrator tự link.
 
-**Cross-renderer handoff**: Khi TKCS (etc-docgen) → Dự toán (Pandoc), orchestrator
+**Cross-renderer handoff**: Khi TKCS (etc-platform) → Dự toán (Pandoc), orchestrator
 đọc content-data.json và inject relevant data vào DCB cho Pandoc writer.
 Khi NCKT → TKCS (cả hai etc-platform), orchestrator đọc `nckt.sections[]` từ
 content-data.json và inject vào `tkcs.*` skeleton (kế thừa hiện trạng + giải pháp).
 
 ---
 
-## § etc-docgen MCP Tool Reference
+## § etc-platform MCP Tool Reference
 
-Các MCP tools có sẵn khi etc-docgen MCP server đang chạy:
+Các MCP tools có sẵn khi etc-platform MCP server đang chạy:
 
 | Tool | Mô tả | Khi nào dùng |
 |---|---|---|
@@ -494,7 +494,7 @@ Các MCP tools có sẵn khi etc-docgen MCP server đang chạy:
 **MCP Server khởi chạy:**
 ```bash
 # stdio (IDE integration)
-etc-docgen mcp
+etc-platform mcp
 # hoặc
-python -m etc_docgen.mcp_server
+python -m etc_platform.mcp_server
 ```

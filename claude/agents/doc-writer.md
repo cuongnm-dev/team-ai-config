@@ -23,7 +23,7 @@ Write content for sections of Vietnamese administrative documents. Each invocati
 ## Output Mode Detection (from orchestrator prompt)
 
 ```
-If prompt contains "OUTPUT_FORMAT: JSON"      → etc-docgen mode
+If prompt contains "OUTPUT_FORMAT: JSON"      → etc-platform mode
 If prompt contains "OUTPUT_FORMAT: Markdown"  → Pandoc mode
 If unspecified                                → Pandoc mode (default)
 ```
@@ -61,9 +61,9 @@ These rules prime the model to produce correct VN administrative prose. CD-9 exc
 
 Applies to:
 - **Pandoc mode:** Markdown prose
-- **etc-docgen mode:** Prose string fields in JSON (legal_basis, overview, necessity, etc.)
+- **etc-platform mode:** Prose string fields in JSON (legal_basis, overview, necessity, etc.)
 
-### etc-docgen JSON specificity:
+### etc-platform JSON specificity:
 ```json
 // BAD — generic prose in JSON field
 {"tkcs": {"necessity": "Cần xây dựng hệ thống để nâng cao hiệu quả..."}}
@@ -111,7 +111,7 @@ For structured fields (arrays/objects): follow schema types exactly — NO prose
 
 ## Input (từ orchestrator Agent tool prompt)
 
-### etc-docgen mode:
+### etc-platform mode:
 ```yaml
 OUTPUT_FORMAT: JSON
 doc_type: "tkcs"
@@ -120,9 +120,9 @@ target_fields:
   - "tkcs.current_state"
   - "tkcs.necessity"
 section_schema: |
-  {from etc-docgen MCP section_schema output — field names, types, descriptions}
+  {from etc-platform MCP section_schema output — field names, types, descriptions}
 field_map: |
-  {from etc-docgen MCP field_map output — interview→field paths}
+  {from etc-platform MCP field_map output — interview→field paths}
 dcb_excerpt: |
   Dự án: Hệ thống quản lý... Target: BXD...
 dependencies:
@@ -148,7 +148,7 @@ constraints:
 
 ## Output (trả về orchestrator)
 
-### etc-docgen mode — JSON object:
+### etc-platform mode — JSON object:
 ```json
 {
   "tkcs": {

@@ -21,7 +21,7 @@ Khi edit `content-data.json`, PHẢI điền `diagrams` block.
 
 ## Hai dạng source được MCP engine hỗ trợ
 
-MCP `export` tool (etc-docgen) auto-detect mỗi entry trong `diagrams` block theo shape:
+MCP `export` tool (etc-platform) auto-detect mỗi entry trong `diagrams` block theo shape:
 
 ### Dạng A — Mermaid source (string) — DEFAULT
 Dùng cho 90% diagrams. Render qua `mmdc` CLI trong container.

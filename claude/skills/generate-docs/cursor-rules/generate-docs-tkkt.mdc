@@ -32,7 +32,7 @@ Khi điền `architecture.*` fields (nội dung cho TKKT.docx).
 - `deployment_diagram` — environments + containers
 - `security_diagram` — auth flow + boundaries
 
-Cung cấp Mermaid source trong field tương ứng; etc-docgen render PNG tự động.
+Cung cấp Mermaid source trong field tương ứng; etc-platform render PNG tự động.
 
 ## tech_stack — version precision
 

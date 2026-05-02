@@ -1,7 +1,7 @@
 # engine/ — Claude-side helpers ONLY
 
 > **Architectural rule (CD-8 reaffirmed)**:
-> **Claude = THINK | etc-docgen MCP = EXECUTE**
+> **Claude = THINK | etc-platform MCP = EXECUTE**
 
 This directory contains **Claude-side automation helpers** that run during
 orchestration (capture, briefings, dev tooling). It does **NOT** contain
@@ -21,14 +21,14 @@ rendering engines, templates, or schemas — those live exclusively in MCP.
 
 | Removed file | Now lives in |
 |---|---|
-| `fill_xlsx_engine.py` | `<MCP image>/src/etc_docgen/engines/xlsx.py` |
-| `render_docx.py` | `<MCP image>/src/etc_docgen/engines/docx.py` |
-| `synthesize_tc_fallback.py` | `<MCP image>/src/etc_docgen/synthesizers/tc_fallback.py` |
-| `templates/test-case.xlsx` | `<MCP image>/src/etc_docgen/assets/templates/test-case.xlsx` |
-| `templates/huong-dan-su-dung.docx` | `<MCP image>/src/etc_docgen/assets/templates/huong-dan-su-dung.docx` |
-| `templates/build_test_case_template.py` | `<MCP image>/src/etc_docgen/assets/templates/build_test_case_template.py` |
-| `schemas/test-case.xlsx.schema.yaml` | `<MCP image>/src/etc_docgen/assets/schemas/test-case.xlsx.schema.yaml` |
-| `schemas/content-data.schema.json` | `<MCP image>/src/etc_docgen/assets/schemas/content-data.schema.json` |
+| `fill_xlsx_engine.py` | `<MCP image>/src/etc_platform/engines/xlsx.py` |
+| `render_docx.py` | `<MCP image>/src/etc_platform/engines/docx.py` |
+| `synthesize_tc_fallback.py` | `<MCP image>/src/etc_platform/synthesizers/tc_fallback.py` |
+| `templates/test-case.xlsx` | `<MCP image>/src/etc_platform/assets/templates/test-case.xlsx` |
+| `templates/huong-dan-su-dung.docx` | `<MCP image>/src/etc_platform/assets/templates/huong-dan-su-dung.docx` |
+| `templates/build_test_case_template.py` | `<MCP image>/src/etc_platform/assets/templates/build_test_case_template.py` |
+| `schemas/test-case.xlsx.schema.yaml` | `<MCP image>/src/etc_platform/assets/schemas/test-case.xlsx.schema.yaml` |
+| `schemas/content-data.schema.json` | `<MCP image>/src/etc_platform/assets/schemas/content-data.schema.json` |
 
 ## How rendering happens
 
@@ -75,9 +75,9 @@ exposed at `localhost:8001/sse` for direct MCP protocol access).
 
 To modify template format:
 
-1. Edit MCP source: `<MCP image>/src/etc_docgen/assets/templates/build_test_case_template.py`
+1. Edit MCP source: `<MCP image>/src/etc_platform/assets/templates/build_test_case_template.py`
 2. Regenerate: `python build_test_case_template.py --out test-case.xlsx`
-3. Restart container: `docker restart etc-docgen` (picks up bind-mount of `src/`)
+3. Restart container: `docker restart etc-platform` (picks up bind-mount of `src/`)
 4. Test render via HTTP API or MCP tool
 
 NEVER edit the generated `test-case.xlsx` directly — always edit the builder.

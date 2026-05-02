@@ -75,7 +75,7 @@ for filename, b64 in result["outputs"].items():
     (out_dir / filename).write_bytes(base64.b64decode(b64))
 ```
 
-Files ở `$DOCS_PATH/output/` của user repo, KHÔNG ở etc-docgen container.
+Files ở `$DOCS_PATH/output/` của user repo, KHÔNG ở etc-platform container.
 
 ---
 

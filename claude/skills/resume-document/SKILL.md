@@ -144,7 +144,7 @@ Nếu fresh session (no history): skip — state file đủ.
 | WRITE_INIT | strategy-analyst | Generate DCB |
 | WRITE_WAVE_N | doc-orchestrator | Continue wave writing |
 | FINAL_REVIEW | doc-reviewer | Final review |
-| EXPORT | (auto) | Pandoc for Đề án CĐS (no etc-docgen template) |
+| EXPORT | (auto) | Pandoc for Đề án CĐS (no etc-platform template) |
 
 ### Document Pipeline routing:
 
@@ -182,7 +182,7 @@ Doc type in {tkcs, tkct, tkkt, hdsd, xlsx, nckt}?
 
 Pipeline: {strategic | document}
 Doc type: {de-an-cds | tkcs | hsmt | ...}
-Renderer: {etc-docgen | pandoc}
+Renderer: {etc-platform | pandoc}
 Current stage: {stage}
 Next action: {next-action}
 Automation mode: {mode}
@@ -191,7 +191,7 @@ Automation mode: {mode}
 {condensed from state file: what's done, what's next}
 
 ### Renderer Info
-{If etc-docgen: "Output = content-data.json → etc-docgen export. Use MCP tools: section_schema, field_map, merge_content, validate, export."}
+{If etc-platform: "Output = content-data.json → etc-platform export. Use MCP tools: section_schema, field_map, merge_content, validate, export."}
 {If pandoc: "Output = Markdown → export.ps1"}
 
 ### Blockers (if any)

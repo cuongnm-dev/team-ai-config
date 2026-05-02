@@ -73,7 +73,7 @@ echo "📂 DOCS_PATH = $DOCS_PATH (slug: $SLUG)"
 
 ## 0.2.5 — MCP API mode (production-grade, multi-user safe)
 
-`etc-docgen` MCP v1.0.0+ dùng **PURE API mode** — NO filesystem path. Content + screenshots inline qua tool params; outputs returned as base64.
+`etc-platform` MCP v1.0.0+ dùng **PURE API mode** — NO filesystem path. Content + screenshots inline qua tool params; outputs returned as base64.
 
 User project data KHÔNG bao giờ vào thư mục MCP server. MCP có thể host remote, multi-user safe.
 
@@ -95,8 +95,8 @@ Skill quản lý `content_data` in-memory (Composer state). Outputs (.docx/.xlsx
 # Resolve MCP_URL from ~/.cursor/mcp.json
 MCP_URL=""
 [ -f "$HOME/.cursor/mcp.json" ] && \
-  MCP_URL=$(python -c "import json; print(json.load(open('$HOME/.cursor/mcp.json')).get('mcpServers', {}).get('etc-docgen', {}).get('url', ''))" 2>/dev/null)
-[ -z "$MCP_URL" ] && MCP_URL="${ETCDOCGEN_MCP_URL:-http://localhost:8001/sse}"
+  MCP_URL=$(python -c "import json; print(json.load(open('$HOME/.cursor/mcp.json')).get('mcpServers', {}).get('etc-platform', {}).get('url', ''))" 2>/dev/null)
+[ -z "$MCP_URL" ] && MCP_URL="${ETC_PLATFORM_MCP_URL:-http://localhost:8001/sse}"
 export MCP_URL
 ```
 

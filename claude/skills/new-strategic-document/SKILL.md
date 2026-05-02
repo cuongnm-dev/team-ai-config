@@ -279,7 +279,7 @@ User "ok" → **FREEZE Thinking Bundle** → tất cả files trong thinking-bun
 3. **Create content files**: từ locked outline → `content/{nn}-section-{id}.md`
 4. **Init _doc_state.md**: section tracker từ outline
 
-**⚠ Đề án CĐS = Pandoc pipeline** (không dùng etc-docgen — không có template Đề án).
+**⚠ Đề án CĐS = Pandoc pipeline** (không dùng etc-platform — không có template Đề án).
 Wave writing + export giữ nguyên: Markdown → Pandoc.
 
 **Wave-based writing** (doc-orchestrator takes over):
@@ -359,16 +359,16 @@ Agent("policy-researcher", run_in_background=true):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-### § Downstream etc-docgen Integration
+### § Downstream etc-platform Integration
 
 Khi user chạy `/new-document-workspace` (Scope C: từ Đề án CĐS) cho các dự án con:
 
-**TKCS / TKCT / TKKT** → dùng etc-docgen pipeline:
+**TKCS / TKCT / TKKT** → dùng etc-platform pipeline:
 ```
 1. Đọc initiative-portfolio.md → lấy DA-XX info
 2. Đọc dedup-report.md → dedup decisions
 3. Đọc policy-landscape.md → legal refs
-4. etc-docgen MCP: section_schema({doc_type}) → get field defs
+4. etc-platform MCP: section_schema({doc_type}) → get field defs
 5. Auto-populate content-data.json skeleton với inherited data:
    - project.display_name ← DA-XX tên
    - project.client ← Đề án đơn vị chủ trì

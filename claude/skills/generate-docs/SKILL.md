@@ -70,7 +70,7 @@ Chỉ khi dùng **bundled script có sẵn** `engine/auth_runner.py` hoặc `eng
 # Generate Documentation — 6-Stage Pipeline
 
 **Output language**: Vietnamese cho user, English cho instructions.
-**Render engine**: `etc-docgen` MCP (8 tools, chuẩn enterprise). Skill là **thin adapter** — research/write bằng LLM, render bằng MCP deterministic.
+**Render engine**: `etc-platform` MCP (8 tools, chuẩn enterprise). Skill là **thin adapter** — research/write bằng LLM, render bằng MCP deterministic.
 
 ---
 
@@ -320,7 +320,7 @@ Writer sub-agents read these via `Read` tool when prompted.
 ### 3. MCP server
 
 ```bash
-docker ps | grep etc-docgen-mcp-server
+docker ps | grep etc-platform-mcp-server
 # Nếu chưa chạy:
 cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d
 ```

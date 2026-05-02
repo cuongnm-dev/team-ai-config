@@ -79,8 +79,8 @@ Internal working dir — ephemeral per generate-docs run. NOT cross-skill SOT.
 
 | File | Status | Producer | Consumer | Note |
 |---|---|---|---|---|
-| `docs/generated/{slug}/output/content-data.json` | ✅ | generate-docs Stage 4 writers | etc-docgen MCP (export) | Final structured data fed to Office templates |
-| `docs/generated/{slug}/output/*.docx`, `*.xlsx` | ✅ | etc-docgen MCP | zip-disk, customer | Rendered Office files |
+| `docs/generated/{slug}/output/content-data.json` | ✅ | generate-docs Stage 4 writers | etc-platform MCP (export) | Final structured data fed to Office templates |
+| `docs/generated/{slug}/output/*.docx`, `*.xlsx` | ✅ | etc-platform MCP | zip-disk, customer | Rendered Office files |
 | `docs/generated/{slug}/screenshots/*.png` | ✅ | generate-docs Stage 3a (Playwright fallback) OR symlink from `docs/intel/screenshots/` (REUSE-FIRST) | content-data.json embedding, HDSD output | Per CD-4 canonical naming `{feature-id}-step-NN-{state}.png` |
 | `docs/generated/{slug}/intel/screenshot-validation.json` | ⚠️ | tdoc-screenshot-reviewer | generate-docs Stage 3b | Should reference canonical `docs/intel/test-evidence/{feature-id}.json` instead |
 | `docs/generated/{slug}/intel/quality-report.json` | ✅ | generate-docs Stage 5b | generate-docs Stage 6 export | Per-run quality gate result |

@@ -62,7 +62,7 @@ Cursor's **Composer** is the **mandatory** user-review point at every stage tran
 # Generate Documentation — Cursor 3 Edition (6 Stages)
 
 **Output language**: Vietnamese for user, English for instructions.
-**Render engine**: `etc-docgen` MCP (8 tools). Skill = thin adapter — research/write via LLM, render via MCP deterministic.
+**Render engine**: `etc-platform` MCP (8 tools). Skill = thin adapter — research/write via LLM, render via MCP deterministic.
 
 ---
 
@@ -271,7 +271,7 @@ Kết quả: 7 modes mới — `Discovery Researcher`, `Code Researcher`, `Doc H
 ```bash
 docker ps | grep etc-platform
 # Nếu chưa chạy:
-cd D:\Projects\etc-docgen && docker compose -f docker-compose.mcp.yaml up -d
+cd D:\Projects\etc-platform && docker compose -f docker-compose.mcp.yaml up -d
 ```
 
 `~/.cursor/mcp.json` đã config sẵn → restart Cursor → 8 MCP tools available.

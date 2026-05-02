@@ -85,4 +85,4 @@ User muốn detail code-level → re-run `--force-code-scan` (Path B).
 
 + mỗi `modules[]` có `flow_diagram` riêng.
 
-Nếu đưa Mermaid source, etc-docgen MCP tự render PNG khi export (mmdc in container).
+Nếu đưa Mermaid source, etc-platform MCP tự render PNG khi export (mmdc in container).

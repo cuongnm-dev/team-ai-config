@@ -1,6 +1,6 @@
 # Optional MCP Servers — install + register guide
 
-Status snapshot (2026-04-26): Cursor `mcp.json` registers **3 servers**: `playwright`, `etc-docgen`, `etc-platform`. Claude Code (user scope) registers **2**: `etc-docgen`, `etc-platform`.
+Status snapshot (2026-04-26): Cursor `mcp.json` registers **3 servers**: `playwright`, `etc-platform`, `etc-platform`. Claude Code (user scope) registers **2**: `etc-platform`, `etc-platform`.
 
 Other MCPs referenced by agents/skills are **OPTIONAL** — agents have `IF available` guards. Install + register only when needed for active project.
 

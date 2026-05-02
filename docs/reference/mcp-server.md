@@ -11,7 +11,7 @@ Container chạy localhost:8001 — render Office docs (DOCX/XLSX) qua MCP `/job
 
 - Public: [`o0mrblack0o/etc-platform:v3.0.0`](https://hub.docker.com/r/o0mrblack0o/etc-platform)
 - Multi-arch: `linux/amd64` + `linux/arm64` (Mac M1/M2 + Intel Mac + Linux x86)
-- Source: [`github.com/cuongnm-dev/etc-docgen`](https://github.com/cuongnm-dev/etc-docgen)
+- Source: [`github.com/cuongnm-dev/etc-platform`](https://github.com/cuongnm-dev/etc-platform)
 
 ## Compose config
 

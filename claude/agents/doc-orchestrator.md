@@ -26,10 +26,10 @@ RENDERER = "etc-platform"  if doc_type in {tkcs, tkct, tkkt, hdsd, xlsx, nckt}
 RENDERER = "pandoc"        if doc_type in {du-toan, hsmt, hsdt, bao-cao-ct, thuyet-minh, de-an-cds}
 ```
 
-**etc-docgen pipeline:**
+**etc-platform pipeline:**
 - `doc-writer` output = **structured JSON** (matching Pydantic schema).
 - Merge into `content-data.json` (via MCP `merge_content` or CLI).
-- Export (v2.0.0+): `curl -F file=@content-data.json $ETC_URL/uploads` → `mcp__etc-platform__export_async` → `job_status` → `curl $ETC_URL/jobs/.../files/...`. Legacy CLI `etc-docgen export` is offline fallback only.
+- Export (v2.0.0+): `curl -F file=@content-data.json $ETC_URL/uploads` → `mcp__etc-platform__export_async` → `job_status` → `curl $ETC_URL/jobs/.../files/...`. Legacy CLI `etc-platform export` is offline fallback only.
 - Outline tracks **section_schema fields** (no content/ Markdown files).
 
 **Pandoc pipeline** (unchanged):
@@ -85,11 +85,11 @@ Claude Code Agent tool:
 3. Tạo `dcb.md` từ user input / inherited data
 4. Update state: stage → PLANNING
 
-**etc-docgen types (TKCS, TKCT, TKKT, HDSD) — additional steps:**
+**etc-platform types (TKCS, TKCT, TKKT, HDSD) — additional steps:**
 ```
 # 5. Get schema for target doc type (MCP preferred, CLI fallback)
 MCP: section_schema({doc_type})
-# Fallback: Bash("etc-docgen schema")
+# Fallback: Bash("etc-platform schema")
 
 # 6. Get field mapping
 MCP: field_map({doc_type}) → interview→field paths
@@ -103,14 +103,14 @@ Write("projects/{slug}/content-data.json", result["merged_data"])
 # 8. Validate skeleton — MCP signature is validate(content_data: dict), NOT a path
 content_data = Read("projects/{slug}/content-data.json")  # load to dict
 v = mcp__etc-platform__validate(content_data=content_data)
-# Fallback when MCP offline: Bash("etc-docgen validate projects/{slug}/content-data.json") — CLI accepts path
+# Fallback when MCP offline: Bash("etc-platform validate projects/{slug}/content-data.json") — CLI accepts path
 ```
 
 **Critical:** MCP tools take `content_data` as a **dict** (in-memory JSON object), not a file path. Always `Read()` the JSON file first, pass the parsed dict. Path string → MCP returns `valid: false` silently. CLI fallback (Bash subprocess) is the only place that accepts a path.
 
 **MCP vs CLI fallback rule:**
 Nếu MCP server khả dụng (IDE đã cấu hình) → LUÔN dùng MCP tools.
-Nếu MCP không khả dụng → dùng Bash("etc-docgen ...") CLI.
+Nếu MCP không khả dụng → dùng Bash("etc-platform ...") CLI.
 
 **Pandoc types — additional steps:**
 ```
@@ -197,17 +197,17 @@ Circular deps → 2-pass wave
 
 ### Phase 3 — Dispatch Writers + Diagrams (PARALLEL)
 
-#### etc-docgen types: Writer dispatch produces JSON
+#### etc-platform types: Writer dispatch produces JSON
 
 ```
-# A) etc-docgen doc-writers — output JSON, not Markdown
+# A) etc-platform doc-writers — output JSON, not Markdown
 For field_group in wave.field_groups (batch 4):
   Agent("doc-writer", run_in_background=true):
-    "OUTPUT_FORMAT: JSON (etc-docgen type)
+    "OUTPUT_FORMAT: JSON (etc-platform type)
      doc_type: {doc_type}
      target_fields: {list of content-data.json field paths for this wave}
-     section_schema: {from etc-docgen MCP section_schema output}
-     field_map: {from etc-docgen MCP field_map output}
+     section_schema: {from etc-platform MCP section_schema output}
+     field_map: {from etc-platform MCP field_map output}
      dcb_excerpt: {relevant DCB sections — max 800 tokens}
      dependencies: {completed field summaries from prior waves}
      
@@ -288,7 +288,7 @@ If wave has [DIAGRAM: ...] placeholders:
 
 ### Phase 4 — Collect, Merge & Cross-Ref Fix
 
-**etc-docgen types:**
+**etc-platform types:**
 1. Thu kết quả writers (JSON strings)
 2. Merge mỗi writer output vào content-data.json:
    ```
@@ -323,8 +323,8 @@ After merge, scan tất cả content files:
 
 Dispatch doc-reviewer:
 ```
-# etc-docgen types: orchestrator runs validation BEFORE reviewer
-If RENDERER == "etc-docgen":
+# etc-platform types: orchestrator runs validation BEFORE reviewer
+If RENDERER == "etc-platform":
   content_data = Read("projects/{slug}/content-data.json")
   validation_result = mcp__etc-platform__validate(content_data=content_data)
   # Pass validation result to reviewer (reviewer has no Bash tool)
@@ -332,7 +332,7 @@ If RENDERER == "etc-docgen":
 Agent("doc-reviewer"):
   "Review Wave {N} sections: {list}.
    REVIEW_FORMAT: {JSON | Markdown}  # based on RENDERER
-   validation_result: {from etc-docgen validate, if applicable}
+   validation_result: {from etc-platform validate, if applicable}
    Check: content quality, NĐ 30 format, legal compliance, 
    cross-ref consistency, diagram quality, terminology consistency.
    
@@ -347,10 +347,10 @@ Update state: `review_loops += 1`
 
 ### Phase 6 — Export Draft (F-07: block nếu có placeholder diagram)
 
-**etc-docgen types (v2.0.0+ job-based — bytes never enter LLM context):**
+**etc-platform types (v2.0.0+ job-based — bytes never enter LLM context):**
 ```
 # 1. Upload content-data via HTTP (out-of-band of LLM token stream — 0 tokens)
-ETC_URL = $ETC_DOCGEN_URL or "http://localhost:8001"
+ETC_URL = $ETC_PLATFORM_URL or "http://localhost:8001"
 upload_resp = Bash(f"curl -fsS -X POST {ETC_URL}/uploads "
                    f"-F file=@projects/{slug}/content-data.json "
                    f"-F label={slug}")

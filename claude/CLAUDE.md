@@ -204,11 +204,11 @@ Shared knowledge layer giữa `from-doc`, `from-code`, `generate-docs` (và SDLC
 ## etc-platform MCP Rules (UNIFIED — post-merge 2026-04-28)
 
 ### MCP-1: Single unified MCP server (port 8001)
-**Sau merge ngày 2026-04-28**, etc-docgen + etc-platform được hợp nhất thành 1 MCP server duy nhất tại `localhost:8001`. Container name: `etc-platform` (đã rename). Image: `etc-platform:latest`. FastMCP internal name vẫn là `etc-docgen` → tool prefix trong client = `mcp__etc-platform__*` (canonical). Port :8000 vẫn expose làm back-compat alias trong giai đoạn migration. Source folder: `~/.ai-kit/team-ai-config/mcp/etc-platform/` (sẽ rename `etc-platform/` khi WSL2 lock release — defer until reboot).
+**Sau merge ngày 2026-04-28**, etc-platform + etc-platform được hợp nhất thành 1 MCP server duy nhất tại `localhost:8001`. Container name: `etc-platform` (đã rename). Image: `etc-platform:latest`. FastMCP internal name vẫn là `etc-platform` → tool prefix trong client = `mcp__etc-platform__*` (canonical). Port :8000 vẫn expose làm back-compat alias trong giai đoạn migration. Source folder: `~/.ai-kit/team-ai-config/mcp/etc-platform/` (sẽ rename `etc-platform/` khi WSL2 lock release — defer until reboot).
 
 **Tool surface (24 tools)**:
 
-**Render pipeline (kế thừa từ etc-docgen)**:
+**Render pipeline (kế thừa từ etc-platform)**:
 - `validate(content_data)` / `validate_uploaded(upload_id)` / `validate_workspace(workspace_id)` — Pydantic ContentData validation
 - `export(...)` / `export_async(...)` — render Office files
 - `job_status(job_id)` / `cancel_job(job_id)` / `upload_capacity()` — job queue management
@@ -237,12 +237,12 @@ First install: `docker compose up -d` in `~/.ai-kit/team-ai-config/mcp/etc-platf
 ### MCP-4: Anonymization mandate (intel cache)
 `intel_cache_contribute` requires `contributor_consent=True` AND server scan passes (no email/phone/CCCD/Bộ-Tỉnh-Sở patterns). Caller pre-redacts; server is last line of defense.
 
-### MCP-5: DEPRECATED (was: co-existence with etc-docgen)
+### MCP-5: DEPRECATED (was: co-existence with etc-platform)
 Pre-merge state. Both servers consolidated into single etc-platform MCP at :8001 on 2026-04-28. The dual-server architecture is no longer used.
 
 **Migration path for existing skills**:
 - Replace `localhost:8000` references → `localhost:8001` (back-compat alias :8000 still active during migration)
-- Tool prefix: unified `mcp__etc-platform__*` (FastMCP server-internal name). Cursor `mcp.json` registers both `etc-docgen` (:8000/sse) and `etc-platform` (:8001/sse) aliases — both work. Claude Code `settings.json` only enables `etc-docgen` alias — use `mcp__etc-platform__*` prefix.
+- Tool prefix: unified `mcp__etc-platform__*` (FastMCP server-internal name). Cursor `mcp.json` registers both `etc-platform` (:8000/sse) and `etc-platform` (:8001/sse) aliases — both work. Claude Code `settings.json` only enables `etc-platform` alias — use `mcp__etc-platform__*` prefix.
 
 ## Knowledge Base Rules
 

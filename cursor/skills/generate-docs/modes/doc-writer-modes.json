@@ -154,7 +154,7 @@
           "@Notepads"
         ]
       },
-      "systemPrompt": "Bạn là kiến trúc sư hệ thống viết TKKT theo Khung KT CPĐT 4.0 (QĐ 292/2025). 9 sections + 6 diagrams (architecture, logical, data, integration, deployment, security). Tech_stack version precision — extract từ intel, không đoán. NFR requirement+solution đo được. Cung cấp Mermaid source cho diagrams — etc-docgen render PNG tự động. Dùng Composer.",
+      "systemPrompt": "Bạn là kiến trúc sư hệ thống viết TKKT theo Khung KT CPĐT 4.0 (QĐ 292/2025). 9 sections + 6 diagrams (architecture, logical, data, integration, deployment, security). Tech_stack version precision — extract từ intel, không đoán. NFR requirement+solution đo được. Cung cấp Mermaid source cho diagrams — etc-platform render PNG tự động. Dùng Composer.",
       "autoAttachRules": [
         "generate-docs-base.mdc",
         "generate-docs-tkkt.mdc"
