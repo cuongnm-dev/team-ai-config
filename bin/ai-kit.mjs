@@ -1232,6 +1232,66 @@ const bar = (ratio, width = 12) => {
   return padR(out, width);
 };
 
+// Classify a tool error → {category, isReal, normalizedMessage}
+// Categories:
+//   workflow   — Claude Code's own validation errors (Edit before Read, etc.) — MY workflow bugs
+//   shell_real — actual shell/command failures (exit ≥ 2, or exit 1 with real failure msg)
+//   shell_noise — expected non-zero (grep no-match, git diff --quiet, test) — NOT actual errors
+//   http       — network/HTTP errors (404, 5xx)
+//   other      — uncategorized
+const classifyError = (toolName, errorText, command) => {
+  const txt = (errorText || '').slice(0, 500);
+  const cmd = (command || '').toLowerCase();
+  const firstLine = txt.split('\n')[0].trim();
+
+  // Claude Code workflow errors — these have <tool_use_error> wrapper or known phrases
+  if (txt.includes('<tool_use_error>') ||
+      /File has not been read yet|String to replace not found|String not found in file|Cannot find file|Did you mean/i.test(txt)) {
+    return {category: 'workflow', isReal: true, msg: firstLine.slice(0, 80)};
+  }
+
+  // HTTP errors
+  if (/status code [4-5]\d\d|HTTP \d\d\d|404 Not Found|403 Forbidden|500 Internal/i.test(txt)) {
+    return {category: 'http', isReal: true, msg: firstLine.slice(0, 80)};
+  }
+
+  // Shell tools (Bash / PowerShell)
+  if (toolName === 'Bash' || toolName === 'PowerShell') {
+    // Extract exit code if mentioned
+    const exitMatch = txt.match(/[Ee]xit code:?\s*(\d+)/);
+    const exitCode = exitMatch ? parseInt(exitMatch[1], 10) : null;
+
+    // Exit code ≥ 2 → real syntax/runtime error
+    if (exitCode !== null && exitCode >= 2) {
+      return {category: 'shell_real', isReal: true, msg: firstLine.slice(0, 80)};
+    }
+
+    // Exit code 1 — could be noise. Use the ORIGINAL command (cmd) to decide.
+    if (exitCode === 1 || (exitCode === null && /exit code 1/i.test(txt))) {
+      // Common no-match / expected-non-zero patterns in the executed command
+      if (
+        /\b(grep|rg|ripgrep|ag|ack)\b/.test(cmd) ||
+        /select-string/.test(cmd) ||
+        /\bfindstr\b/.test(cmd) ||
+        /git\s+diff\s+(--quiet|--exit-code)/.test(cmd) ||
+        /\btest\s+[-!]|^\s*\[\s/.test(cmd) ||
+        /\| grep\b/.test(cmd) ||
+        /xargs.*grep/.test(cmd)
+      ) {
+        return {category: 'shell_noise', isReal: false, msg: `(${cmd.split(/\s+/)[0] || 'cmd'} no-match, exit 1)`};
+      }
+      // Empty stderr + exit 1 → also likely silent no-match
+      if (txt.length < 50 && /^\s*(stderr:)?\s*$/im.test(txt)) {
+        return {category: 'shell_noise', isReal: false, msg: '(empty output, exit 1)'};
+      }
+    }
+
+    return {category: 'shell_real', isReal: true, msg: firstLine.slice(0, 80)};
+  }
+
+  return {category: 'other', isReal: true, msg: firstLine.slice(0, 80)};
+};
+
 const collectStats = (sinceMs) => {
   const projectsRoot = path.join(os.homedir(), '.claude', 'projects');
   const S = {
@@ -1244,13 +1304,14 @@ const collectStats = (sinceMs) => {
     parsedFiles: 0,
     // New dimensions
     cacheReadTokens: 0, cacheCreationTokens: 0, inputTokens: 0, outputTokens: 0,
-    requestTokens: [],            // per-request total tokens (for p95)
-    byHour: new Array(24).fill(0),    // requests per hour-of-day
-    byWeekday: new Array(7).fill(0),  // requests per day-of-week (0=Sun)
-    toolErrors: {},               // tool name -> error count
+    requestTokens: [],
+    byHour: new Array(24).fill(0),
+    byWeekday: new Array(7).fill(0),
+    toolErrors: {},               // tool name -> total error count
     errorMessages: {},            // first 80 chars -> count
-    linesAdded: 0, linesRemoved: 0,   // approx from Edit/Write
-    editAccepts: 0, editRejects: 0,   // Edit/Write tool calls vs error
+    errorCategories: {workflow: 0, shell_real: 0, shell_noise: 0, http: 0, other: 0},
+    realErrors: 0,                // errors EXCLUDING shell_noise
+    linesAdded: 0, linesRemoved: 0,
   };
   if (!exists(projectsRoot)) return S;
 
@@ -1269,6 +1330,7 @@ const collectStats = (sinceMs) => {
   const promptIdToAgent = {};    // promptId  -> subagent_type
   const subagentFileTokens = {}; // file      -> {tokens, cost, promptIds: Set}
   const toolUseIdToName = {};    // toolu_xxx -> tool name (for error attribution)
+  const toolUseIdToCmd = {};     // toolu_xxx -> command string (for noise detection)
 
   const parseFile = (file) => {
     let data; try { data = fs.readFileSync(file, 'utf8'); } catch { return; }
@@ -1323,7 +1385,12 @@ const collectStats = (sinceMs) => {
             if (c.type !== 'tool_use') continue;
             const tn = c.name;
             S.byTool[tn] = (S.byTool[tn]||0) + 1;
-            if (c.id) toolUseIdToName[c.id] = tn;
+            if (c.id) {
+              toolUseIdToName[c.id] = tn;
+              if ((tn === 'Bash' || tn === 'PowerShell') && c.input?.command) {
+                toolUseIdToCmd[c.id] = String(c.input.command).slice(0, 500);
+              }
+            }
             if (tn === 'Agent' && c.input?.subagent_type) {
               const at = c.input.subagent_type;
               const ab = S.byAgent[at] ||= {tokens:0, cost:0, dispatches:0};
@@ -1354,14 +1421,18 @@ const collectStats = (sinceMs) => {
           if (c.type !== 'tool_result') continue;
           if (c.is_error) {
             S.errors++;
-            // Find the tool name via tool_use_id (we need a pass to map; skip for now and track by id prefix)
             const tuid = c.tool_use_id;
             const toolName = toolUseIdToName[tuid] || 'unknown';
-            S.toolErrors[toolName] = (S.toolErrors[toolName]||0) + 1;
-            // Capture first line of error message
             const txt = Array.isArray(c.content) ? (c.content.find(x => x.type === 'text')?.text || '') : (typeof c.content === 'string' ? c.content : '');
-            const first = txt.split('\n')[0].slice(0, 80).trim();
-            if (first) S.errorMessages[first] = (S.errorMessages[first]||0) + 1;
+            const cmd = toolUseIdToCmd[tuid] || '';
+            const cls = classifyError(toolName, txt, cmd);
+            S.errorCategories[cls.category]++;
+            if (cls.isReal) {
+              S.realErrors++;
+              S.toolErrors[toolName] = (S.toolErrors[toolName]||0) + 1;
+              const key = `[${cls.category}] ${cls.msg}`;
+              if (cls.msg) S.errorMessages[key] = (S.errorMessages[key]||0) + 1;
+            }
           }
           if (obj.promptId) {
             const tuid = c.tool_use_id;
@@ -1492,10 +1563,10 @@ const computeAlerts = (stats, series, thresholds) => {
       alerts.push({level: 'warn', msg: `Agent "${name}" tốn ${fmtUsd(v.cost)} ≥ ngưỡng ${fmtUsd(thresholds.agent_cost_warn)}`});
     }
   }
-  // Error rate
-  const errRate = stats.requests ? (stats.errors / stats.requests) * 100 : 0;
+  // Error rate (use REAL errors, exclude shell_noise)
+  const errRate = stats.requests ? (stats.realErrors / stats.requests) * 100 : 0;
   if (errRate >= thresholds.error_rate_warn) {
-    alerts.push({level: 'warn', msg: `Tool error rate ${errRate.toFixed(1)}% ≥ ngưỡng ${thresholds.error_rate_warn}%`});
+    alerts.push({level: 'warn', msg: `Tool error rate ${errRate.toFixed(1)}% ≥ ngưỡng ${thresholds.error_rate_warn}% (${stats.realErrors} lỗi thật/${stats.requests} requests)`});
   }
   return alerts;
 };
@@ -1526,6 +1597,8 @@ const cmdStatistics = (args) => {
       totalTokens: stats.totalTokens,
       totalCost: stats.totalCost,
       errors: stats.errors,
+      realErrors: stats.realErrors,
+      errorCategories: stats.errorCategories,
       tokens: {
         input: stats.inputTokens,
         output: stats.outputTokens,
@@ -1564,7 +1637,8 @@ const cmdStatistics = (args) => {
     return;
   }
 
-  const errRate = stats.requests ? (stats.errors / stats.requests) * 100 : 0;
+  const errRate = stats.requests ? (stats.realErrors / stats.requests) * 100 : 0;
+  const noiseCount = stats.errorCategories.shell_noise;
 
   // Plan-aware billing display
   const plan = loadPlan();
@@ -1576,7 +1650,7 @@ const cmdStatistics = (args) => {
   // Summary card
   const summary = [
     `${S.gray}Sessions      ${S.reset}${S.bcyan}${fmtInt(stats.sessions.size).padStart(8)}${S.reset}    ${S.gray}Ngày hoạt động ${S.reset}${S.bcyan}${String(stats.days.size).padStart(4)}${S.reset}`,
-    `${S.gray}API requests  ${S.reset}${S.bcyan}${fmtInt(stats.requests).padStart(8)}${S.reset}    ${S.gray}Lỗi tool       ${S.reset}${S.bcyan}${fmtInt(stats.errors).padStart(4)}${S.reset} ${S.gray}(${colorRate(errRate)}${S.gray})${S.reset}`,
+    `${S.gray}API requests  ${S.reset}${S.bcyan}${fmtInt(stats.requests).padStart(8)}${S.reset}    ${S.gray}Lỗi thật      ${S.reset}${S.bcyan}${fmtInt(stats.realErrors).padStart(4)}${S.reset} ${S.gray}(${colorRate(errRate)}${S.gray})  noise: ${S.dim}${fmtInt(noiseCount)}${S.reset}`,
     `${S.gray}Tổng tokens   ${S.reset}${colorTokens(stats.totalTokens)}`,
     `${S.gray}Giá trị API tương đương ${S.reset}${colorCost(stats.totalCost)} ${S.dim}(nếu dùng pay-as-you-go API)${S.reset}`,
     `${S.gray}Thực trả gói "${plan.plan}" ${S.reset}${S.green}${fmtUsd(planPro)}${S.reset} ${S.dim}(\$${plan.monthly_usd}/tháng × ${sinceDays}d/30d)${S.reset}    ${savingsRatio >= 1 ? `${S.green}${S.bold}tiết kiệm ${savingsRatio.toFixed(1)}×${S.reset}` : `${S.gray}đang dùng ${(savingsRatio*100).toFixed(0)}% giá trị gói${S.reset}`}`,
@@ -1687,19 +1761,48 @@ const cmdStatistics = (args) => {
     `${S.dim}${bar(v / maxWk)}${S.reset}`,
   ]), [{label: 'Thứ'}, {label: 'Requests', align: 'r'}, {label: '', align: 'l'}]);
 
-  // Top errors
+  // Error categories breakdown
+  if (stats.errors > 0) {
+    const cats = stats.errorCategories;
+    const total = stats.errors;
+    const catLabels = {
+      workflow:   {label: 'workflow',   desc: 'Edit-before-Read, String not found... — workflow Claude', color: S.yellow},
+      shell_real: {label: 'shell_real', desc: 'Lỗi shell thật (exit ≥2 hoặc command fail)',               color: S.red},
+      shell_noise:{label: 'shell_noise',desc: 'grep no-match, git diff --quiet... — KHÔNG phải lỗi',     color: S.dim},
+      http:       {label: 'http',       desc: 'HTTP 4xx/5xx (404, 500...)',                                color: S.red},
+      other:      {label: 'other',      desc: 'Chưa phân loại',                                            color: S.gray},
+    };
+    const catRows = Object.entries(cats)
+      .filter(([,v]) => v > 0)
+      .sort((a,b) => b[1] - a[1])
+      .map(([k, v]) => {
+        const m = catLabels[k];
+        return [
+          `${m.color}${m.label}${S.reset}`,
+          colorCount(v, 100, 20),
+          `${S.dim}${(v/total*100).toFixed(1)}%${S.reset}`,
+          `${S.dim}${m.desc}${S.reset}`,
+        ];
+      });
+    printTable(`Phân loại lỗi (${fmtInt(stats.errors)} tổng · ${fmtInt(stats.realErrors)} lỗi thật)`,
+      catRows, [
+        {label: 'Loại'}, {label: 'Số lượng', align: 'r'}, {label: 'Tỷ lệ', align: 'r'}, {label: 'Mô tả'},
+      ]);
+  }
+
+  // Top tool errors (real only — already filtered)
   if (Object.keys(stats.toolErrors).length) {
     const errEntries = Object.entries(stats.toolErrors).sort((a,b) => b[1] - a[1]).slice(0, top);
-    printTable('Tool có nhiều lỗi nhất', errEntries.map(([k, v]) => [
+    printTable('Tool có nhiều lỗi thật nhất', errEntries.map(([k, v]) => [
       `${S.cyan}${k}${S.reset}`,
       `${S.red}${fmtInt(v)}${S.reset}`,
       `${S.dim}${bar(v / errEntries[0][1])}${S.reset}`,
     ]), [{label: 'Tool'}, {label: 'Errors', align: 'r'}, {label: '', align: 'l'}]);
 
-    const msgEntries = Object.entries(stats.errorMessages).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    const msgEntries = Object.entries(stats.errorMessages).sort((a,b) => b[1] - a[1]).slice(0, 8);
     if (msgEntries.length) {
-      out.write(`\n  ${S.bold}Top error messages${S.reset}\n`);
-      msgEntries.forEach(([m, c]) => out.write(`  ${S.red}${String(c).padStart(4)}${S.reset} ${S.gray}${m}${S.reset}\n`));
+      out.write(`\n  ${S.bold}Top lỗi thật (đã lọc noise)${S.reset}\n`);
+      msgEntries.forEach(([m, c]) => out.write(`  ${S.red}${String(fmtInt(c)).padStart(5)}${S.reset} ${S.gray}${m}${S.reset}\n`));
     }
   }
 
