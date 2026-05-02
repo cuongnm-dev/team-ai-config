@@ -1521,11 +1521,22 @@ const collectStats = (sinceMs) => {
     requestTokens: [],
     byHour: new Array(24).fill(0),
     byWeekday: new Array(7).fill(0),
-    toolErrors: {},               // tool name -> total error count
-    errorMessages: {},            // first 80 chars -> count
+    toolErrors: {},
+    errorMessages: {},
     errorCategories: {workflow: 0, shell_real: 0, shell_noise: 0, http: 0, other: 0},
-    realErrors: 0,                // errors EXCLUDING shell_noise
+    realErrors: 0,
     linesAdded: 0, linesRemoved: 0,
+    // ── Tuning indicators (Wave 5) ──────────────────────────────────
+    // 1. Skill token attribution: tokens consumed AFTER skill activation
+    skillStats: {},               // skill_name -> {invocations, tokens, cost, durations: [ms]}
+    // 2. Agent durations (ms): time from first to last assistant msg in subagent file
+    agentDurations: {},           // agent_name -> [ms, ms, ...]
+    // 3. Prompt version hash — top hashes per agent/skill
+    promptVersions: {},           // agent/skill name -> {hash: count}
+    // 4. Tool n-gram: pair (prev, curr) within session
+    toolNgrams: {},               // 'prev→curr' -> count
+    // 5. Per-session efficiency
+    sessionStats: {},             // session_id -> {turns, tokens, cost, edits, firstEditTs, lastTs, firstTs, errored, project}
   };
   if (!exists(projectsRoot)) return S;
 
@@ -1545,6 +1556,26 @@ const collectStats = (sinceMs) => {
     }
   };
 
+  // Prompt version hash cache (agent/skill .md → 8-char hash)
+  const promptHashCache = {};
+  const hashPromptFile = (name, kind /* 'agent' | 'skill' */) => {
+    if (promptHashCache[`${kind}:${name}`] !== undefined) return promptHashCache[`${kind}:${name}`];
+    const candidates = kind === 'agent'
+      ? [path.join(os.homedir(), '.claude', 'agents', `${name}.md`),
+         path.join(os.homedir(), '.cursor', 'agents', `${name}.md`)]
+      : [path.join(os.homedir(), '.claude', 'skills', name, 'SKILL.md'),
+         path.join(os.homedir(), '.cursor', 'skills', name, 'SKILL.md')];
+    let hash = null;
+    for (const p of candidates) {
+      if (exists(p)) {
+        hash = crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex').slice(0, 8);
+        break;
+      }
+    }
+    promptHashCache[`${kind}:${name}`] = hash;
+    return hash;
+  };
+
   // Correlation maps for token attribution to subagents.
   // Chain: Agent tool_use (assistant) → tool_result (user, has promptId) → subagent file (has same promptId).
   const agentToolIds = {};       // toolu_xxx -> subagent_type
@@ -1559,6 +1590,12 @@ const collectStats = (sinceMs) => {
     const isSubagent = file.includes(`${path.sep}subagents${path.sep}`);
     let fileTokens = 0, fileCost = 0;
     const filePromptIds = new Set();
+    // ── Wave 5 state ───────────────────────────────────────────────
+    let activeSkill = null;        // name of currently-running skill (window for token attribution)
+    let activeSkillTs = null;      // start ts for duration
+    let prevToolName = null;       // for n-gram pairing
+    let firstAssistantTs = null;   // for subagent file → agent duration
+    let lastAssistantTs = null;
 
     for (const line of data.split('\n')) {
       if (!line) continue;
@@ -1599,6 +1636,26 @@ const collectStats = (sinceMs) => {
           db.tokens += tok; db.cost += cost; db.requests++;
           S.byHour[d.getHours()]++;
           S.byWeekday[d.getDay()]++;
+          if (!firstAssistantTs) firstAssistantTs = ts;
+          lastAssistantTs = ts;
+        }
+        // Per-session aggregation (only main sessions, not subagent files)
+        if (!isSubagent && obj.sessionId) {
+          const ss = S.sessionStats[obj.sessionId] ||= {
+            turns: 0, tokens: 0, cost: 0, edits: 0,
+            firstEditTs: null, firstTs: ts || null, lastTs: ts || null,
+            errored: false, project: obj.cwd ? path.basename(obj.cwd) : 'unknown',
+          };
+          ss.turns++;
+          ss.tokens += tok;
+          ss.cost += cost;
+          if (ts && ts < (ss.firstTs || Infinity)) ss.firstTs = ts;
+          if (ts && ts > (ss.lastTs || 0)) ss.lastTs = ts;
+        }
+        // Skill token attribution: tokens of THIS assistant turn count toward the active skill
+        if (activeSkill && !isSubagent) {
+          const ss = S.skillStats[activeSkill];
+          if (ss) { ss.tokens += tok; ss.cost += cost; }
         }
 
         if (Array.isArray(msg.content)) {
@@ -1612,16 +1669,53 @@ const collectStats = (sinceMs) => {
                 toolUseIdToCmd[c.id] = String(c.input.command).slice(0, 500);
               }
             }
+            // n-gram: pair previous tool with current
+            if (prevToolName) {
+              const key = `${prevToolName} → ${tn}`;
+              S.toolNgrams[key] = (S.toolNgrams[key]||0) + 1;
+            }
+            prevToolName = tn;
+
             if (tn === 'Agent' && c.input?.subagent_type) {
               const at = c.input.subagent_type;
               const ab = S.byAgent[at] ||= {tokens:0, cost:0, dispatches:0};
               ab.dispatches++;
               if (c.id) agentToolIds[c.id] = at;
+              // Track prompt version
+              const h = hashPromptFile(at, 'agent');
+              if (h) {
+                const pv = S.promptVersions[`agent:${at}`] ||= {};
+                pv[h] = (pv[h]||0) + 1;
+              }
             }
             if (tn === 'Skill' && c.input?.skill) {
               const sk = c.input.skill;
               const sb = S.bySkill[sk] ||= {invocations:0};
               sb.invocations++;
+              // Init skill stats + activate window
+              const ss = S.skillStats[sk] ||= {invocations:0, tokens:0, cost:0, durations:[]};
+              ss.invocations++;
+              if (activeSkill && activeSkillTs && ts) {
+                // Close previous window
+                const prev = S.skillStats[activeSkill];
+                if (prev) prev.durations.push(ts - activeSkillTs);
+              }
+              activeSkill = sk;
+              activeSkillTs = ts;
+              // Prompt version
+              const h = hashPromptFile(sk, 'skill');
+              if (h) {
+                const pv = S.promptVersions[`skill:${sk}`] ||= {};
+                pv[h] = (pv[h]||0) + 1;
+              }
+            }
+            // Track edits per session
+            if (!isSubagent && obj.sessionId && (tn === 'Edit' || tn === 'Write')) {
+              const ss = S.sessionStats[obj.sessionId];
+              if (ss) {
+                ss.edits++;
+                if (!ss.firstEditTs && ts) ss.firstEditTs = ts;
+              }
             }
             // LoC heuristic for Edit/Write
             if (tn === 'Edit' && typeof c.input?.new_string === 'string') {
@@ -1635,6 +1729,15 @@ const collectStats = (sinceMs) => {
             }
           }
         }
+      }
+      // Real user message (text content, not tool_result) → close skill window
+      if (msg.role === 'user' && typeof msg.content === 'string') {
+        if (activeSkill && activeSkillTs && ts) {
+          const prev = S.skillStats[activeSkill];
+          if (prev) prev.durations.push(ts - activeSkillTs);
+        }
+        activeSkill = null; activeSkillTs = null;
+        prevToolName = null;  // reset n-gram chain across user turns
       }
       // tool_result lines: error tracking + agent attribution
       if (msg.role === 'user' && Array.isArray(msg.content)) {
@@ -1653,6 +1756,10 @@ const collectStats = (sinceMs) => {
               S.toolErrors[toolName] = (S.toolErrors[toolName]||0) + 1;
               const key = `[${cls.category}] ${cls.msg}`;
               if (cls.msg) S.errorMessages[key] = (S.errorMessages[key]||0) + 1;
+              if (!isSubagent && obj.sessionId) {
+                const ss = S.sessionStats[obj.sessionId];
+                if (ss) ss.errored = true;
+              }
             }
           }
           if (obj.promptId) {
@@ -1662,7 +1769,12 @@ const collectStats = (sinceMs) => {
         }
       }
     }
-    if (isSubagent) subagentFileTokens[file] = {tokens: fileTokens, cost: fileCost, promptIds: filePromptIds};
+    if (isSubagent) {
+      subagentFileTokens[file] = {
+        tokens: fileTokens, cost: fileCost, promptIds: filePromptIds,
+        duration: (firstAssistantTs && lastAssistantTs) ? (lastAssistantTs - firstAssistantTs) : 0,
+      };
+    }
   };
 
   walk(projectsRoot);
@@ -1674,6 +1786,7 @@ const collectStats = (sinceMs) => {
     if (agentType) {
       const ab = S.byAgent[agentType] ||= {tokens:0, cost:0, dispatches:0};
       ab.tokens += t.tokens; ab.cost += t.cost;
+      if (t.duration > 0) (S.agentDurations[agentType] ||= []).push(t.duration);
     }
   }
   return S;
@@ -2234,6 +2347,103 @@ ${tableRows(Object.entries(stats.errorCategories).filter(([,v]) => v > 0).sort((
       {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'},
       {label: '', align: 'l'},
     ]);
+  }
+
+  // ── Wave 5: tuning indicators ────────────────────────────────────
+  const fmtDur = (ms) => {
+    if (!ms || ms < 0) return '-';
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60_000) return `${(ms/1000).toFixed(1)}s`;
+    return `${(ms/60_000).toFixed(1)}m`;
+  };
+  const median = (arr) => { if (!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor(s.length/2)]; };
+
+  // Skill efficiency: invocations + tokens + cost + median duration
+  const skillEffEntries = Object.entries(stats.skillStats || {})
+    .filter(([,v]) => v.invocations > 0)
+    .sort((a,b) => b[1].cost - a[1].cost)
+    .slice(0, top);
+  if (skillEffEntries.length) {
+    printTable('Skill efficiency (cost + duration heuristic)', skillEffEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v.invocations, 20, 5),
+      colorTokens(v.tokens),
+      colorCost(v.cost),
+      v.invocations > 0 ? `${S.dim}${fmtUsd(v.cost / v.invocations)}/inv${S.reset}` : '-',
+      `${S.dim}${fmtDur(median(v.durations))}${S.reset}`,
+    ]), [
+      {label: 'Skill'}, {label: 'Inv', align: 'r'},
+      {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'},
+      {label: 'Avg/inv', align: 'r'}, {label: 'Median dur', align: 'r'},
+    ]);
+  }
+
+  // Agent duration percentiles
+  const agentDurEntries = Object.entries(stats.agentDurations || {})
+    .filter(([,arr]) => arr.length > 0)
+    .map(([k, arr]) => {
+      const sorted = [...arr].sort((a,b) => a-b);
+      return [k, sorted.length, sorted[Math.floor(sorted.length*0.5)], sorted[Math.floor(sorted.length*0.95)], sorted[sorted.length-1]];
+    })
+    .sort((a,b) => b[3] - a[3])  // sort by p95 desc
+    .slice(0, top);
+  if (agentDurEntries.length) {
+    printTable('Agent duration (wall-clock từ subagent files)', agentDurEntries.map(([k, n, p50, p95, max]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(n, 10, 3),
+      `${S.dim}${fmtDur(p50)}${S.reset}`,
+      `${S.yellow}${fmtDur(p95)}${S.reset}`,
+      `${S.red}${fmtDur(max)}${S.reset}`,
+    ]), [
+      {label: 'Agent'}, {label: 'Samples', align: 'r'},
+      {label: 'p50', align: 'r'}, {label: 'p95', align: 'r'}, {label: 'max', align: 'r'},
+    ]);
+  }
+
+  // Prompt versions — flag if multiple hashes seen (= prompt was edited mid-window)
+  const versions = Object.entries(stats.promptVersions || {})
+    .filter(([,hashes]) => Object.keys(hashes).length >= 2)
+    .map(([k, hashes]) => [k, Object.entries(hashes).map(([h,c]) => `${h}=${c}`).join(', ')]);
+  if (versions.length) {
+    out.write(`\n  ${S.bold}Prompt version history${S.reset} ${S.gray}(đã sửa giữa window — A/B comparable)${S.reset}\n`);
+    versions.forEach(([k, v]) => out.write(`  ${S.yellow}~${S.reset} ${S.cyan}${k}${S.reset}  ${S.gray}${v}${S.reset}\n`));
+  }
+
+  // Tool n-gram (top consecutive pairs)
+  const ngrams = Object.entries(stats.toolNgrams || {}).sort((a,b) => b[1] - a[1]).slice(0, top);
+  if (ngrams.length) {
+    const max = ngrams[0][1];
+    printTable(`Top tool sequences (n-gram pair)`, ngrams.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v, 200, 50),
+      `${S.dim}${bar(v / max)}${S.reset}`,
+    ]), [{label: 'Pair'}, {label: 'Count', align: 'r'}, {label: '', align: 'l'}]);
+  }
+
+  // Session efficiency
+  const sessions = Object.values(stats.sessionStats || {}).filter(s => s.turns > 0);
+  if (sessions.length) {
+    const turns = sessions.map(s => s.turns).sort((a,b) => a-b);
+    const tokens = sessions.map(s => s.tokens).sort((a,b) => a-b);
+    const costs = sessions.map(s => s.cost).sort((a,b) => a-b);
+    const erroredCount = sessions.filter(s => s.errored).length;
+    const withEdits = sessions.filter(s => s.edits > 0);
+    const ttfeArr = withEdits.filter(s => s.firstTs && s.firstEditTs).map(s => s.firstEditTs - s.firstTs).sort((a,b) => a-b);
+    const ttfeMedian = ttfeArr.length ? ttfeArr[Math.floor(ttfeArr.length/2)] : 0;
+    const card = [
+      `${S.gray}Sessions tổng     ${S.reset}${S.bcyan}${fmtInt(sessions.length).padStart(6)}${S.reset}    ${S.gray}có Edit ${S.reset}${S.bcyan}${withEdits.length}${S.reset} ${S.gray}(${(withEdits.length/sessions.length*100).toFixed(0)}%)${S.reset}`,
+      `${S.gray}Turns/session     ${S.reset}p50 ${S.cyan}${turns[Math.floor(turns.length*0.5)]}${S.reset}  p95 ${S.yellow}${turns[Math.floor(turns.length*0.95)]}${S.reset}  max ${S.red}${turns[turns.length-1]}${S.reset}`,
+      `${S.gray}Tokens/session    ${S.reset}p50 ${colorTokens(tokens[Math.floor(tokens.length*0.5)])}  p95 ${colorTokens(tokens[Math.floor(tokens.length*0.95)])}  max ${colorTokens(tokens[tokens.length-1])}`,
+      `${S.gray}Cost/session      ${S.reset}p50 ${colorCost(costs[Math.floor(costs.length*0.5)])}  p95 ${colorCost(costs[Math.floor(costs.length*0.95)])}  max ${colorCost(costs[costs.length-1])}`,
+      `${S.gray}Time-to-first-Edit${S.reset} median ${S.cyan}${fmtDur(ttfeMedian)}${S.reset} ${S.dim}(thời gian research trước khi action)${S.reset}`,
+      `${S.gray}Sessions có lỗi   ${S.reset}${erroredCount > 0 ? S.red : S.green}${erroredCount}${S.reset} ${S.gray}(${(erroredCount/sessions.length*100).toFixed(1)}%)${S.reset}`,
+    ].join('\n');
+    out.write('\n' + boxen(card, {
+      padding: {top: 0, bottom: 0, left: 1, right: 1},
+      borderStyle: 'round', borderColor: 'green',
+      title: 'Session efficiency', titleAlignment: 'left',
+      margin: {top: 0, bottom: 0, left: 2, right: 0},
+    }) + '\n');
   }
 
   // Top tools
