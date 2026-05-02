@@ -5,7 +5,7 @@ order: 91
 
 # FAQ
 
-Câu hỏi thường gặp khi dùng ai-kit. Nếu vấn đề không được giải, xem `troubleshooting.md` hoặc mở issue.
+Câu hỏi thường gặp khi dùng ai-kit. Nếu vấn đề không được giải, xem `troubleshooting` hoặc mở issue.
 
 ---
 
@@ -65,7 +65,7 @@ Khi có thông báo từ team rằng có config mới. Hoặc cứ chạy 1 lầ
 | `new-feature` | Câu trả lời phỏng vấn | F-NNN/_state.md | Bắt đầu feature mới |
 | `resume-feature` | F-NNN có sẵn | Code + tests + reports | Tiếp tục feature dở |
 
-Catalog đầy đủ: `skills.md`.
+Catalog đầy đủ: `skills`.
 
 ### 2.3 Tôi nên dùng Cursor hay Claude Code?
 
@@ -158,7 +158,7 @@ ai-kit logs         # xem lỗi
 | "Tôi làm HSMT/HSDT/dự toán/NCKT" | 🅱 Tài liệu nhà nước |
 | "Tôi review Đề án trước khi nộp" | 🅱 Tài liệu nhà nước |
 
-Onboarding cụ thể: `on-board-sdlc.md` (🅰) hoặc `on-board-tailieu.md` (🅱).
+Onboarding cụ thể: `on-board-sdlc` (🅰) hoặc `on-board-tailieu` (🅱).
 
 ### 5.2 Có thể mix skill giữa 2 luồng không?
 
@@ -222,7 +222,7 @@ Skills lớn (`from-doc`, `from-code`) đọc cả codebase. Tip:
 
 ### 8.1 Tôi muốn thêm 1 skill mới?
 
-Xem `contributing.md`. Tóm tắt:
+Xem `contributing`. Tóm tắt:
 
 1. Tạo branch
 2. Viết SKILL.md (frontmatter + body markdown)

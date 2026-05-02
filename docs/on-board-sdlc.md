@@ -5,7 +5,7 @@ order: 11
 
 # On-board 🅰 — Luồng SDLC (Sản xuất phần mềm)
 
-Tài liệu này dành cho **dev/BA/SA/QA team** làm phần mềm bàn giao. Nếu anh/chị đang soạn Đề án CĐS hay làm hồ sơ thầu, xem `on-board-tailieu.md` thay vì file này.
+Tài liệu này dành cho **dev/BA/SA/QA team** làm phần mềm bàn giao. Nếu anh/chị đang soạn Đề án CĐS hay làm hồ sơ thầu, xem `on-board-tailieu` thay vì file này.
 
 > Đọc xong tài liệu này, bạn sẽ biết:
 > - Hệ thống ai-kit có bao nhiêu thành phần?
@@ -381,7 +381,7 @@ Khi `/resume-feature F-NNN`, Cursor dispatch agents tuần tự theo `stages-que
 
 → Mỗi nhân viên (agent) có **scope hẹp**, không "tiện tay làm hộ khâu khác". Đảm bảo quality + token efficiency.
 
-Chi tiết: xem `agents.md` hoặc `reference/agents.md`.
+Chi tiết: xem `agents` hoặc `agents`.
 
 ---
 
@@ -477,11 +477,11 @@ Không có cuộc tranh giành — 2 tool bổ trợ, đều đọc/ghi cùng `d
 
 ## 9. Liên quan
 
-- `skills.md` — Catalog các skill chính với "khi nào dùng"
-- `agents.md` — Tổ chức agent + class chi tiết
+- `skills` — Catalog các skill chính với "khi nào dùng"
+- `agents` — Tổ chức agent + class chi tiết
 - `workflows/` — Hướng dẫn từng skill cụ thể
-- `reference/lifecycle.md` — Contract đầy đủ (CD-10 Quy tắc 21)
-- `troubleshooting.md` — Lỗi thường gặp
+- `lifecycle` — Contract đầy đủ (CD-10 Quy tắc 21)
+- `troubleshooting` — Lỗi thường gặp
 
 ## Đọc tiếp
 
@@ -489,8 +489,8 @@ Sau khi nắm tổng thể, đi sâu theo role:
 
 | Role | Đọc tiếp |
 |---|---|
-| BA | `workflows/from-doc.md`, `agents.md` |
-| SA | `workflows/resume-feature.md`, `agents.md` |
-| Dev | `workflows/resume-feature.md`, `agents.md` |
-| QA | `workflows/close-feature.md`, `agents.md` |
-| PM/Maintainer | `maintainer.md`, `reference/ai-kit.md` |
+| BA | `from-doc`, `agents` |
+| SA | `resume-feature`, `agents` |
+| Dev | `resume-feature`, `agents` |
+| QA | `close-feature`, `agents` |
+| PM/Maintainer | `maintainer`, `ai-kit` |

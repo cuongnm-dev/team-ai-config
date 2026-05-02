@@ -5,7 +5,7 @@ order: 12
 
 # On-board 🅱 — Luồng Tài liệu nhà nước
 
-Tài liệu này dành cho **cán bộ soạn Đề án Chuyển đổi số, hồ sơ thầu CNTT, NCKT** cấp Bộ/Tỉnh/Sở. Nếu anh/chị đang code phần mềm, xem `on-board-sdlc.md` thay vì file này.
+Tài liệu này dành cho **cán bộ soạn Đề án Chuyển đổi số, hồ sơ thầu CNTT, NCKT** cấp Bộ/Tỉnh/Sở. Nếu anh/chị đang code phần mềm, xem `on-board-sdlc` thay vì file này.
 
 > Đọc xong tài liệu này, bạn sẽ biết:
 > - 4 loại tài liệu chính: Đề án CĐS, NCKT, HSMT/HSDT, dự toán
@@ -223,12 +223,12 @@ Luồng B có 2 loại state file (khác `_state.md` của SDLC):
 
 | Bạn cần | Đọc tiếp |
 |---|---|
-| Catalog skill 🅱 | `skills.md` § Decision matrix Luồng B |
-| Agent details Luồng B | `agents.md` § Phân nhóm theo luồng |
+| Catalog skill 🅱 | `skills` § Decision matrix Luồng B |
+| Agent details Luồng B | `agents` § Phân nhóm theo luồng |
 | Workflow chi tiết Đề án CĐS | new-strategic-document SKILL.md |
 | Workflow chi tiết HSMT/HSDT | new-document-workspace SKILL.md |
 | Adversarial review | strategic-critique SKILL.md |
-| Câu hỏi thường gặp | `faq.md` |
+| Câu hỏi thường gặp | `faq` |
 | Văn bản pháp lý + KB | reference/policy-kb.md (TBD) |
 
 ---

@@ -5,6 +5,8 @@ order: 1
 
 # On-board — Bắt đầu ở đâu?
 
+> **Đọc tài liệu qua CLI**: `ai-kit doc <tên>` — vd `ai-kit doc on-board-sdlc`. Liệt kê: `ai-kit doc`. Tìm kiếm: `ai-kit doc --search <từ-khoá>`.
+
 `ai-kit` phục vụ **2 luồng công việc khác nhau**. **PHẢI xác định luồng trước** rồi mới đọc onboarding tương ứng — nếu nhầm, anh/chị sẽ dùng sai skill, sai agent, sai output dir.
 
 ---
@@ -17,7 +19,7 @@ Anh/chị đang **làm phần mềm để bàn giao cho khách hàng**.
 - **Quy trình**: from-doc/from-code → SDLC pipeline (BA→SA→TL→Dev→QA→Reviewer) → generate-docs
 - **Output**: code chạy được + 5 file Office nghiệm thu (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026
 - **Đối tượng**: BA, SA, Dev, FE-Dev, QA, Reviewer, PM
-- **Onboarding**: đọc `on-board-sdlc.md`
+- **Onboarding**: đọc `on-board-sdlc`
 
 ---
 
@@ -29,7 +31,7 @@ Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/
 - **Quy trình**: 4 spirals (research → DEDUP → outline → write) → adversarial review trước nộp
 - **Output**: 1 tài liệu Word duy nhất (Đề án CĐS, NCKT, HSMT/HSDT, dự toán, TKCS độc lập), tuân thủ NĐ 45/2026 + CT 34 + QĐ 749 + TT 04/2020
 - **Đối tượng**: cán bộ phòng CNTT/QLDA, người soạn đề án, người duyệt thầu
-- **Onboarding**: đọc `on-board-tailieu.md`
+- **Onboarding**: đọc `on-board-tailieu`
 
 ---
 
@@ -37,11 +39,11 @@ Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/
 
 | Câu trả lời | Luồng | Onboard | Skill bắt đầu |
 |---|---|---|---|
-| "Tôi đang code phần mềm" | 🅰 SDLC | `on-board-sdlc.md` | `/from-doc` hoặc `/from-code` hoặc `/new-feature` |
-| "Tôi nghiệm thu phần mềm cho khách" | 🅰 SDLC | `on-board-sdlc.md` | `/from-code` → `/generate-docs` |
-| "Tôi soạn Đề án Chuyển đổi số" | 🅱 Tài liệu | `on-board-tailieu.md` | `/new-strategic-document` |
-| "Tôi làm HSMT/HSDT/dự toán/NCKT" | 🅱 Tài liệu | `on-board-tailieu.md` | `/new-document-workspace` |
-| "Tôi review Đề án trước khi nộp" | 🅱 Tài liệu | `on-board-tailieu.md` | `/strategic-critique` |
+| "Tôi đang code phần mềm" | 🅰 SDLC | `on-board-sdlc` | `/from-doc` hoặc `/from-code` hoặc `/new-feature` |
+| "Tôi nghiệm thu phần mềm cho khách" | 🅰 SDLC | `on-board-sdlc` | `/from-code` → `/generate-docs` |
+| "Tôi soạn Đề án Chuyển đổi số" | 🅱 Tài liệu | `on-board-tailieu` | `/new-strategic-document` |
+| "Tôi làm HSMT/HSDT/dự toán/NCKT" | 🅱 Tài liệu | `on-board-tailieu` | `/new-document-workspace` |
+| "Tôi review Đề án trước khi nộp" | 🅱 Tài liệu | `on-board-tailieu` | `/strategic-critique` |
 
 ---
 
@@ -53,13 +55,13 @@ Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/
 
 ## Tham khảo nhanh
 
-| Mục đích | File |
+| Mục đích | Lệnh |
 |---|---|
-| Catalog skill kèm decision matrix | `skills.md` |
-| Agent organization + Class A/B/C/D | `agents.md` |
-| Lệnh CLI ai-kit | `reference/ai-kit.md` |
-| Câu hỏi thường gặp | `faq.md` |
-| Lỗi thường gặp | `troubleshooting.md` |
-| Thuật ngữ | `glossary.md` |
-| Quyết định kiến trúc lớn (ADRs) | `decision-log.md` |
-| Đóng góp + maintainer | `contributing.md`, `maintainer.md` |
+| Catalog skill kèm decision matrix | `ai-kit doc skills` |
+| Agent organization + Class A/B/C/D | `ai-kit doc agents` |
+| Lệnh CLI ai-kit | `ai-kit doc ai-kit` |
+| Câu hỏi thường gặp | `ai-kit doc faq` |
+| Lỗi thường gặp | `ai-kit doc troubleshooting` |
+| Thuật ngữ | `ai-kit doc glossary` |
+| Quyết định kiến trúc lớn (ADRs) | `ai-kit doc decision-log` |
+| Đóng góp + maintainer | `ai-kit doc contributing` · `ai-kit doc maintainer` |

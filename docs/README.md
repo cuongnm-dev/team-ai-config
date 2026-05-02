@@ -32,7 +32,7 @@ order: 0
 | Liệt kê tài liệu | `ai-kit doc` |
 | Tìm kiếm | `ai-kit doc --search <từ khoá>` |
 
-Xem **reference/ai-kit** cho tất cả lệnh.
+Xem `ai-kit doc ai-kit` cho tất cả lệnh.
 
 ---
 
@@ -106,7 +106,7 @@ Xem **reference/ai-kit** cho tất cả lệnh.
 
 ## ⭐ Hai luồng công việc — Chọn đúng luồng trước khi tìm skill
 
-`ai-kit` phục vụ **2 nhóm công việc khác nhau**. Đừng nhầm lẫn skill/agent giữa 2 luồng. Sau khi chọn luồng, đọc onboard tương ứng (`on-board-sdlc.md` hoặc `on-board-tailieu.md`).
+`ai-kit` phục vụ **2 nhóm công việc khác nhau**. Đừng nhầm lẫn skill/agent giữa 2 luồng. Sau khi chọn luồng, đọc onboard tương ứng (`on-board-sdlc` hoặc `on-board-tailieu`).
 
 ### 🅰 Luồng A — SDLC (sản xuất phần mềm để bàn giao)
 
@@ -170,7 +170,7 @@ Agents luồng B: `strategy-analyst` `policy-researcher` `structure-advisor` `do
 
 > **Quy tắc**: 2 luồng dùng intel layer (`docs/intel/`) khác nhau, output dir khác nhau, agents khác nhau. KHÔNG mix skill giữa 2 luồng (vd không dùng `/strategic-critique` để review code, không dùng `/quality` để critique Đề án CĐS).
 
-Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có `ROLE`, `READ-GATES`, `OWN-WRITE`, `FORBID`, `EXIT-GATES`. Xem `on-board-sdlc.md` (Luồng A) hoặc `on-board-tailieu.md` (Luồng B) và `agents.md`.
+Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có `ROLE`, `READ-GATES`, `OWN-WRITE`, `FORBID`, `EXIT-GATES`. Xem `on-board-sdlc` (Luồng A) hoặc `on-board-tailieu` (Luồng B) và `agents`.
 
 ---
 

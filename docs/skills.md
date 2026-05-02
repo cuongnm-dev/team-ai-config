@@ -503,10 +503,10 @@ $ /quality dependencies         # full repo CVE audit
 
 ## Liên quan
 
-- `architecture.md` — Bản đồ tổng thể
-- `agents.md` — Agent organization
+- `agents` (sơ đồ tổng thể) — Bản đồ tổng thể
+- `agents` — Agent organization
 - `workflows/` — Hướng dẫn theo từng skill
-- `troubleshooting.md`
+- `troubleshooting`
 
 ## Quick reference (machine-readable index)
 

@@ -45,7 +45,7 @@ order: 3
 
 ## Production-line analogy
 
-Trước khi vào chi tiết, nhớ phép ẩn dụ trong `reference/lifecycle.md`:
+Trước khi vào chi tiết, nhớ phép ẩn dụ trong `lifecycle`:
 
 ```
 Skill          = khâu trên dây chuyền
@@ -558,9 +558,9 @@ Cần validate intel schema?              → intel-validator
 
 ## Liên quan
 
-- `architecture.md` — Bản đồ tổng thể
-- `skills.md` — Skills catalog
-- `reference/lifecycle.md` — Full LIFECYCLE.md contract
+- `agents` (sơ đồ tổng thể) — Bản đồ tổng thể
+- `skills` — Skills catalog
+- `lifecycle` — Full LIFECYCLE.md contract
 - `workflows/` — Hướng dẫn từng skill chi tiết
 
 ## Quick reference (auto-extracted index)
