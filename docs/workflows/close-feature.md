@@ -114,6 +114,6 @@ Run /resume-feature F-042 → qa stage produces missing artifact, retry.
 
 ## Liên quan
 
-- [resume-feature](resume-feature.md) — Chạy pipeline tới khi reviewer Pass
-- [agents](../reference/agents.md) — qa stage atomic triple contract
-- [troubleshooting](../troubleshooting.md) — Khi close-feature fail
+- resume-feature — Chạy pipeline tới khi reviewer Pass
+- agents — qa stage atomic triple contract
+- troubleshooting — Khi close-feature fail

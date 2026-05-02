@@ -34,7 +34,7 @@ Khi sửa code MCP (`D:/MCP Server/etc-platform/src/...`):
 ```powershell
 cd "D:/MCP Server/etc-platform"
 
-# Build + push multi-arch + bump team-ai-config (1 lệnh)
+# Build + push multi-arch + bump ai-kit repo (1 lệnh)
 .\release-mcp.ps1 v3.1.0 -BumpTeam
 
 # Hoặc non-interactive:
@@ -46,7 +46,7 @@ Script tự động:
 2. `docker buildx build --platform linux/amd64,linux/arm64 --push`
 3. Push 2 tags (`v3.1.0` + `:latest`)
 4. Sửa `team-ai-config/mcp/etc-platform/.env.example` → pin `v3.1.0`
-5. `git add/commit/push` team-ai-config
+5. `git add/commit/push` ai-kit repo
 
 Team:
 ```bash
@@ -87,7 +87,7 @@ ai-kit publish "Bump MCP to v3.1.0 + adjust ba prompt for new endpoint"
 Nếu release v3.1.0 hỏng:
 
 ```powershell
-# Option A: revert team-ai-config bump
+# Option A: revert ai-kit repo bump
 cd D:/Projects/team-ai-config
 git revert HEAD     # hoặc set lại .env.example về v3.0.0
 git push
@@ -114,6 +114,6 @@ ai-kit update
 
 ## Liên quan
 
-- [ai-kit reference](../reference/ai-kit.md) — Chi tiết `pack`, `publish`, `diff`
-- [mcp-server](../reference/mcp-server.md) — Build + run MCP
-- [troubleshooting](../troubleshooting.md)
+- ai-kit reference — Chi tiết `pack`, `publish`, `diff`
+- mcp-server — Build + run MCP
+- troubleshooting

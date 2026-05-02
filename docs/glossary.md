@@ -5,17 +5,17 @@ order: 90
 
 # Glossary
 
-Tra cứu nhanh các thuật ngữ thường gặp trong team-ai-config. Mỗi mục trỏ đến tài liệu chi tiết khi có.
+Tra cứu nhanh các thuật ngữ thường gặp trong ai-kit. Mỗi mục trỏ đến tài liệu chi tiết khi có.
 
 ---
 
 ## A
 
 **Agent** — Một LLM-driven worker có vai trò cố định, chạy trong context riêng. Trong Cursor, mỗi stage (ba/sa/tech-lead/dev/fe-dev/qa/reviewer) là một agent. Trong Claude Code, agents thường là background workers (`tdoc-*`, `doc-*`).
-→ [reference/agents](reference/agents.md)
+→ reference/agents
 
 **ai-kit** — CLI quản lý team config. Pull repo, deploy agents/skills, restart MCP. Single source of truth.
-→ [reference/ai-kit](reference/ai-kit.md)
+→ reference/ai-kit
 
 ---
 
@@ -29,10 +29,10 @@ Tra cứu nhanh các thuật ngữ thường gặp trong team-ai-config. Mỗi m
 - **B** — Verifier (validator, lint)
 - **C** — Orchestrator (skill dispatcher)
 - **D** — Doc-generation consumer (`tdoc-*`, `generate-docs`)
-→ [LIFECYCLE.md §5.8–§5.11](https://github.com/cuongnm-dev/team-ai-config/blob/main/claude/skills/from-code/LIFECYCLE.md)
+→ LIFECYCLE.md §5.8–§5.11
 
 **close-feature** — Skill đóng 1 feature: validate test-evidence đầy đủ, đồng bộ canonical intel.
-→ [workflows/close-feature](workflows/close-feature.md)
+→ workflows/close-feature
 
 ---
 
@@ -47,10 +47,10 @@ Tra cứu nhanh các thuật ngữ thường gặp trong team-ai-config. Mỗi m
 **feature-catalog.json** — Canonical artifact liệt kê tất cả features của workspace, kèm `id`, `roles[]`, `routes[]`, `acceptance_criteria[]`, `test_evidence_ref`.
 
 **from-code** — Skill reverse-engineer codebase → canonical intel.
-→ [workflows/from-code](workflows/from-code.md)
+→ workflows/from-code
 
 **from-doc** — Skill phân tích SRS/BRD/PDF → seed canonical intel.
-→ [workflows/from-doc](workflows/from-doc.md)
+→ workflows/from-doc
 
 ---
 
@@ -79,21 +79,21 @@ Tra cứu nhanh các thuật ngữ thường gặp trong team-ai-config. Mỗi m
 ## M
 
 **MCP (Model Context Protocol)** — Chuẩn cho LLM tool servers. Team chạy 1 MCP server duy nhất tên `etc-platform` ở `localhost:8001`.
-→ [reference/mcp-server](reference/mcp-server.md)
+→ reference/mcp-server
 
 ---
 
 ## N
 
 **new-feature** — Skill khởi tạo 1 feature mới qua phỏng vấn tương tác. Output: thư mục `F-NNN/` + `_state.md`.
-→ [workflows/new-feature](workflows/new-feature.md)
+→ workflows/new-feature
 
 ---
 
 ## R
 
 **resume-feature** — Skill chạy đường dây SDLC cho 1 feature đang dở. Đọc `_state.md`, tiếp tục stage tiếp theo.
-→ [workflows/resume-feature](workflows/resume-feature.md)
+→ workflows/resume-feature
 
 ---
 

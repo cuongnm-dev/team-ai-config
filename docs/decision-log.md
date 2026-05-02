@@ -5,9 +5,9 @@ order: 92
 
 # Decision Log (ADRs)
 
-Các quyết định kiến trúc lớn của team-ai-config. Mỗi mục: bối cảnh → quyết định → hệ quả → trạng thái.
+Các quyết định kiến trúc lớn của ai-kit. Mỗi mục: bối cảnh → quyết định → hệ quả → trạng thái.
 
-Format theo [ADR](https://github.com/joelparkerhenderson/architecture-decision-record) tinh giản.
+Format theo ADR tinh giản.
 
 ---
 
@@ -17,7 +17,7 @@ Format theo [ADR](https://github.com/joelparkerhenderson/architecture-decision-r
 
 **Bối cảnh**: Team có ~6 người, mỗi người tự sửa `~/.claude` + `~/.cursor` — drift mạnh, không reproducible.
 
-**Quyết định**: Mọi config (agents, skills, MCP image) đi qua repo `team-ai-config`. CLI `ai-kit` là cách duy nhất để deploy/update. Sửa local sẽ bị overwrite ở lần update tiếp theo.
+**Quyết định**: Mọi config (agents, skills, MCP image) đi qua ai-kit repo. CLI `ai-kit` là cách duy nhất để deploy/update. Sửa local sẽ bị overwrite ở lần update tiếp theo.
 
 **Hệ quả**:
 - ✅ Mọi người có cùng phiên bản, debug dễ
@@ -32,7 +32,7 @@ Format theo [ADR](https://github.com/joelparkerhenderson/architecture-decision-r
 
 **Bối cảnh**: Phiên bản đầu tiên là 2 file song song (`ai-kit` bash + `ai-kit.ps1`). Đau đầu với BOM, codepage, native errors, version drift giữa 2 platform. Gemini CLI cho thấy Node + Ink cho TUI đẹp & nhất quán cross-platform.
 
-**Quyết định**: Rewrite CLI sang Node.js + [Ink](https://github.com/vadimdemedes/ink). Yêu cầu Node ≥ 18. Bash/PowerShell wrapper chỉ là thin shim gọi `node ai-kit.mjs`. Legacy bash/PS giữ lại làm fallback (`ai-kit.legacy*`).
+**Quyết định**: Rewrite CLI sang Node.js + Ink. Yêu cầu Node ≥ 18. Bash/PowerShell wrapper chỉ là thin shim gọi `node ai-kit.mjs`. Legacy bash/PS giữ lại làm fallback (`ai-kit.legacy*`).
 
 **Hệ quả**:
 - ✅ 1 codebase, behavior nhất quán

@@ -9,7 +9,7 @@ order: 0
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  ~/.ai-kit   ai-kit CLI + team-ai-config (git)  │
+│  ~/.ai-kit   ai-kit CLI + repo clone (git)      │
 │  ~/.claude   Claude Code agents + skills        │
 │  ~/.cursor   Cursor agents + skills             │
 │  Docker      etc-platform MCP  @  :8001         │
@@ -32,7 +32,7 @@ order: 0
 | Liệt kê tài liệu | `ai-kit doc` |
 | Tìm kiếm | `ai-kit doc --search <từ khoá>` |
 
-Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
+Xem **reference/ai-kit** cho tất cả lệnh.
 
 ---
 
@@ -42,10 +42,10 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
 
 | Vai trò | Bắt đầu ở đâu | Skills quan trọng nhất |
 |---|---|---|
-| **BA** (nghiệp vụ) | [from-doc](workflows/from-doc.md) | `/from-doc`, agent `ba` |
-| **SA** (kiến trúc) | [agents reference](reference/agents.md) | agent `sa`, agent `tech-lead` |
-| **Dev** | [resume-feature](workflows/resume-feature.md) | `/resume-feature`, agent `dev`/`fe-dev` |
-| **QA** | [resume-feature](workflows/resume-feature.md#qa) | agent `qa`, test-evidence |
+| **BA** (nghiệp vụ) | from-doc | `/from-doc`, agent `ba` |
+| **SA** (kiến trúc) | agents reference | agent `sa`, agent `tech-lead` |
+| **Dev** | resume-feature | `/resume-feature`, agent `dev`/`fe-dev` |
+| **QA** | resume-feature | agent `qa`, test-evidence |
 
 ### Luồng 🅱 Tài liệu nhà nước
 
@@ -59,8 +59,8 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
 
 | Vai trò | Bắt đầu ở đâu | Skills quan trọng nhất |
 |---|---|---|
-| **PM/Maintainer** | [maintainer](maintainer.md) | `ai-kit publish`, `release-mcp` |
-| **Người mới** | [glossary](glossary.md) → [faq](faq.md) | `ai-kit doc` |
+| **PM/Maintainer** | maintainer | `ai-kit publish`, `release-mcp` |
+| **Người mới** | glossary → faq | `ai-kit doc` |
 
 ---
 
@@ -70,41 +70,43 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
 
 **Pipeline SDLC trong Cursor:**
 
-- [new-feature](workflows/new-feature.md) — Khởi tạo feature mới (phỏng vấn tương tác)
-- [resume-feature](workflows/resume-feature.md) — Chạy đường dây SDLC (ba → sa → tech-lead → dev/fe-dev → qa → reviewer)
-- [close-feature](workflows/close-feature.md) — Đóng feature, đồng bộ canonical intel + bằng chứng
+- new-feature — Khởi tạo feature mới (phỏng vấn tương tác)
+- resume-feature — Chạy đường dây SDLC (ba → sa → tech-lead → dev/fe-dev → qa → reviewer)
+- close-feature — Đóng feature, đồng bộ canonical intel + bằng chứng
 
 **Sinh tài liệu trong Claude Code:**
 
-- [from-doc](workflows/from-doc.md) — Phân tích SRS/BRD → seed feature-catalog + sitemap
-- [from-code](workflows/from-code.md) — Reverse-engineer codebase → canonical intel
+- from-doc — Phân tích SRS/BRD → seed feature-catalog + sitemap
+- from-code — Reverse-engineer codebase → canonical intel
 
 ### 📗 Reference — chi tiết tra cứu
 
-- [ai-kit](reference/ai-kit.md) — Tất cả lệnh CLI
-- [agents](reference/agents.md) — Stage agents + Class A/B/C/D
-- [mcp-server](reference/mcp-server.md) — etc-platform MCP
+- ai-kit — Tất cả lệnh CLI
+- agents — Stage agents + Class A/B/C/D
+- mcp-server — etc-platform MCP
 
 ### 📙 Khái niệm + bối cảnh
 
-- [on-board](on-board.md) — Sơ đồ luồng + LIFECYCLE contract
-- [skills](skills.md) — Catalog curated, "khi nào dùng skill nào?"
-- [agents](agents.md) — Catalog curated, vai trò + ví dụ
+- on-board — Bắt đầu ở đâu (router 2 luồng)
+- on-board-sdlc — 🅰 Onboarding luồng SDLC (sản xuất phần mềm)
+- on-board-tailieu — 🅱 Onboarding luồng Tài liệu nhà nước (Đề án CĐS / đấu thầu)
+- skills — Catalog curated, "khi nào dùng skill nào?"
+- agents — Catalog curated, vai trò + ví dụ
 
 ### 📕 Hỗ trợ + tham khảo nhanh
 
-- [glossary](glossary.md) — Thuật ngữ (intel, LIFECYCLE, Class A/B/C/D, ...)
-- [faq](faq.md) — Câu hỏi thường gặp
-- [troubleshooting](troubleshooting.md) — Xử lý lỗi thường gặp
-- [decision-log](decision-log.md) — Quyết định kiến trúc (ADRs)
-- [contributing](contributing.md) — Đóng góp + maintainer guide
-- [maintainer](maintainer.md) — Quy trình release MCP image
+- glossary — Thuật ngữ (intel, LIFECYCLE, Class A/B/C/D, ...)
+- faq — Câu hỏi thường gặp
+- troubleshooting — Xử lý lỗi thường gặp
+- decision-log — Quyết định kiến trúc (ADRs)
+- contributing — Đóng góp + maintainer guide
+- maintainer — Quy trình release MCP image
 
 ---
 
 ## ⭐ Hai luồng công việc — Chọn đúng luồng trước khi tìm skill
 
-`team-ai-config` phục vụ **2 nhóm công việc khác nhau**. Đừng nhầm lẫn skill/agent giữa 2 luồng:
+`ai-kit` phục vụ **2 nhóm công việc khác nhau**. Đừng nhầm lẫn skill/agent giữa 2 luồng. Sau khi chọn luồng, đọc onboard tương ứng (`on-board-sdlc.md` hoặc `on-board-tailieu.md`).
 
 ### 🅰 Luồng A — SDLC (sản xuất phần mềm để bàn giao)
 
@@ -168,7 +170,7 @@ Agents luồng B: `strategy-analyst` `policy-researcher` `structure-advisor` `do
 
 > **Quy tắc**: 2 luồng dùng intel layer (`docs/intel/`) khác nhau, output dir khác nhau, agents khác nhau. KHÔNG mix skill giữa 2 luồng (vd không dùng `/strategic-critique` để review code, không dùng `/quality` để critique Đề án CĐS).
 
-Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có `ROLE`, `READ-GATES`, `OWN-WRITE`, `FORBID`, `EXIT-GATES`. Xem [on-board](on-board.md) và [agents reference](reference/agents.md).
+Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có `ROLE`, `READ-GATES`, `OWN-WRITE`, `FORBID`, `EXIT-GATES`. Xem `on-board-sdlc.md` (Luồng A) hoặc `on-board-tailieu.md` (Luồng B) và `agents.md`.
 
 ---
 
@@ -189,7 +191,7 @@ Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có
 ## Hỗ trợ
 
 - **Lỗi**: chạy `ai-kit doctor` → nếu vẫn không hết, mở issue ở repo
-- **Đóng góp**: xem [contributing](contributing.md)
-- **Maintainer**: xem [maintainer](maintainer.md)
+- **Đóng góp**: xem contributing
+- **Maintainer**: xem maintainer
 
 > Triết lý: **giảm rào cản — tăng nhất quán — bảo vệ context của LLM**. Mọi skill phải có giá trị "tự xài được", mọi agent phải có hợp đồng LIFECYCLE rõ ràng.

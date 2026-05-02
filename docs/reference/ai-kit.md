@@ -138,7 +138,7 @@ Output:
 - `- (in-repo)` — file có trong repo nhưng `~/` không có
 
 ### `edit`
-Mở team-ai-config repo trong VS Code (nếu có), fallback `$EDITOR` → Explorer.
+Mở ai-kit repo trong VS Code (nếu có), fallback `$EDITOR` → Explorer.
 
 ```bash
 ai-kit edit
@@ -172,5 +172,5 @@ ai-kit uninstall
 
 ## Liên quan
 
-- [maintainer guide](../maintainer.md)
-- [troubleshooting](../troubleshooting.md)
+- maintainer guide
+- troubleshooting

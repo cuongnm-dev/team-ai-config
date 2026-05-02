@@ -9,9 +9,9 @@ Container chạy localhost:8001 — render Office docs (DOCX/XLSX) qua MCP `/job
 
 ## Image
 
-- Public: [`o0mrblack0o/etc-platform:v3.0.0`](https://hub.docker.com/r/o0mrblack0o/etc-platform)
+- Public: `o0mrblack0o/etc-platform:v3.0.0`
 - Multi-arch: `linux/amd64` + `linux/arm64` (Mac M1/M2 + Intel Mac + Linux x86)
-- Source: [`github.com/cuongnm-dev/etc-platform`](https://github.com/cuongnm-dev/etc-platform)
+- Source: `github.com/cuongnm-dev/etc-platform`
 
 ## Compose config
 
@@ -71,7 +71,7 @@ cd "D:/MCP Server/etc-platform"
 Script tự:
 1. `docker buildx build --platform linux/amd64,linux/arm64 --push`
 2. Bump `team-ai-config/mcp/etc-platform/.env.example`
-3. `git add/commit/push` team-ai-config
+3. `git add/commit/push` ai-kit repo
 
 Team chạy `ai-kit update` là có image mới.
 
@@ -135,6 +135,6 @@ Forbidden patterns:
 
 ## Liên quan
 
-- [maintainer guide](../maintainer.md)
-- [ai-kit reference](ai-kit.md)
-- [troubleshooting](../troubleshooting.md)
+- maintainer guide
+- ai-kit reference
+- troubleshooting

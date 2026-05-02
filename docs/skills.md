@@ -16,12 +16,12 @@ Tài liệu này giúp anh/chị **chọn đúng skill** cho từng tình huốn
 
 ## ⭐ Hai luồng công việc — KHÔNG dùng chéo skill
 
-`team-ai-config` phục vụ **2 luồng độc lập**:
+`ai-kit` phục vụ **2 luồng độc lập**:
 
 - **🅰 SDLC** — sản xuất phần mềm (code + nghiệm thu)
 - **🅱 Tài liệu nhà nước** — Đề án CĐS, đấu thầu CNTT (1 tài liệu Word)
 
-Phân biệt rõ trước khi chọn skill. Xem [README §Hai luồng công việc](README.md#hai-luồng-công-việc--chọn-đúng-luồng-trước-khi-tìm-skill).
+Phân biệt rõ trước khi chọn skill. Xem README §Hai luồng công việc.
 
 ---
 
@@ -115,7 +115,7 @@ Confirm? [y]
 - SRS quá lớn (>50 features) → skill chuyển LARGE mode, dispatch `doc-intel-module` parallel. Tốn token, nhưng cần thiết.
 - Hình ảnh wireframe không có alt text → OCR hạn chế, cần `/intel-fill` bổ sung sau.
 
-[Chi tiết workflow →](workflows/from-doc.md)
+Chi tiết workflow →
 
 ---
 
@@ -168,7 +168,7 @@ Phase 5 Scaffold:
 - Stub-as-done detection: nếu hàm trả `throw NotImplementedException` → skill mark `current-implementation-status: stubbed` thay vì `done`.
 - Test files có sẵn (Jest/Pytest) → tự extract test seeds vào `test-evidence/`.
 
-[Chi tiết workflow →](workflows/from-code.md)
+Chi tiết workflow →
 
 ---
 
@@ -216,7 +216,7 @@ Priority: high
 - Trùng business intent với feature đã có → skill cảnh báo qua semantic search
 - Module name không trong sitemap → suggest closest match
 
-[Chi tiết workflow →](workflows/new-feature.md)
+Chi tiết workflow →
 
 ---
 
@@ -274,7 +274,7 @@ Priority: high
 - Intel stale → STOP với hint chạy `/intel-refresh`
 - Mid-wave dừng giữa chừng — resume đọc tasks done từ glob `05-*-w{N}-*.md` → tiếp tục từ task chưa làm
 
-[Chi tiết workflow →](workflows/resume-feature.md)
+Chi tiết workflow →
 
 ---
 
@@ -317,7 +317,7 @@ Validating close conditions:
 - KHÔNG thể close khi `feature.status: blocked` — phải resolve blocker trước
 - Atomic triple incomplete → STOP nghiêm ngặt (CD-10 Quy tắc 16)
 
-[Chi tiết workflow →](workflows/close-feature.md)
+Chi tiết workflow →
 
 ---
 
@@ -373,7 +373,7 @@ Output: docs/generated/be-portal/output/
 - Intel stale → BLOCK với hint `/intel-refresh`.
 - T3 fields chưa fill → các block tkcs.* sẽ có `[CẦN BỔ SUNG]`. Fix: `/intel-fill` interview.
 
-[Chi tiết workflow →](workflows/from-doc.md#3-sinh-tài-liệu-office-claude-code)
+Chi tiết workflow →
 
 ---
 
@@ -473,7 +473,7 @@ $ /quality dependencies         # full repo CVE audit
 | `/strategic-critique` | Adversarial review Đề án CĐS — role-play thẩm định Bộ/Tỉnh |
 | `/resume-document` | Tiếp tục pipeline tài liệu dang dở |
 
-Đây là tooling cho **research-heavy strategic work**, khác hẳn SDLC pipeline. Xem [`new-strategic-document` SKILL.md](../claude/skills/new-strategic-document/SKILL.md) để hiểu rõ.
+Đây là tooling cho **research-heavy strategic work**, khác hẳn SDLC pipeline. Xem `new-strategic-document` SKILL.md để hiểu rõ.
 
 ---
 
@@ -503,10 +503,10 @@ $ /quality dependencies         # full repo CVE audit
 
 ## Liên quan
 
-- [`architecture.md`](architecture.md) — Bản đồ tổng thể
-- [`agents.md`](agents.md) — Agent organization
-- [`workflows/`](workflows/) — Hướng dẫn theo từng skill
-- [`troubleshooting.md`](troubleshooting.md)
+- `architecture.md` — Bản đồ tổng thể
+- `agents.md` — Agent organization
+- `workflows/` — Hướng dẫn theo từng skill
+- `troubleshooting.md`
 
 ## Quick reference (machine-readable index)
 

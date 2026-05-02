@@ -9,7 +9,7 @@ order: 3
 
 54 agents được phân thành **stage agents** (làm chính cho SDLC) + **4 class** (A/B/C/D — phụ trợ).
 
-> ⚠ **2 luồng độc lập** (xem [README §Hai luồng](README.md#hai-luồng-công-việc--chọn-đúng-luồng-trước-khi-tìm-skill)). Agent Luồng A khác hoàn toàn agent Luồng B — đừng dispatch chéo.
+> ⚠ **2 luồng độc lập** (xem README §Hai luồng). Agent Luồng A khác hoàn toàn agent Luồng B — đừng dispatch chéo.
 
 ---
 
@@ -45,7 +45,7 @@ order: 3
 
 ## Production-line analogy
 
-Trước khi vào chi tiết, nhớ phép ẩn dụ trong [`reference/lifecycle.md`](reference/):
+Trước khi vào chi tiết, nhớ phép ẩn dụ trong `reference/lifecycle.md`:
 
 ```
 Skill          = khâu trên dây chuyền
@@ -558,10 +558,10 @@ Cần validate intel schema?              → intel-validator
 
 ## Liên quan
 
-- [`architecture.md`](architecture.md) — Bản đồ tổng thể
-- [`skills.md`](skills.md) — Skills catalog
-- [`reference/lifecycle.md`](reference/) — Full LIFECYCLE.md contract
-- [`workflows/`](workflows/) — Hướng dẫn từng skill chi tiết
+- `architecture.md` — Bản đồ tổng thể
+- `skills.md` — Skills catalog
+- `reference/lifecycle.md` — Full LIFECYCLE.md contract
+- `workflows/` — Hướng dẫn từng skill chi tiết
 
 ## Quick reference (auto-extracted index)
 

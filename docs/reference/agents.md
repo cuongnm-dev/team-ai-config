@@ -124,6 +124,6 @@ ai-kit docs agents    # auto-list agents
 
 ## Liên quan
 
-- [LIFECYCLE.md full contract](../../claude/schemas/intel/LIFECYCLE.md)
-- [Workflows index](../README.md#workflows-task-oriented)
-- [Troubleshooting](../troubleshooting.md)
+- LIFECYCLE.md full contract
+- Workflows index
+- Troubleshooting

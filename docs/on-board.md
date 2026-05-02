@@ -1,535 +1,65 @@
 ---
-title: On-board — Hướng dẫn nhập môn ai-kit (luồng làm việc + quy ước LIFECYCLE)
+title: On-board — Chọn luồng công việc (SDLC hoặc Tài liệu nhà nước)
 order: 1
 ---
 
-# On-board — Hướng dẫn nhập môn ai-kit
+# On-board — Bắt đầu ở đâu?
 
-Tài liệu này giúp anh/chị **hình dung toàn cảnh** trước khi đi vào từng skill cụ thể.
-
-> Đọc xong tài liệu này, bạn nên trả lời được:
-> - Tôi đang ở luồng công việc nào — SDLC hay Tài liệu nhà nước?
-> - Hệ thống có bao nhiêu thành phần?
-> - Dữ liệu chảy như thế nào từ "source" đến "Office docs"?
-> - Skill nào nằm ở đâu trong pipeline?
-> - Khi nào dùng Cursor, khi nào dùng Claude Code?
+`ai-kit` phục vụ **2 luồng công việc khác nhau**. **PHẢI xác định luồng trước** rồi mới đọc onboarding tương ứng — nếu nhầm, anh/chị sẽ dùng sai skill, sai agent, sai output dir.
 
 ---
 
-## 0. Bạn đang làm gì? Chọn luồng trước
+## 🅰 Luồng A — SDLC (Sản xuất phần mềm)
 
-`team-ai-config` phục vụ **2 luồng công việc khác nhau**. **PHẢI xác định luồng trước** rồi mới vào skill detail — nếu nhầm, anh/chị sẽ dùng sai skill, sai agent, sai output dir.
+Anh/chị đang **làm phần mềm để bàn giao cho khách hàng**.
 
-### 🅰 Luồng A — SDLC (sản xuất phần mềm)
-
-Anh/chị đang **làm phần mềm để bàn giao cho khách hàng**. Có 2 input phổ biến:
-
-- **Input là tài liệu yêu cầu (SRS/BRD)** → bắt đầu `/from-doc` (Claude) → seed feature-catalog → Cursor SDLC pipeline
-- **Input là codebase đã ship** → bắt đầu `/from-code` (Claude) → reverse-engineer intel → `/generate-docs` để sinh nghiệm thu
-
-Kết quả cuối: **code chạy được + 5 file Office nghiệm thu** (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026.
-
-Đối tượng: BA, SA, Dev, FE-Dev, QA, Reviewer, PM.
-
-### 🅱 Luồng B — Tài liệu nhà nước (Đề án CĐS / đấu thầu)
-
-Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/Sở). Phổ biến:
-
-- **Đề án Chuyển đổi số / CNTT** → `/new-strategic-document` (4 spirals: research → DEDUP → outline → write)
-- **Hồ sơ thầu CNTT** (HSMT/HSDT/dự toán/NCKT/TKCS độc lập) → `/new-document-workspace` (wizard chọn loại)
-- **Adversarial review trước khi nộp** → `/strategic-critique <draft.docx>` (role-play cán bộ thẩm định)
-
-Kết quả cuối: **1 tài liệu Word duy nhất** (không phải bộ tài liệu nghiệm thu phần mềm), tuân thủ NĐ 45/2026 + CT 34 + QĐ 749 + TT 04/2020.
-
-Đối tượng: cán bộ phòng CNTT/QLDA, người soạn đề án, người duyệt thầu.
-
-### Quyết định
-
-| Câu trả lời | Luồng | Skill bắt đầu |
-|---|---|---|
-| "Tôi đang code phần mềm" | 🅰 SDLC | `/from-doc` hoặc `/from-code` hoặc `/new-feature` |
-| "Tôi soạn Đề án Chuyển đổi số" | 🅱 Tài liệu | `/new-strategic-document` |
-| "Tôi làm HSMT/HSDT/dự toán" | 🅱 Tài liệu | `/new-document-workspace` |
-| "Tôi nghiệm thu phần mềm cho khách" | 🅰 SDLC | `/from-code` → `/generate-docs` |
-| "Tôi review Đề án trước nộp" | 🅱 Tài liệu | `/strategic-critique` |
-
-> **Nguyên tắc**: 2 luồng KHÔNG dùng skill chéo. KHÔNG dùng `/strategic-critique` cho code review (đã có `/quality review`). KHÔNG dùng `/from-code` để soạn Đề án CĐS. Phần còn lại của tài liệu này tập trung **Luồng A SDLC**. Cho Luồng B, xem [strategic-critique SKILL.md](https://github.com/cuongnm-dev/team-ai-config/blob/main/cursor/skills/strategic-critique/SKILL.md) và [new-strategic-document SKILL.md](https://github.com/cuongnm-dev/team-ai-config/blob/main/claude/skills/new-strategic-document/SKILL.md).
+- **Input**: tài liệu yêu cầu (SRS/BRD) HOẶC codebase đã ship
+- **Quy trình**: from-doc/from-code → SDLC pipeline (BA→SA→TL→Dev→QA→Reviewer) → generate-docs
+- **Output**: code chạy được + 5 file Office nghiệm thu (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026
+- **Đối tượng**: BA, SA, Dev, FE-Dev, QA, Reviewer, PM
+- **Onboarding**: đọc `on-board-sdlc.md`
 
 ---
 
-## 1. Ba thành phần cốt lõi
+## 🅱 Luồng B — Tài liệu nhà nước (Đề án CĐS, đấu thầu CNTT)
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│   ┌───────────────────┐    ┌───────────────────┐                    │
-│   │   CLAUDE CODE     │    │      CURSOR       │                    │
-│   │   (terminal CLI)  │    │   (IDE + chat)    │                    │
-│   │                   │    │                   │                    │
-│   │   - from-doc      │    │   - new-feature   │                    │
-│   │   - from-code     │    │   - resume-feature│                    │
-│   │   - generate-docs │    │   - close-feature │                    │
-│   │   - intel-fill    │    │   - feature-status│                    │
-│   │   - intel-refresh │    │                   │                    │
-│   │                   │    │   Stage agents:   │                    │
-│   │   13 skills       │    │   ba/sa/dev/qa/...│                    │
-│   │   21 agents       │    │   33 agents       │                    │
-│   └─────────┬─────────┘    └─────────┬─────────┘                    │
-│             │                        │                              │
-│             │   Cùng đọc/ghi vào:    │                              │
-│             ▼                        ▼                              │
-│         ┌──────────────────────────────────┐                        │
-│         │     CANONICAL INTEL LAYER        │                        │
-│         │     docs/intel/*.json            │                        │
-│         │                                  │                        │
-│         │  - actor-registry  (roles)       │                        │
-│         │  - sitemap         (routes)      │                        │
-│         │  - feature-catalog (features)    │                        │
-│         │  - permission-matrix (RBAC)      │                        │
-│         │  - data-model      (entities)    │                        │
-│         │  - test-evidence/  (TC + screens)│                        │
-│         │  - _meta.json      (provenance)  │                        │
-│         └──────────────┬───────────────────┘                        │
-│                        │                                            │
-│                        ▼                                            │
-│              ┌──────────────────────┐                               │
-│              │  etc-platform MCP    │  (port 8001 — Docker)         │
-│              │                      │                               │
-│              │  - Render TKKT/TKCS  │                               │
-│              │  - Render TKCT/HDSD  │                               │
-│              │  - Render test cases │                               │
-│              └──────────────────────┘                               │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
+Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/Sở).
 
-**3 phần là độc lập** nhưng giao tiếp qua intel layer:
-- Cursor agents (ba/sa/dev/qa) làm SDLC pipeline
-- Claude skills làm "ingestion" (đọc tài liệu/code) và "rendering" (sinh Office)
-- MCP server là engine render Office files
-
-**Intel layer = single source of truth.** Mọi skill/agent đều ĐỌC từ đây hoặc GHI vào đây, không trao đổi trực tiếp với nhau.
+- **Input**: nhu cầu chiến lược + KB chính sách + DEDUP catalog (NDXP/LGSP/CSDLQG/Gov Cloud)
+- **Quy trình**: 4 spirals (research → DEDUP → outline → write) → adversarial review trước nộp
+- **Output**: 1 tài liệu Word duy nhất (Đề án CĐS, NCKT, HSMT/HSDT, dự toán, TKCS độc lập), tuân thủ NĐ 45/2026 + CT 34 + QĐ 749 + TT 04/2020
+- **Đối tượng**: cán bộ phòng CNTT/QLDA, người soạn đề án, người duyệt thầu
+- **Onboarding**: đọc `on-board-tailieu.md`
 
 ---
 
-## 2. Dòng chảy dữ liệu — Big picture
+## Quyết định nhanh
 
-Đây là pipeline đầy đủ từ "có ý tưởng" đến "có Office docs nghiệm thu":
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                                                                          │
-│   STEP 1: INGESTION                          STEP 2: SDLC                │
-│   ──────────────────────                     ──────────────────────      │
-│                                                                          │
-│   ┌──────────┐                                                           │
-│   │ SRS.docx │──► /from-doc ─────┐                                       │
-│   └──────────┘                   │                                       │
-│                                  ▼                                       │
-│   ┌──────────┐                                                           │
-│   │ Codebase │──► /from-code ─► docs/intel/ ──┐                          │
-│   └──────────┘                       ▲        │                          │
-│                                      │        ▼                          │
-│                                      │   /new-feature     ──┐            │
-│                                      │   /resume-feature  ──┤            │
-│                                      │                      ▼            │
-│                                      │            ┌─────────────┐        │
-│                                      │            │ ba → sa →   │        │
-│                                      │            │ tech-lead   │        │
-│                                      │            │ → dev →     │        │
-│                                      │            │ qa →        │        │
-│                                      │            │ reviewer    │        │
-│                                      │            └──────┬──────┘        │
-│                                      │                   │               │
-│                                      │                   ▼               │
-│                                      │            /close-feature         │
-│                                      │                   │               │
-│   STEP 3: RENDERING                  │                   │               │
-│   ──────────────────────             │                   │               │
-│                                      │                   ▼               │
-│   /generate-docs ◄───────────────────┴───── enriched intel layer         │
-│        │                                                                 │
-│        ▼                                                                 │
-│   etc-platform MCP                                                       │
-│        │                                                                 │
-│        ▼                                                                 │
-│   ┌─────────────────────────────────────────┐                            │
-│   │   docs/generated/{slug}/output/         │                            │
-│   │   ├── tkkt.docx                         │                            │
-│   │   ├── tkcs.docx                         │                            │
-│   │   ├── tkct.docx                         │                            │
-│   │   ├── hdsd.docx                         │                            │
-│   │   └── test-cases.xlsx                   │                            │
-│   └─────────────────────────────────────────┘                            │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-3 step:
-1. **INGESTION** (Claude Code) — biến input (tài liệu hoặc code) thành intel layer
-2. **SDLC** (Cursor) — phát triển feature qua các stage có quy trình
-3. **RENDERING** (Claude + MCP) — biến intel thành Office files
+| Câu trả lời | Luồng | Onboard | Skill bắt đầu |
+|---|---|---|---|
+| "Tôi đang code phần mềm" | 🅰 SDLC | `on-board-sdlc.md` | `/from-doc` hoặc `/from-code` hoặc `/new-feature` |
+| "Tôi nghiệm thu phần mềm cho khách" | 🅰 SDLC | `on-board-sdlc.md` | `/from-code` → `/generate-docs` |
+| "Tôi soạn Đề án Chuyển đổi số" | 🅱 Tài liệu | `on-board-tailieu.md` | `/new-strategic-document` |
+| "Tôi làm HSMT/HSDT/dự toán/NCKT" | 🅱 Tài liệu | `on-board-tailieu.md` | `/new-document-workspace` |
+| "Tôi review Đề án trước khi nộp" | 🅱 Tài liệu | `on-board-tailieu.md` | `/strategic-critique` |
 
 ---
 
-## 3. Pipeline chi tiết — `/from-doc` (greenfield)
+## Nguyên tắc chung
 
-Khi bạn có SRS/BRD và **chưa code** gì:
-
-```
-   docs/source/SRS-v0.3.docx
-            │
-            ▼
-   ┌─────────────────────────────────────────┐
-   │  /from-doc <path>                       │
-   │                                         │
-   │  Step 1: OCR + read full content        │
-   │  Step 2: Detect modules/features/roles  │
-   │  Step 3: Confirm pipeline split         │
-   │  Step 4: Write doc-brief.md             │
-   │  Step 5: Generate _state.md per feature │
-   └─────────────────────────────────────────┘
-            │
-            ▼
-   docs/intel/
-   ├── doc-brief.md                  ◄── narrative summary
-   ├── actor-registry.json           ◄── role seeds
-   ├── feature-catalog.json          ◄── features status:planned
-   ├── sitemap.json                  ◄── modules + planned routes
-   └── _meta.json                    ◄── producer: from-doc
-
-   docs/features/
-   ├── F-001/_state.md               ◄── pipeline-type: sdlc, status: in-progress
-   ├── F-001/feature-brief.md
-   ├── F-002/_state.md
-   └── ...
-
-            │
-            ▼   (per feature, on Cursor side)
-
-   /resume-feature F-001
-            │
-            ▼
-   ba → sa → tech-lead → dev → qa → reviewer
-   (each stage enriches feature-catalog with its own data)
-            │
-            ▼
-   /close-feature F-001
-            │
-            ▼   (after all features done)
-
-   /generate-docs
-            │
-            ▼
-   ┌─────────────────────────────────────────┐
-   │  6-stage pipeline:                      │
-   │  1. Preflight  (verify intel fresh)     │
-   │  2. Discovery  (load catalog)           │
-   │  3. Analysis   (gap analysis)           │
-   │  4. Capture    (Playwright if missing)  │
-   │  5. Synthesis  (build content-data.json)│
-   │  6. Delivery   (etc-platform MCP)       │
-   └─────────────────────────────────────────┘
-            │
-            ▼
-   docs/generated/{slug}/output/*.{docx,xlsx}
-```
+> 2 luồng KHÔNG dùng skill chéo. KHÔNG dùng `/strategic-critique` cho code review (đã có `/quality review`). KHÔNG dùng `/from-code` để soạn Đề án CĐS. Skill orchestrator phân biệt qua state file (`_state.md` cho SDLC, `_doc_state.md` / `_strategy_state.md` cho Luồng B) và output dir (`docs/generated/{slug}/output/` cho SDLC, `<slug>.docx` rời cho Luồng B).
 
 ---
 
-## 4. Pipeline chi tiết — `/from-code` (codebase đã có)
+## Tham khảo nhanh
 
-Khi project đã code rồi, cần reverse-engineer + sinh tài liệu:
-
-```
-   D:/Projects/be-portal/  (codebase có sẵn)
-            │
-            ▼
-   ┌─────────────────────────────────────────┐
-   │  /from-code <path>                      │
-   │                                         │
-   │  Phase 0: Preflight (detect framework)  │
-   │  Phase 1: Static harvest                │
-   │           (parse routes, entities, RBAC)│
-   │  Phase 1.5: Actor enumeration           │
-   │           (extract roles từ auth code)  │
-   │  Phase 2: Feature synthesis             │
-   │           (group endpoints + UI → features)│
-   │  Phase 3: Validation                    │
-   │  Phase 4: Architecture diagrams         │
-   │  Phase 5: Scaffold _state.md            │
-   │  Phase 6: Handoff                       │
-   └─────────────────────────────────────────┘
-            │
-            ▼
-   docs/intel/                    docs/features/
-   ├── system-inventory.json      ├── F-001/_state.md
-   ├── code-brief.md              │   (status: implemented vì code đã có)
-   ├── arch-brief.md              ├── F-002/...
-   ├── actor-registry.json        └── ...
-   ├── permission-matrix.json
-   ├── feature-catalog.json   ◄── ENRICHED so với from-doc
-   ├── sitemap.json (concrete)
-   ├── data-model.json
-   ├── integrations.json
-   └── test-evidence/{id}.json (extracted từ tests có sẵn)
-
-            │
-            ▼   (skip SDLC vì code đã có — đi thẳng tới generate-docs)
-
-   /generate-docs
-            │
-            ▼
-   ASSEMBLY MODE (Healthy project — có test-evidence rồi):
-        - Stage 4f reuse TC, không synthesize
-        - Stage 3a skip features có screenshots
-        - Output Office files trong vài phút
-
-   FALLBACK MODE (Legacy — không có test-evidence):
-        - Synthesize TC qua ISTQB techniques
-        - Đánh dấu status:proposed
-        - Cảnh báo trong xlsx warning sheet
-            │
-            ▼
-   docs/generated/{slug}/output/*.{docx,xlsx}
-```
-
----
-
-## 5. SDLC pipeline — Bên trong Cursor
-
-Khi `/resume-feature F-NNN`, Cursor dispatch agents tuần tự theo `stages-queue` trong `_state.md`:
-
-```
-                       ┌──────────────────┐
-                       │   _state.md      │
-                       │   current-stage  │ ◄── dispatcher đọc
-                       │   stages-queue   │
-                       └────────┬─────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   dispatcher    │  ──► invoke 1 stage rồi return
-                       └────────┬────────┘
-                                │
-                                ▼
-            ┌───────────────────────────────────────┐
-            │           STAGE PIPELINE              │
-            │                                       │
-            │  ┌──────┐                             │
-            │  │  ba  │  ──── elaborate AC,         │
-            │  └───┬──┘       business_rules        │
-            │      │                                │
-            │      ▼                                │
-            │  ┌──────┐                             │
-            │  │  sa  │  ──── routes, entities,     │
-            │  └───┬──┘       permission concrete   │
-            │      │                                │
-            │      ▼                                │
-            │  ┌─────────────┐                      │
-            │  │ tech-lead   │  ── wave plan        │
-            │  └──────┬──────┘                      │
-            │         │                             │
-            │         ▼                             │
-            │  ┌─────────────────────┐              │
-            │  │ dev / fe-dev waves  │  ── code     │
-            │  └──────────┬──────────┘              │
-            │             │                         │
-            │             ▼                         │
-            │  ┌──────────────┐                     │
-            │  │ qa-wave      │  ── 3 atomic        │
-            │  │              │     artifacts:      │
-            │  │              │     - test-evidence │
-            │  │              │     - playwright    │
-            │  │              │     - screenshots   │
-            │  └───────┬──────┘                     │
-            │          │                            │
-            │          ▼                            │
-            │  ┌────────────┐                       │
-            │  │ reviewer   │  ── verdict           │
-            │  └─────┬──────┘                       │
-            │        │                              │
-            └────────┼──────────────────────────────┘
-                     │
-                     ▼
-            verdict = Approved → /close-feature
-            verdict = Changes  → loop back
-            verdict = Blocked  → escalate PM
-
-
-   Conditional agents (dispatch khi flag):
-   - designer       (UI screens detected)
-   - security       (auth/PII/payment touched)
-   - data-governance (PII flow / cross-system)
-   - sre-observability (SLO-sensitive)
-   - devops         (deploy impact)
-   - release-manager (DB migration / multi-service)
-```
-
----
-
-## 6. Agent classification — Production-line model
-
-54 agents được phân theo 4 class theo `LIFECYCLE.md`:
-
-```
-   ┌──────────────────────────────────────────────────────────────────────┐
-   │                                                                      │
-   │   STAGE AGENTS (own contract box, individual)                        │
-   │                                                                      │
-   │   ┌────────┬────────┬────────┬────────┬────────┬────────┬────────┐   │
-   │   │  ba    │  sa    │tech-   │ dev    │ qa     │reviewer│  pm    │   │
-   │   │  +pro  │  +pro  │ lead   │ fe-dev │  +pro  │  +pro  │        │   │
-   │   └────────┴────────┴────────┴────────┴────────┴────────┴────────┘   │
-   │                                                                      │
-   ├──────────────────────────────────────────────────────────────────────┤
-   │                                                                      │
-   │   CLASS A — Stage-report writers  (write 1 file, không touch intel) │
-   │   ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐      │
-   │   │tech-lead│reviewer │designer │ devops  │release- │         │      │
-   │   │         │         │         │         │ manager │         │      │
-   │   └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘      │
-   │                                                                      │
-   ├──────────────────────────────────────────────────────────────────────┤
-   │                                                                      │
-   │   CLASS B — Verifiers  (read intel, FLAG drift, không tự fix)        │
-   │   ┌──────────┬─────────────────┬──────────────────┐                  │
-   │   │ security │ data-governance │ sre-observability│                  │
-   │   └──────────┴─────────────────┴──────────────────┘                  │
-   │                                                                      │
-   ├──────────────────────────────────────────────────────────────────────┤
-   │                                                                      │
-   │   CLASS C — Orchestrators  (control flow only)                       │
-   │   ┌────────────┬─────┬───────────┐                                   │
-   │   │ dispatcher │ pm  │ telemetry │                                   │
-   │   └────────────┴─────┴───────────┘                                   │
-   │                                                                      │
-   ├──────────────────────────────────────────────────────────────────────┤
-   │                                                                      │
-   │   CLASS D — Doc-generation consumers  (read-only intel, render docs) │
-   │   doc-* (9 agents)  +  tdoc-* (4 agents Cursor + 8 Claude)           │
-   │                                                                      │
-   └──────────────────────────────────────────────────────────────────────┘
-```
-
-**Vì sao có classification?**
-- Class A KHÔNG được ghi `docs/intel/*` → stage report là duy nhất
-- Class B đọc intel cross-check vs code, nếu drift → flag, KHÔNG tự sửa (ai tự sửa = bug)
-- Class C không sản xuất nội dung — chỉ điều phối
-- Class D chỉ ĐỌC intel → render → output Office. Cấm ghi intel.
-
-→ Mỗi nhân viên (agent) có **scope hẹp**, không "tiện tay làm hộ khâu khác". Đảm bảo quality + token efficiency.
-
-Chi tiết: xem [`agents.md`](agents.md) hoặc [`reference/agents.md`](reference/agents.md).
-
----
-
-## 7. Khi nào dùng Claude vs Cursor?
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│   CLAUDE CODE (terminal CLI)                                        │
-│                                                                     │
-│   ► Khi cần phân tích / sinh tài liệu (batch, không UI)             │
-│   ► /from-doc, /from-code, /generate-docs, /intel-fill              │
-│   ► Khi anh/chị là maintainer, làm release                          │
-│                                                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   CURSOR (IDE + chat)                                               │
-│                                                                     │
-│   ► Khi cần code feature, làm SDLC                                  │
-│   ► /new-feature, /resume-feature, /close-feature                   │
-│   ► Khi cần chat với AI có context của codebase                     │
-│   ► Khi xem/edit file nhiều (IDE features)                          │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**Một feature đầy đủ thường đi qua cả 2:**
-1. Claude `/from-doc` → khởi tạo intel
-2. Cursor `/resume-feature` cho từng feature → SDLC stages
-3. Claude `/generate-docs` → render Office output
-
-Không có cuộc tranh giành — 2 tool bổ trợ, đều đọc/ghi cùng `docs/intel/`.
-
----
-
-## 8. Kiến trúc bộ nhớ — Intel evolution
-
-`docs/intel/` không phải static. Nó **EVOLVE** qua từng stage:
-
-```
-   t=0   /from-doc                /from-code
-         ──────────                ──────────
-         actor-registry            actor-registry  (concrete)
-         (seeds, role names)       permission-matrix (extracted)
-         feature-catalog           feature-catalog (implemented features)
-         (status: planned)         sitemap (concrete routes)
-         sitemap (planned routes)  data-model
-                                   integrations
-
-   t=1   /new-feature
-         ─────────────
-         feature-catalog: append F-NNN (status: planned)
-         sitemap: placeholder route
-         permission-matrix: proposed rows
-
-   t=2   ba stage
-         ─────────
-         feature-catalog: enrich
-            - description (>= 200 chars)
-            - acceptance_criteria (>= 3 items)
-            - business_rules
-         actor-registry: append permission_seeds (sa concretizes later)
-
-   t=3   sa stage
-         ─────────
-         sitemap: routes (concrete, replace placeholder)
-         permission-matrix: action enum (replace proposed)
-         data-model: new entities
-         integrations: new integrations
-         feature-catalog: routes[], entities[]
-
-   t=4   qa stage
-         ─────────
-         test-evidence/F-NNN.json (CREATED)
-         feature-catalog: test_case_ids[], test_evidence_ref
-
-   t=5   /close-feature
-         ──────────────
-         feature-catalog: status=implemented
-         feature-catalog: implementation_evidence (commits, coverage, ADRs)
-         _state.md: SEALED
-         intel-snapshot regen
-
-   t=6   /generate-docs (consumer)
-         ──────────────────────────
-         READ ONLY — no writes to intel
-         Output: Office files
-```
-
-Đây là lý do **single-writer per field per stage** (LIFECYCLE.md P1) — mỗi field tại mỗi thời điểm chỉ có 1 owner. Conflict = bug.
-
----
-
-## 9. Liên quan
-
-- [`skills.md`](skills.md) — Catalog các skill chính với "khi nào dùng"
-- [`agents.md`](agents.md) — Tổ chức agent + class chi tiết
-- [`workflows/`](workflows/) — Hướng dẫn từng skill cụ thể
-- [`reference/lifecycle.md`](reference/) — Contract đầy đủ (CD-10 Quy tắc 21)
-- [`troubleshooting.md`](troubleshooting.md) — Lỗi thường gặp
-
-## Đọc tiếp
-
-Sau khi nắm tổng thể, đi sâu theo role:
-
-| Role | Đọc tiếp |
+| Mục đích | File |
 |---|---|
-| BA | [`workflows/from-doc.md`](workflows/from-doc.md), [`agents.md`](agents.md#ba) |
-| SA | [`workflows/resume-feature.md`](workflows/resume-feature.md), [`agents.md`](agents.md#sa) |
-| Dev | [`workflows/resume-feature.md`](workflows/resume-feature.md), [`agents.md`](agents.md#dev) |
-| QA | [`workflows/close-feature.md`](workflows/close-feature.md), [`agents.md`](agents.md#qa) |
-| PM/Maintainer | [`maintainer.md`](maintainer.md), [`reference/ai-kit.md`](reference/ai-kit.md) |
+| Catalog skill kèm decision matrix | `skills.md` |
+| Agent organization + Class A/B/C/D | `agents.md` |
+| Lệnh CLI ai-kit | `reference/ai-kit.md` |
+| Câu hỏi thường gặp | `faq.md` |
+| Lỗi thường gặp | `troubleshooting.md` |
+| Thuật ngữ | `glossary.md` |
+| Quyết định kiến trúc lớn (ADRs) | `decision-log.md` |
+| Đóng góp + maintainer | `contributing.md`, `maintainer.md` |

@@ -96,7 +96,7 @@ Mỗi loop iteration tốn ~30K tokens (FROZEN_HEADER cached). Pipeline đầy �
 
 ## Liên quan
 
-- [new-feature](new-feature.md) — Tạo feature trước khi resume
-- [close-feature](close-feature.md) — Đóng feature sau reviewer Pass
-- [agents](../reference/agents.md) — Chi tiết các stage agents
-- [troubleshooting](../troubleshooting.md)
+- new-feature — Tạo feature trước khi resume
+- close-feature — Đóng feature sau reviewer Pass
+- agents — Chi tiết các stage agents
+- troubleshooting

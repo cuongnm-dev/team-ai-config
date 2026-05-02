@@ -58,7 +58,7 @@ Dispatcher chạy lần lượt qua `stages-queue`:
 - **qa** — Test cases + Playwright + screenshots (atomic triple)
 - **reviewer** — Final gate
 
-Mỗi stage tuân thủ contract trong [LIFECYCLE.md](../reference/agents.md#stage-contracts).
+Mỗi stage tuân thủ contract trong LIFECYCLE.md.
 
 ### 3. Đóng feature
 
@@ -108,7 +108,7 @@ ai-kit status            # MCP + counts
 
 ## Liên quan
 
-- [from-doc](from-doc.md) — Sinh nhiều features cùng lúc từ SRS
-- [from-code](from-code.md) — Reverse-engineer từ code
-- [agents reference](../reference/agents.md) — Chi tiết các stage agents
-- [troubleshooting](../troubleshooting.md) — Lỗi thường gặp khi dispatch
+- from-doc — Sinh nhiều features cùng lúc từ SRS
+- from-code — Reverse-engineer từ code
+- agents reference — Chi tiết các stage agents
+- troubleshooting — Lỗi thường gặp khi dispatch

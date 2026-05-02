@@ -187,6 +187,6 @@ Re-install: chạy lại bootstrap one-liner.
 
 ## Liên quan
 
-- [ai-kit reference](reference/ai-kit.md)
-- [mcp-server reference](reference/mcp-server.md)
-- [README](README.md)
+- ai-kit reference
+- mcp-server reference
+- README

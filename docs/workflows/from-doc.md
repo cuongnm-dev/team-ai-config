@@ -111,7 +111,7 @@ SDLC stages     → enrich (description, AC, routes, entities, test-evidence)
 
 ## Liên quan
 
-- [new-feature](new-feature.md) — Single feature thay vì batch
-- [from-code](from-code.md) — Khi codebase có sẵn
-- [maintainer](../maintainer.md) — Update team config
-- [troubleshooting](../troubleshooting.md)
+- new-feature — Single feature thay vì batch
+- from-code — Khi codebase có sẵn
+- maintainer — Update team config
+- troubleshooting
