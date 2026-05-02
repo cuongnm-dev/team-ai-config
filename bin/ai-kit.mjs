@@ -1230,7 +1230,8 @@ const collectStats = (sinceMs) => {
     sessions: new Set(), days: new Set(),
     totalTokens: 0, totalCost: 0, requests: 0,
     byModel: {}, byTool: {}, byAgent: {}, bySkill: {}, byProject: {},
-    bySubagentFile: {},  // file -> {tokens, cost}
+    byDay: {},           // 'YYYY-MM-DD' -> {tokens, cost, requests}
+    bySubagentFile: {},
     errors: 0,
     parsedFiles: 0,
   };
@@ -1285,6 +1286,11 @@ const collectStats = (sinceMs) => {
         fileTokens += tok; fileCost += cost;
         const mb = S.byModel[model] ||= {tokens:0, cost:0, requests:0};
         mb.tokens += tok; mb.cost += cost; mb.requests++;
+        if (ts) {
+          const day = new Date(ts).toISOString().slice(0, 10);
+          const db = S.byDay[day] ||= {tokens:0, cost:0, requests:0};
+          db.tokens += tok; db.cost += cost; db.requests++;
+        }
 
         if (Array.isArray(msg.content)) {
           for (const c of msg.content) {
@@ -1370,6 +1376,73 @@ const printTable = (title, rows, columns) => {
   process.stdout.write(sep('└', '┴', '┘'));
 };
 
+// Sparkline for daily series
+const sparkline = (values) => {
+  const blocks = '▁▂▃▄▅▆▇█';
+  const max = Math.max(...values, 0.0001);
+  return values.map(v => v <= 0 ? ' ' : blocks[Math.min(7, Math.floor((v / max) * 7))]).join('');
+};
+
+// Build daily series for last N days (zero-fill missing days)
+const dailySeries = (byDay, sinceMs) => {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(sinceMs); start.setHours(0,0,0,0);
+  const days = Math.max(1, Math.ceil((today - start) / 86400_000) + 1);
+  const series = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today.getTime() - i * 86400_000);
+    const k = d.toISOString().slice(0, 10);
+    const v = byDay[k] || {tokens:0, cost:0, requests:0};
+    series.push({date: k, ...v});
+  }
+  return series;
+};
+
+// Default alert thresholds (can be overridden via ~/.ai-kit/alerts.json)
+const DEFAULT_ALERTS = {
+  total_cost_warn: 50,        // USD over window
+  total_cost_crit: 200,
+  daily_spike_factor: 2.5,    // a day >= N× median triggers spike alert
+  agent_cost_warn: 20,        // single agent USD over window
+  error_rate_warn: 5,         // % tool errors
+};
+const loadAlerts = () => {
+  const f = path.join(AI_KIT_HOME, 'alerts.json');
+  if (!exists(f)) return DEFAULT_ALERTS;
+  try { return {...DEFAULT_ALERTS, ...JSON.parse(fs.readFileSync(f, 'utf8'))}; }
+  catch { return DEFAULT_ALERTS; }
+};
+
+const computeAlerts = (stats, series, thresholds) => {
+  const alerts = [];
+  if (stats.totalCost >= thresholds.total_cost_crit) {
+    alerts.push({level: 'crit', msg: `Tổng chi phí ${fmtUsd(stats.totalCost)} ≥ ngưỡng nghiêm trọng ${fmtUsd(thresholds.total_cost_crit)}`});
+  } else if (stats.totalCost >= thresholds.total_cost_warn) {
+    alerts.push({level: 'warn', msg: `Tổng chi phí ${fmtUsd(stats.totalCost)} ≥ ngưỡng cảnh báo ${fmtUsd(thresholds.total_cost_warn)}`});
+  }
+  // Daily spike: find days where cost > median × factor
+  const costs = series.map(s => s.cost).filter(c => c > 0).sort((a,b) => a - b);
+  if (costs.length >= 3) {
+    const median = costs[Math.floor(costs.length / 2)];
+    const spikes = series.filter(s => s.cost > median * thresholds.daily_spike_factor && s.cost > 1);
+    for (const s of spikes) {
+      alerts.push({level: 'warn', msg: `Tăng đột biến ngày ${s.date}: ${fmtUsd(s.cost)} (${(s.cost/median).toFixed(1)}× median ${fmtUsd(median)})`});
+    }
+  }
+  // Single-agent cost
+  for (const [name, v] of Object.entries(stats.byAgent)) {
+    if (v.cost >= thresholds.agent_cost_warn) {
+      alerts.push({level: 'warn', msg: `Agent "${name}" tốn ${fmtUsd(v.cost)} ≥ ngưỡng ${fmtUsd(thresholds.agent_cost_warn)}`});
+    }
+  }
+  // Error rate
+  const errRate = stats.requests ? (stats.errors / stats.requests) * 100 : 0;
+  if (errRate >= thresholds.error_rate_warn) {
+    alerts.push({level: 'warn', msg: `Tool error rate ${errRate.toFixed(1)}% ≥ ngưỡng ${thresholds.error_rate_warn}%`});
+  }
+  return alerts;
+};
+
 const cmdStatistics = (args) => {
   const sinceArg = (() => {
     const i = args.findIndex(a => a === '--since');
@@ -1429,6 +1502,51 @@ const cmdStatistics = (args) => {
     title: `Tổng quan · ${sinceLabel}`, titleAlignment: 'left',
     margin: {top: 0, bottom: 0, left: 2, right: 0},
   }) + '\n');
+
+  // Alerts (cost/spike/agent/error thresholds)
+  const series = dailySeries(stats.byDay, sinceMs);
+  const thresholds = loadAlerts();
+  const alerts = computeAlerts(stats, series, thresholds);
+  if (alerts.length) {
+    const lines = alerts.map(a => {
+      const icon = a.level === 'crit' ? `${S.red}${S.bold}🔴${S.reset}` : `${S.yellow}🟡${S.reset}`;
+      return `${icon} ${a.msg}`;
+    }).join('\n');
+    out.write('\n' + boxen(lines, {
+      padding: {top: 0, bottom: 0, left: 1, right: 1},
+      borderStyle: 'round',
+      borderColor: alerts.some(a => a.level === 'crit') ? 'red' : 'yellow',
+      title: `Cảnh báo (${alerts.length})`, titleAlignment: 'left',
+      margin: {top: 0, bottom: 0, left: 2, right: 0},
+    }) + '\n');
+  }
+
+  // Trend (daily series) — show only if we have at least 2 days of activity
+  const activeSeries = series.filter(s => s.requests > 0);
+  if (activeSeries.length >= 2) {
+    const tokensSpark = sparkline(series.map(s => s.tokens));
+    const costSpark = sparkline(series.map(s => s.cost));
+    const reqSpark = sparkline(series.map(s => s.requests));
+    out.write(`\n  ${S.bold}Xu hướng theo ngày${S.reset} ${S.gray}(${series.length} ngày)${S.reset}\n`);
+    out.write(`  ${S.gray}Tokens   ${S.reset}${S.magenta}${tokensSpark}${S.reset}  ${colorTokens(stats.totalTokens)}\n`);
+    out.write(`  ${S.gray}Cost     ${S.reset}${S.yellow}${costSpark}${S.reset}  ${colorCost(stats.totalCost)}\n`);
+    out.write(`  ${S.gray}Requests ${S.reset}${S.cyan}${reqSpark}${S.reset}  ${S.bcyan}${stats.requests}${S.reset}\n`);
+
+    // Per-day table — last 7 days only
+    const last7 = series.slice(-7);
+    const maxC = Math.max(...last7.map(s => s.cost), 0.0001);
+    printTable('Chi tiết 7 ngày gần nhất', last7.map(s => [
+      `${S.cyan}${s.date}${S.reset}`,
+      colorCount(s.requests, 500, 100),
+      colorTokens(s.tokens),
+      colorCost(s.cost),
+      `${S.dim}${bar(s.cost / maxC)}${S.reset}`,
+    ]), [
+      {label: 'Ngày'}, {label: 'Requests', align: 'r'},
+      {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'},
+      {label: '', align: 'l'},
+    ]);
+  }
 
   // Top skills
   const skillEntries = Object.entries(stats.bySkill).sort((a,b) => b[1].invocations - a[1].invocations).slice(0, top);
@@ -1511,6 +1629,7 @@ const cmdStatistics = (args) => {
   out.write(`\n  ${S.dim}${divider}${S.reset}\n`);
   out.write(`  ${S.gray}Cờ:${S.reset}  --since ${S.cyan}7d|30d|3m|24h${S.reset}  ·  --top ${S.cyan}N${S.reset}  ·  --json\n`);
   out.write(`  ${S.gray}Ngưỡng cost:${S.reset} ${S.green}<\$1${S.reset}  ${S.yellow}\$1-\$10${S.reset}  ${S.red}\$10-\$100${S.reset}  ${S.red}${S.bold}≥\$100${S.reset}\n`);
+  out.write(`  ${S.gray}Tuỳ biến cảnh báo:${S.reset} ~/.ai-kit/alerts.json ${S.dim}(total_cost_warn, daily_spike_factor, agent_cost_warn, error_rate_warn)${S.reset}\n`);
   out.write(`  ${S.dim}Dữ liệu 100% local — không gửi đi đâu.${S.reset}\n\n`);
 };
 
