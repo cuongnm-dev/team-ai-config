@@ -1399,12 +1399,21 @@ const dailySeries = (byDay, sinceMs) => {
 };
 
 // Default alert thresholds (can be overridden via ~/.ai-kit/alerts.json)
+// Cost numbers below are API list-price equivalent (USD), NOT actual billing.
+// Members on Team/Pro flat-rate plans do not pay these amounts.
 const DEFAULT_ALERTS = {
-  total_cost_warn: 50,        // USD over window
-  total_cost_crit: 200,
-  daily_spike_factor: 2.5,    // a day >= N× median triggers spike alert
-  agent_cost_warn: 20,        // single agent USD over window
-  error_rate_warn: 5,         // % tool errors
+  total_cost_warn: 500,       // API-equivalent USD over window
+  total_cost_crit: 2000,
+  daily_spike_factor: 2.5,
+  agent_cost_warn: 100,
+  error_rate_warn: 5,
+};
+
+// Plan info (set via ~/.ai-kit/billing.json: {"plan": "team", "monthly_usd": 100})
+const loadPlan = () => {
+  const f = path.join(AI_KIT_HOME, 'billing.json');
+  if (!exists(f)) return {plan: 'team', monthly_usd: 100};
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return {plan: 'team', monthly_usd: 100}; }
 };
 const loadAlerts = () => {
   const f = path.join(AI_KIT_HOME, 'alerts.json');
@@ -1489,12 +1498,20 @@ const cmdStatistics = (args) => {
 
   const errRate = stats.requests ? (stats.errors / stats.requests) * 100 : 0;
 
+  // Plan-aware billing display
+  const plan = loadPlan();
+  // Estimate plan-equivalent spending pro-rated to the window (assume 30-day month)
+  const sinceDays = Math.max(1, Math.ceil((Date.now() - sinceMs) / 86400_000));
+  const planPro = plan.monthly_usd * (sinceDays / 30);
+  const savingsRatio = stats.totalCost > 0 ? (stats.totalCost / planPro) : 0;
+
   // Summary card
   const summary = [
     `${S.gray}Sessions      ${S.reset}${S.bcyan}${String(stats.sessions.size).padStart(6)}${S.reset}    ${S.gray}Ngày hoạt động ${S.reset}${S.bcyan}${String(stats.days.size).padStart(4)}${S.reset}`,
     `${S.gray}API requests  ${S.reset}${S.bcyan}${String(stats.requests).padStart(6)}${S.reset}    ${S.gray}Lỗi tool       ${S.reset}${S.bcyan}${String(stats.errors).padStart(4)}${S.reset} ${S.gray}(${colorRate(errRate)}${S.gray})${S.reset}`,
     `${S.gray}Tổng tokens   ${S.reset}${colorTokens(stats.totalTokens)}`,
-    `${S.gray}Chi phí ước tính ${S.reset}${colorCost(stats.totalCost)} ${S.dim}(theo bảng giá Anthropic công khai)${S.reset}`,
+    `${S.gray}Giá trị API tương đương ${S.reset}${colorCost(stats.totalCost)} ${S.dim}(nếu dùng pay-as-you-go API)${S.reset}`,
+    `${S.gray}Thực trả gói "${plan.plan}" ${S.reset}${S.green}${fmtUsd(planPro)}${S.reset} ${S.dim}(\$${plan.monthly_usd}/tháng × ${sinceDays}d/30d)${S.reset}    ${savingsRatio >= 1 ? `${S.green}${S.bold}tiết kiệm ${savingsRatio.toFixed(1)}×${S.reset}` : `${S.gray}đang dùng ${(savingsRatio*100).toFixed(0)}% giá trị gói${S.reset}`}`,
   ].join('\n');
   out.write('\n' + boxen(summary, {
     padding: {top: 0, bottom: 0, left: 1, right: 1},
@@ -1628,7 +1645,9 @@ const cmdStatistics = (args) => {
 
   out.write(`\n  ${S.dim}${divider}${S.reset}\n`);
   out.write(`  ${S.gray}Cờ:${S.reset}  --since ${S.cyan}7d|30d|3m|24h${S.reset}  ·  --top ${S.cyan}N${S.reset}  ·  --json\n`);
-  out.write(`  ${S.gray}Ngưỡng cost:${S.reset} ${S.green}<\$1${S.reset}  ${S.yellow}\$1-\$10${S.reset}  ${S.red}\$10-\$100${S.reset}  ${S.red}${S.bold}≥\$100${S.reset}\n`);
+  out.write(`  ${S.yellow}Lưu ý:${S.reset} cột Cost = ${S.bold}giá API list-price tương đương${S.reset}, ${S.bold}KHÔNG${S.reset} phải tiền thực trả.\n`);
+  out.write(`         Gói Team/Pro flat-rate — dùng nhiều = tiết kiệm so với pay-as-you-go.\n`);
+  out.write(`  ${S.gray}Tuỳ biến gói:${S.reset} ~/.ai-kit/billing.json ${S.dim}({"plan":"team","monthly_usd":100})${S.reset}\n`);
   out.write(`  ${S.gray}Tuỳ biến cảnh báo:${S.reset} ~/.ai-kit/alerts.json ${S.dim}(total_cost_warn, daily_spike_factor, agent_cost_warn, error_rate_warn)${S.reset}\n`);
   out.write(`  ${S.dim}Dữ liệu 100% local — không gửi đi đâu.${S.reset}\n\n`);
 };
