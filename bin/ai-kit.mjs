@@ -16,8 +16,13 @@ import React, { useEffect, useState } from 'react';
 import { Listr } from 'listr2';
 import boxen from 'boxen';
 import figlet from 'figlet';
-import { distance } from 'fastest-levenshtein';
 import { select } from '@inquirer/prompts';
+import {
+  fmtN, fmtInt, fmtUsd, fmtPct,
+  parseSince, priceOf, costOf,
+  classifyError, suggestCommand,
+  vlen, padR, padL, sparkline, bar,
+} from './lib/util.mjs';
 
 const _pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const VERSION = _pkg.version;
@@ -749,6 +754,15 @@ const cmdUpdate = async () => {
             }
           }
         }
+        // Copy bin/lib/ recursively (modular ESM imports)
+        const libSrc = path.join(REPO_DIR, 'bin', 'lib');
+        const libDst = path.join(BIN_DIR, 'lib');
+        if (exists(libSrc)) {
+          fs.mkdirSync(libDst, {recursive: true});
+          for (const e of fs.readdirSync(libSrc, {withFileTypes: true})) {
+            if (e.isFile()) fs.copyFileSync(path.join(libSrc, e.name), path.join(libDst, e.name));
+          }
+        }
         task.title = 'Đã làm mới CLI';
       },
     },
@@ -1140,51 +1154,7 @@ const cmdInstall = () => {
 // Local-only telemetry: parse ~/.claude/projects/*.jsonl + ~/.ai-kit/history.
 // No network, no transmission. Every byte stays on the member machine.
 
-// Anthropic pricing (USD per 1M tokens). Update when official pricing changes.
-const PRICING = {
-  'claude-opus-4':   {in: 15,  out: 75, cr: 1.50, cw: 18.75},
-  'claude-sonnet-4': {in:  3,  out: 15, cr: 0.30, cw:  3.75},
-  'claude-haiku-4':  {in:  0.8,out:  4, cr: 0.08, cw:  1.00},
-  'claude-3-5-sonnet':{in: 3,  out: 15, cr: 0.30, cw:  3.75},
-  'claude-3-5-haiku': {in: 0.8,out:  4, cr: 0.08, cw:  1.00},
-  default:           {in:  3,  out: 15, cr: 0.30, cw:  3.75},
-};
-const priceOf = (model) => {
-  if (!model) return PRICING.default;
-  for (const k of Object.keys(PRICING)) if (k !== 'default' && model.startsWith(k)) return PRICING[k];
-  return PRICING.default;
-};
-const costOf = (model, u) => {
-  const p = priceOf(model);
-  return ((u.input_tokens||0)*p.in + (u.output_tokens||0)*p.out
-        + (u.cache_read_input_tokens||0)*p.cr
-        + (u.cache_creation_input_tokens||0)*p.cw) / 1_000_000;
-};
-
-const parseSince = (s) => {
-  if (!s) return Date.now() - 30*86400_000;
-  const m = String(s).match(/^(\d+)([dwmh])$/);
-  if (!m) return Date.now() - 30*86400_000;
-  const n = parseInt(m[1], 10);
-  const mult = {h: 3600_000, d: 86400_000, w: 7*86400_000, m: 30*86400_000}[m[2]];
-  return Date.now() - n * mult;
-};
-
-const fmtN = (n) => {
-  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
-  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
-  return String(n|0);
-};
-// Thousands separator (vi-VN style: 10.958, 1.234.567)
-const fmtInt = (n) => Math.round(n).toLocaleString('vi-VN');
-const fmtUsd = (n) => {
-  const sign = n < 0 ? '-' : '';
-  const v = Math.abs(n);
-  if (v < 1) return sign + '$' + v.toFixed(3);
-  return sign + '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-};
-const fmtPct = (n) => n.toFixed(1) + '%';
+// Pricing, parseSince, fmt* now imported from ./lib/util.mjs (testable)
 
 // Threshold colorers
 const colorCost = (n) => {
@@ -1215,22 +1185,7 @@ const colorRate = (pct) => {
   return `${S.green}${s}${S.reset}`;
 };
 
-// Visible-length helper (strip ANSI for width math)
-const vlen = (s) => String(s).replace(/\x1b\[[0-9;]*m/g, '').length;
-const padR = (s, w) => s + ' '.repeat(Math.max(0, w - vlen(s)));
-const padL = (s, w) => ' '.repeat(Math.max(0, w - vlen(s))) + s;
-
-// Inline bar (Unicode block chars)
-const bar = (ratio, width = 12) => {
-  const r = Math.max(0, Math.min(1, ratio));
-  const blocks = '▏▎▍▌▋▊▉█';
-  const total = r * width;
-  const full = Math.floor(total);
-  const partial = Math.round((total - full) * 8);
-  let out = '█'.repeat(full);
-  if (partial > 0 && full < width) out += blocks[partial - 1];
-  return padR(out, width);
-};
+// vlen / padR / padL / bar / sparkline imported from ./lib/util.mjs
 
 // Classify a tool error → {category, isReal, normalizedMessage}
 // Categories:
@@ -1239,58 +1194,7 @@ const bar = (ratio, width = 12) => {
 //   shell_noise — expected non-zero (grep no-match, git diff --quiet, test) — NOT actual errors
 //   http       — network/HTTP errors (404, 5xx)
 //   other      — uncategorized
-const classifyError = (toolName, errorText, command) => {
-  const txt = (errorText || '').slice(0, 500);
-  const cmd = (command || '').toLowerCase();
-  const firstLine = txt.split('\n')[0].trim();
-
-  // Claude Code workflow errors — these have <tool_use_error> wrapper or known phrases
-  if (txt.includes('<tool_use_error>') ||
-      /File has not been read yet|String to replace not found|String not found in file|Cannot find file|Did you mean/i.test(txt)) {
-    return {category: 'workflow', isReal: true, msg: firstLine.slice(0, 80)};
-  }
-
-  // HTTP errors
-  if (/status code [4-5]\d\d|HTTP \d\d\d|404 Not Found|403 Forbidden|500 Internal/i.test(txt)) {
-    return {category: 'http', isReal: true, msg: firstLine.slice(0, 80)};
-  }
-
-  // Shell tools (Bash / PowerShell)
-  if (toolName === 'Bash' || toolName === 'PowerShell') {
-    // Extract exit code if mentioned
-    const exitMatch = txt.match(/[Ee]xit code:?\s*(\d+)/);
-    const exitCode = exitMatch ? parseInt(exitMatch[1], 10) : null;
-
-    // Exit code ≥ 2 → real syntax/runtime error
-    if (exitCode !== null && exitCode >= 2) {
-      return {category: 'shell_real', isReal: true, msg: firstLine.slice(0, 80)};
-    }
-
-    // Exit code 1 — could be noise. Use the ORIGINAL command (cmd) to decide.
-    if (exitCode === 1 || (exitCode === null && /exit code 1/i.test(txt))) {
-      // Common no-match / expected-non-zero patterns in the executed command
-      if (
-        /\b(grep|rg|ripgrep|ag|ack)\b/.test(cmd) ||
-        /select-string/.test(cmd) ||
-        /\bfindstr\b/.test(cmd) ||
-        /git\s+diff\s+(--quiet|--exit-code)/.test(cmd) ||
-        /\btest\s+[-!]|^\s*\[\s/.test(cmd) ||
-        /\| grep\b/.test(cmd) ||
-        /xargs.*grep/.test(cmd)
-      ) {
-        return {category: 'shell_noise', isReal: false, msg: `(${cmd.split(/\s+/)[0] || 'cmd'} no-match, exit 1)`};
-      }
-      // Empty stderr + exit 1 → also likely silent no-match
-      if (txt.length < 50 && /^\s*(stderr:)?\s*$/im.test(txt)) {
-        return {category: 'shell_noise', isReal: false, msg: '(empty output, exit 1)'};
-      }
-    }
-
-    return {category: 'shell_real', isReal: true, msg: firstLine.slice(0, 80)};
-  }
-
-  return {category: 'other', isReal: true, msg: firstLine.slice(0, 80)};
-};
+// classifyError moved to ./lib/util.mjs (testable)
 
 const collectStats = (sinceMs) => {
   const projectsRoot = path.join(os.homedir(), '.claude', 'projects');
@@ -1493,13 +1397,6 @@ const printTable = (title, rows, columns) => {
       ` ${S.dim}│${S.reset}\n`);
   }
   process.stdout.write(sep('└', '┴', '┘'));
-};
-
-// Sparkline for daily series
-const sparkline = (values) => {
-  const blocks = '▁▂▃▄▅▆▇█';
-  const max = Math.max(...values, 0.0001);
-  return values.map(v => v <= 0 ? ' ' : blocks[Math.min(7, Math.floor((v / max) * 7))]).join('');
 };
 
 // Build daily series for last N days (zero-fill missing days)
@@ -1991,13 +1888,8 @@ const KNOWN_COMMANDS = [
   'edit', 'uninstall', 'install', 'help', 'version', 'history', 'statistics',
 ];
 
-const suggestCommand = (input) => {
-  if (!input) return [];
-  const scored = KNOWN_COMMANDS.map(c => ({c, d: distance(input, c)}))
-    .filter(x => x.d <= Math.max(2, Math.floor(input.length / 3)))
-    .sort((a, b) => a.d - b.d);
-  return scored.slice(0, 3).map(x => x.c);
-};
+// suggestCommand moved to ./lib/util.mjs — wrapper using local KNOWN_COMMANDS list
+const suggestForInput = (input) => suggestCommand(input, KNOWN_COMMANDS);
 
 // ─── Interactive menu (Batch 1) ────────────────────────────────────────
 const BACK = '__back__', EXIT = '__exit__';
@@ -2224,7 +2116,7 @@ switch (resolved) {
   case 'install':      cmdInstall(); break;
   default: {
     console.error(`${C.red}  ✗ Lệnh không xác định: ${cmd}${C.reset}`);
-    const sugg = suggestCommand(cmd);
+    const sugg = suggestForInput(cmd);
     if (sugg.length) {
       console.error(`${S.gray}    Có phải bạn định gõ:${S.reset}`);
       sugg.forEach(s => console.error(`      ${S.cyan}ai-kit ${s}${S.reset}`));
