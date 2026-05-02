@@ -8,6 +8,7 @@ import Spinner from 'ink-spinner';
 import { marked } from 'marked';
 import { markedTerminal } from 'marked-terminal';
 import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -752,13 +753,25 @@ const cmdUpdate = async () => {
       },
     },
     {
-      title: 'Cài Node deps vào ~/.ai-kit',
+      title: 'Kiểm tra Node deps',
       enabled: () => exists(path.join(REPO_DIR, 'package.json')),
       task: (_, task) => {
-        fs.copyFileSync(path.join(REPO_DIR, 'package.json'), path.join(AI_KIT_HOME, 'package.json'));
+        const pkgSrc = path.join(REPO_DIR, 'package.json');
+        const hashFile = path.join(AI_KIT_HOME, '.deps-hash');
+        const newHash = crypto.createHash('sha256').update(fs.readFileSync(pkgSrc)).digest('hex');
+        const oldHash = exists(hashFile) ? fs.readFileSync(hashFile, 'utf8').trim() : '';
+        const nodeModulesOk = exists(path.join(AI_KIT_HOME, 'node_modules'));
+        if (newHash === oldHash && nodeModulesOk) {
+          task.title = 'Node deps đã đồng bộ — bỏ qua npm install';
+          task.skip();
+          return;
+        }
+        task.title = 'Cài Node deps (package.json đã thay đổi)';
+        fs.copyFileSync(pkgSrc, path.join(AI_KIT_HOME, 'package.json'));
         const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
         const r = sh(npmBin, ['install', '--omit=dev', '--silent'], {cwd: AI_KIT_HOME, stdio: ['ignore', 'ignore', 'pipe']});
         if (r.exitCode !== 0) throw new Error('npm install thất bại');
+        fs.writeFileSync(hashFile, newHash);
         task.title = 'Đã cài Node deps';
       },
     },
