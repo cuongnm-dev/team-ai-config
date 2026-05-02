@@ -72,7 +72,7 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
 
 ### 📙 Khái niệm + bối cảnh
 
-- [architecture](architecture.md) — Sơ đồ luồng + LIFECYCLE contract
+- [on-board](on-board.md) — Sơ đồ luồng + LIFECYCLE contract
 - [skills](skills.md) — Catalog curated, "khi nào dùng skill nào?"
 - [agents](agents.md) — Catalog curated, vai trò + ví dụ
 
@@ -114,7 +114,7 @@ Xem **[reference/ai-kit](reference/ai-kit.md)** cho tất cả lệnh.
                 (ba→sa→...)    (TKKT/TKCS/HDSD/test-cases)
 ```
 
-Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có `ROLE`, `READ-GATES`, `OWN-WRITE`, `FORBID`, `EXIT-GATES`. Xem [architecture](architecture.md) và [agents reference](reference/agents.md).
+Tất cả skills + agents tuân theo **LIFECYCLE contract** — mỗi khâu có `ROLE`, `READ-GATES`, `OWN-WRITE`, `FORBID`, `EXIT-GATES`. Xem [on-board](on-board.md) và [agents reference](reference/agents.md).
 
 ---
 
