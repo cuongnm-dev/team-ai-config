@@ -630,23 +630,24 @@ const renderDocSubset = (file, fromLine, toLine, headerSuffix) => {
   hintLessOnce();
 };
 
-// After rendering a doc/section, offer navigation back up.
-// `hasMenu`  → include "Quay lại menu mục" (only when section menu exists upstream).
-// Always offer index + exit. Returns 'menu' | 'index' | 'exit'.
-const promptAfterRender = async ({ hasMenu = false } = {}) => {
-  const choices = [];
-  if (hasMenu) choices.push({ name: '↩ Quay lại menu mục', value: 'menu' });
-  choices.push({ name: '📋 Mở danh sách tài liệu (lên 1 cấp)', value: 'index' });
-  choices.push({ name: '✕ Thoát', value: 'exit' });
+// After rendering a doc/section, offer 2 universal actions: back 1 level / exit.
+// Caller decides what "back" means in its context (section list, hub, top index).
+// Returns 'back' | 'exit'.
+const promptAfterRender = async () => {
   try {
-    return await select({ message: ' ', choices, pageSize: choices.length });
+    return await select({
+      message: ' ',
+      choices: [
+        { name: '↩ Quay lại', value: 'back' },
+        { name: '✕ Thoát', value: 'exit' },
+      ],
+      pageSize: 2,
+    });
   } catch { return 'exit'; }
 };
-// Backward-compat alias used by older callsites
-const promptContinue = async () => promptAfterRender({ hasMenu: true });
 
 // One pass of section menu: pick H2 section → optional H3 pick → render subset.
-// Returns 'rendered' (a section was shown) or 'exit' (user quit menu).
+// Returns 'rendered' (section shown), 'back' (up 1 level), or 'exit'.
 const pickAndRenderSection = async (file, sections) => {
   const choices = [
     { name: '📖 Xem toàn bộ tài liệu', value: '__all' },
@@ -656,6 +657,7 @@ const pickAndRenderSection = async (file, sections) => {
         : s.title,
       value: String(idx),
     })),
+    { name: '↩ Quay lại', value: '__back' },
     { name: '✕ Thoát', value: '__exit' },
   ];
   let pick;
@@ -667,6 +669,7 @@ const pickAndRenderSection = async (file, sections) => {
     });
   } catch { return 'exit'; }
   if (pick === '__exit') return 'exit';
+  if (pick === '__back') return 'back';
   if (pick === '__all') { clearScreen(); renderDoc(file); return 'rendered'; }
 
   const sec = sections[parseInt(pick, 10)];
@@ -675,13 +678,15 @@ const pickAndRenderSection = async (file, sections) => {
     const sub = [
       { name: `📖 Toàn bộ "${sec.title}"`, value: '__sec' },
       ...sec.children.map((c, idx) => ({ name: c.title, value: String(idx) })),
-      { name: '↩ Quay lại danh sách mục', value: '__back' },
+      { name: '↩ Quay lại', value: '__back' },
+      { name: '✕ Thoát', value: '__exit' },
     ];
     let pick2;
     try {
       clearScreen();
       pick2 = await select({ message: `${sec.title} →`, choices: sub, pageSize: 15 });
     } catch { return 'exit'; }
+    if (pick2 === '__exit') return 'exit';
     if (pick2 === '__back') return pickAndRenderSection(file, sections); // re-pick top-level
     if (pick2 === '__sec') {
       clearScreen();
@@ -705,38 +710,40 @@ const pickAndRenderSection = async (file, sections) => {
 // "A / B / C" letters). For these, skip the section menu — render directly.
 const DIRECT_RENDER_DOCS = new Set(['glossary']);
 
-// Open one doc, return user's final navigation choice ('index' | 'exit').
+// Open one doc, return user's final navigation choice ('back' | 'exit').
 // Long docs (>2 H2 sections) get a section menu loop. Short docs render direct.
 const openDocAndPrompt = async (file) => {
   const baseName = path.basename(file, '.md');
   if (DIRECT_RENDER_DOCS.has(baseName)) {
     clearScreen();
     renderDoc(file);
-    return promptAfterRender({ hasMenu: false });
+    return promptAfterRender();
   }
   const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
   if (sections.length > 2) return docSessionLoop(file);
   clearScreen();
   renderDoc(file);
-  return promptAfterRender({ hasMenu: false });
+  return promptAfterRender();
 };
 
-// Loop: section menu → render → "đọc tiếp?" → menu / index / exit.
-// Returns 'index' or 'exit' (final user choice).
+// Loop: section menu → render → "đọc tiếp?" → back / exit.
+// Returns 'back' (user wants up from section menu) or 'exit'.
 const docSessionLoop = async (file) => {
   const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
   if (sections.length === 0) {
     clearScreen();
     renderDoc(file);
-    return promptAfterRender({ hasMenu: false });
+    return promptAfterRender();
   }
   while (true) {
     clearScreen();
     const result = await pickAndRenderSection(file, sections);
     if (result === 'exit') return 'exit';
-    const next = await promptAfterRender({ hasMenu: true });
-    if (next === 'menu') continue;
-    return next; // 'index' | 'exit'
+    if (result === 'back') return 'back';
+    // result === 'rendered' → ask: back to section menu, or exit
+    const next = await promptAfterRender();
+    if (next === 'exit') return 'exit';
+    // 'back' → loop back to section menu
   }
 };
 
@@ -802,14 +809,14 @@ const interactiveIndex = async () => {
     if (pick === 'skills') {
       clearScreen();
       printSkillsIndex();
-      const next = await promptAfterRender({ hasMenu: false });
+      const next = await promptAfterRender();
       if (next === 'exit') return;
-      continue;
+      continue; // 'back' → back to top-level index (which is here)
     }
     if (pick === 'agents') {
       clearScreen();
       printAgentsIndex();
-      const next = await promptAfterRender({ hasMenu: false });
+      const next = await promptAfterRender();
       if (next === 'exit') return;
       continue;
     }
@@ -818,7 +825,7 @@ const interactiveIndex = async () => {
     if (pick === 'on-board') {
       const result = await interactiveOnboardMenu();
       if (result === 'exit') return;
-      continue; // 'index' or void → back to index loop
+      continue; // 'back' → back to top-level index
     }
 
     // Resolve doc and open
@@ -831,13 +838,13 @@ const interactiveIndex = async () => {
     if (!file) continue;
     const result = await openDocAndPrompt(file);
     if (result === 'exit') return;
-    // 'index' → loop back to top-level index
+    // 'back' → loop back to top-level index
   }
 };
 
 // On-board hub: pick luồng → drill into chosen on-board doc with section loop.
 // Loops so user can read both luồng A and luồng B in one session.
-// Returns 'index' or 'exit'.
+// Returns 'back' (up to caller) or 'exit'.
 const interactiveOnboardMenu = async () => {
   const docsDir = path.join(REPO_DIR, 'docs');
   while (true) {
@@ -850,20 +857,19 @@ const interactiveOnboardMenu = async () => {
           { name: '📋 Tổng quan (router — chọn luồng A hoặc B trước)', value: 'on-board' },
           { name: '🅰 SDLC — Sản xuất phần mềm (BA/SA/Dev/QA)', value: 'on-board-sdlc' },
           { name: '🅱 Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'on-board-tailieu' },
-          { name: '📋 Mở danh sách tài liệu (lên 1 cấp)', value: '__index' },
+          { name: '↩ Quay lại', value: '__back' },
           { name: '✕ Thoát', value: '__exit' },
         ],
         pageSize: 10,
       });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
-    if (pick === '__index') return 'index';
+    if (pick === '__back') return 'back';
     const file = path.join(docsDir, `${pick}.md`);
     if (!exists(file)) continue;
     const result = await openDocAndPrompt(file);
     if (result === 'exit') return 'exit';
-    if (result === 'index') return 'index';
-    // void / 'menu' (shouldn't bubble) → loop back to hub
+    // 'back' → loop back to hub menu
   }
 };
 
@@ -887,7 +893,7 @@ const docCommand = async (args) => {
   // Multi-level menu: on-board has a special hub menu (luồng A vs B).
   if (interactive && sub === 'on-board') {
     const r = await interactiveOnboardMenu();
-    if (r === 'index') await interactiveIndex();
+    if (r === 'back') await interactiveIndex();
     return;
   }
   if (sub === '--search' || sub === '-s') {
@@ -939,8 +945,8 @@ const docCommand = async (args) => {
     clearScreen();
     printSkillsIndex();
     if (interactive) {
-      const next = await promptAfterRender({ hasMenu: false });
-      if (next === 'index') await interactiveIndex();
+      const next = await promptAfterRender();
+      if (next === 'back') await interactiveIndex();
     }
     return;
   }
@@ -948,8 +954,8 @@ const docCommand = async (args) => {
     clearScreen();
     printAgentsIndex();
     if (interactive) {
-      const next = await promptAfterRender({ hasMenu: false });
-      if (next === 'index') await interactiveIndex();
+      const next = await promptAfterRender();
+      if (next === 'back') await interactiveIndex();
     }
     return;
   }
@@ -979,12 +985,13 @@ const docCommand = async (args) => {
     printDocsIndex();
     process.exit(1);
   }
-  // For interactive sessions, every doc gets a post-render prompt with
-  // "↩ Quay lại menu mục" / "📋 Mở danh sách tài liệu" / "✕ Thoát". Long docs
-  // (>2 H2 sections) auto-open with section menu loop. Short docs render direct.
+  // Interactive: every doc gets post-render prompt with 2 universal actions
+  // (↩ Quay lại / ✕ Thoát). Long docs (>2 H2) auto-open with section menu loop.
+  // 'back' from a directly-invoked topic opens the top index so member has
+  // somewhere to navigate next instead of dropping back to shell prompt.
   if (interactive) {
     const result = await openDocAndPrompt(file);
-    if (result === 'index') await interactiveIndex();
+    if (result === 'back') await interactiveIndex();
     return;
   }
   renderDoc(file);
