@@ -1,9 +1,9 @@
 ---
-title: On-board — Nhập môn ai-kit (luồng làm việc + hợp đồng vòng đời)
+title: On-board — Hướng dẫn nhập môn ai-kit (luồng làm việc + quy ước LIFECYCLE)
 order: 1
 ---
 
-# On-board — Nhập môn ai-kit
+# On-board — Hướng dẫn nhập môn ai-kit
 
 Tài liệu này giúp anh/chị **hình dung toàn cảnh** trước khi đi vào từng skill cụ thể.
 
