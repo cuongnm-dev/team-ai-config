@@ -27,6 +27,12 @@ import {
 const _pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const VERSION = _pkg.version;
 const AI_KIT_HOME = process.env.AI_KIT_HOME || path.join(os.homedir(), '.ai-kit');
+
+// Maintainer mode — owner-only commands (pack, publish, diff, edit, reset)
+// hide from menu/help unless AI_KIT_MAINTAINER=1 or ~/.ai-kit/.maintainer touched.
+const IS_MAINTAINER = process.env.AI_KIT_MAINTAINER === '1' ||
+  fs.existsSync(path.join(AI_KIT_HOME, '.maintainer'));
+const MAINTAINER_COMMANDS = new Set(['pack', 'publish', 'diff', 'edit', 'reset']);
 const REPO_DIR = path.join(AI_KIT_HOME, 'team-ai-config');
 const BIN_DIR = path.join(AI_KIT_HOME, 'bin');
 const UPDATE_CACHE = path.join(AI_KIT_HOME, '.update-check');
@@ -202,15 +208,15 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
     h(Row, {label: 'rollback [N]', value: 'Restore from backup (default newest); auto-snapshots before'}),
     h(Row, {label: 'clean [--keep N] --yes', value: 'Delete old backups + scoped docker image prune'})
   ),
-  h(Section, {title: 'Maintainer'},
+  IS_MAINTAINER ? h(Section, {title: 'Maintainer (owner only)'},
     h(Row, {label: 'pack', value: 'Snapshot ~/ → repo'}),
     h(Row, {label: 'publish "<msg>"', value: 'pack + git commit + push'}),
     h(Row, {label: 'diff', value: 'Show local vs repo deltas'}),
-    h(Row, {label: 'edit', value: 'Open repo in $EDITOR'})
-  ),
+    h(Row, {label: 'edit', value: 'Open repo in $EDITOR'}),
+    h(Row, {label: 'reset [--yes]', value: 'Discard local repo edits + pull'})
+  ) : null,
   h(Section, {title: 'Misc'},
     h(Row, {label: 'upgrade | upg', value: 'npm update Node.js deps in ~/.ai-kit'}),
-    h(Row, {label: 'reset [--yes]', value: 'Discard local repo edits + pull'}),
     h(Row, {label: 'uninstall [--yes]', value: 'Remove ~/.ai-kit (keeps deployed)'})
   ),
   h(Section, {title: 'Global flags'},
@@ -2310,6 +2316,10 @@ const COMMAND_HELP = {
 };
 const cmdHelp = (topic) => {
   const resolved = ({up:'update',st:'status',dr:'doctor',upg:'upgrade'})[topic] || topic;
+  if (MAINTAINER_COMMANDS.has(resolved) && !IS_MAINTAINER) {
+    err(`Lệnh "${resolved}" chỉ dành cho owner — không có trong help.`);
+    process.exit(1);
+  }
   const entry = COMMAND_HELP[resolved];
   if (!entry) { renderStaticLater(h(Help)); return; }
   const w = _cols(), bar = '─'.repeat(w - 4);
@@ -2404,7 +2414,10 @@ const KNOWN_COMMANDS = [
 ];
 
 // suggestCommand moved to ./lib/util.mjs — wrapper using local KNOWN_COMMANDS list
-const suggestForInput = (input) => suggestCommand(input, KNOWN_COMMANDS);
+// Filter out maintainer commands for member sessions (no false hints)
+const suggestForInput = (input) => suggestCommand(input,
+  IS_MAINTAINER ? KNOWN_COMMANDS : KNOWN_COMMANDS.filter(c => !MAINTAINER_COMMANDS.has(c))
+);
 
 // ─── Interactive menu (Batch 1) ────────────────────────────────────────
 const BACK = '__back__', EXIT = '__exit__';
@@ -2486,6 +2499,7 @@ const menuMaintainer = async () => {
     {name: 'diff        — Xem khác biệt local vs origin', value: 'diff'},
     {name: 'edit        — Mở repo trong $EDITOR', value: 'edit'},
     {name: 'publish     — pack + commit + push (cần message)', value: '__publish__'},
+    {name: 'reset       — Bỏ thay đổi local + pull mới', value: 'reset'},
     {name: '← Quay lại', value: BACK},
     {name: 'thoát', value: EXIT},
   ]);
@@ -2508,7 +2522,7 @@ const runInteractiveMenu = async () => {
       {name: 'doc       ›    — Tài liệu (index/skills/agents/topic)', value: '__doc__'},
       {name: 'mcp       ›    — Điều khiển MCP container', value: '__mcp__'},
       {name: 'backups   ›    — Sao lưu / khôi phục', value: '__backups__'},
-      {name: 'maintainer›    — pack/publish/diff/edit', value: '__maint__'},
+      ...(IS_MAINTAINER ? [{name: 'maintainer›    — pack/publish/diff/edit/reset', value: '__maint__'}] : []),
       {name: 'doctor         — Kiểm tra môi trường', value: 'doctor'},
       {name: 'statistics     — Top skills/agents/tokens (local-only)', value: 'statistics'},
       {name: 'history        — Xem lịch sử lệnh', value: 'history'},
@@ -2557,6 +2571,14 @@ if (!cmd && process.stdin.isTTY && process.stdout.isTTY && !process.env.CI) {
 }
 
 const resolved = aliasMap[cmd] || cmd || 'help';
+
+// Block maintainer-only commands for member sessions
+if (MAINTAINER_COMMANDS.has(resolved) && !IS_MAINTAINER) {
+  console.error(`${C.red}  ✗ Lệnh "${resolved}" chỉ dành cho owner/maintainer.${C.reset}`);
+  console.error(`${C.gray}    Nếu bạn là owner: ${C.reset}export AI_KIT_MAINTAINER=1${C.gray}, hoặc:${C.reset}`);
+  console.error(`${C.gray}                       ${C.reset}touch ~/.ai-kit/.maintainer\n`);
+  process.exit(1);
+}
 
 // Record history (after resolution, before dispatch) — Batch 4
 if (cmd && resolved !== 'help' && resolved !== 'version') {
