@@ -1228,31 +1228,119 @@ const suggestCommand = (input) => {
 };
 
 // ─── Interactive menu (Batch 1) ────────────────────────────────────────
+const BACK = '__back__', EXIT = '__exit__';
+const printBreadcrumb = (crumbs) => {
+  const trail = ['ai-kit', ...crumbs].join(` ${S.gray}›${S.reset} ${S.cyan}`);
+  process.stdout.write(`  ${S.cyan}${trail}${S.reset}\n\n`);
+};
+
+const askSelect = async (message, choices, opts = {}) => {
+  try {
+    return await select({message, pageSize: opts.pageSize || 14, choices, loop: false});
+  } catch { process.exit(0); }
+};
+
+const menuMcp = async () => {
+  printBreadcrumb(['mcp']);
+  const v = await askSelect('Chọn lệnh MCP:', [
+    {name: 'status      — Trạng thái container + URLs', value: 'status'},
+    {name: 'start       — docker compose up -d', value: 'start'},
+    {name: 'stop        — docker compose down', value: 'stop'},
+    {name: 'restart     — docker compose restart', value: 'restart'},
+    {name: 'logs        — Tail 200 dòng cuối', value: 'logs'},
+    {name: 'pull        — Pull image mới nhất', value: 'pull'},
+    {name: '← Quay lại', value: BACK},
+    {name: 'thoát', value: EXIT},
+  ]);
+  return v === BACK ? null : v === EXIT ? (process.exit(0), null) : ['mcp', v];
+};
+
+const menuDocs = async () => {
+  printBreadcrumb(['doc']);
+  let topics = [];
+  try {
+    const docsDir = path.join(REPO_DIR, 'docs');
+    const root = readDocItems(docsDir).filter(it => it.name !== 'README');
+    const wf = readDocItems(path.join(docsDir, 'workflows')).map(it => ({...it, name: `workflows/${it.name}`}));
+    const ref = readDocItems(path.join(docsDir, 'reference')).map(it => ({...it, name: `reference/${it.name}`}));
+    topics = [...root, ...wf, ...ref];
+  } catch {}
+  const choices = [
+    {name: 'index       — Mục lục tài liệu', value: 'index'},
+    {name: 'skills      — Danh mục skills', value: 'skills'},
+    {name: 'agents      — Danh mục agents', value: 'agents'},
+    {name: 'search      — Tìm kiếm full-text', value: '__search__'},
+    ...(topics.length ? [{name: '── chọn topic ──', value: '__sep__', disabled: ' '}] : []),
+    ...topics.slice(0, 30).map(t => ({name: `${t.name.padEnd(28)}— ${t.title}`, value: t.name})),
+    {name: '← Quay lại', value: BACK},
+    {name: 'thoát', value: EXIT},
+  ];
+  const v = await askSelect('Chọn tài liệu:', choices);
+  if (v === BACK) return null;
+  if (v === EXIT) process.exit(0);
+  if (v === 'index') return ['doc'];
+  if (v === '__search__') {
+    process.stdout.write(`  ${S.gray}Mở terminal mới và chạy: ${S.reset}ai-kit doc --search <từ khoá>\n\n`);
+    process.exit(0);
+  }
+  return ['doc', v];
+};
+
+const menuBackups = async () => {
+  printBreadcrumb(['backups']);
+  const v = await askSelect('Chọn thao tác sao lưu:', [
+    {name: 'list-backups   — Liệt kê snapshots', value: 'list-backups'},
+    {name: 'rollback       — Khôi phục snapshot mới nhất', value: 'rollback'},
+    {name: 'clean --yes    — Xoá snapshots cũ + prune Docker', value: 'clean:--yes'},
+    {name: '← Quay lại', value: BACK},
+    {name: 'thoát', value: EXIT},
+  ]);
+  if (v === BACK) return null;
+  if (v === EXIT) process.exit(0);
+  return v.split(':');
+};
+
+const menuMaintainer = async () => {
+  printBreadcrumb(['maintainer']);
+  const v = await askSelect('Chọn lệnh maintainer:', [
+    {name: 'pack        — Snapshot ~/.claude+~/.cursor → repo', value: 'pack'},
+    {name: 'diff        — Xem khác biệt local vs origin', value: 'diff'},
+    {name: 'edit        — Mở repo trong $EDITOR', value: 'edit'},
+    {name: 'publish     — pack + commit + push (cần message)', value: '__publish__'},
+    {name: '← Quay lại', value: BACK},
+    {name: 'thoát', value: EXIT},
+  ]);
+  if (v === BACK) return null;
+  if (v === EXIT) process.exit(0);
+  if (v === '__publish__') {
+    process.stdout.write(`  ${S.gray}Publish cần commit message — chạy: ${S.reset}ai-kit publish "<message>"\n\n`);
+    process.exit(0);
+  }
+  return [v];
+};
+
 const runInteractiveMenu = async () => {
   printSplash();
   printStatusBadges();
-  try {
-    const choice = await select({
-      message: 'Chọn lệnh:',
-      pageSize: 12,
-      choices: [
-        {name: 'update      — Pull team config + redeploy + refresh MCP', value: 'update'},
-        {name: 'status      — Versions + deployed counts + MCP health', value: 'status'},
-        {name: 'doc         — Mở docs index', value: 'doc'},
-        {name: 'mcp status  — Trạng thái MCP container', value: 'mcp:status'},
-        {name: 'doctor      — Kiểm tra môi trường', value: 'doctor'},
-        {name: 'rollback    — Khôi phục từ backup', value: 'rollback'},
-        {name: 'history     — Xem lịch sử lệnh', value: 'history'},
-        {name: 'help        — Xem toàn bộ lệnh', value: 'help'},
-        {name: 'thoát', value: '__exit__'},
-      ],
-    });
-    if (choice === '__exit__') process.exit(0);
-    const [c, ...rest] = choice.split(':');
-    return [c, ...rest];
-  } catch (e) {
-    // Ctrl+C / non-TTY
-    process.exit(0);
+  while (true) {
+    const v = await askSelect('Chọn nhóm:', [
+      {name: 'update         — Cập nhật team config + MCP', value: 'update'},
+      {name: 'status         — Phiên bản + counts + MCP health', value: 'status'},
+      {name: 'doc       ›    — Tài liệu (index/skills/agents/topic)', value: '__doc__'},
+      {name: 'mcp       ›    — Điều khiển MCP container', value: '__mcp__'},
+      {name: 'backups   ›    — Sao lưu / khôi phục', value: '__backups__'},
+      {name: 'maintainer›    — pack/publish/diff/edit', value: '__maint__'},
+      {name: 'doctor         — Kiểm tra môi trường', value: 'doctor'},
+      {name: 'history        — Xem lịch sử lệnh', value: 'history'},
+      {name: 'help           — Xem toàn bộ lệnh', value: 'help'},
+      {name: 'thoát', value: EXIT},
+    ]);
+    if (v === EXIT) process.exit(0);
+    if (v === '__mcp__')      { const r = await menuMcp();        if (r) return r; continue; }
+    if (v === '__doc__')      { const r = await menuDocs();       if (r) return r; continue; }
+    if (v === '__backups__')  { const r = await menuBackups();    if (r) return r; continue; }
+    if (v === '__maint__')    { const r = await menuMaintainer(); if (r) return r; continue; }
+    return [v];
   }
 };
 
