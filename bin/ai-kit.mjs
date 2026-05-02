@@ -701,9 +701,19 @@ const pickAndRenderSection = async (file, sections) => {
   return 'rendered';
 };
 
+// Docs whose H2 headings are NOT meaningful section names (e.g., glossary uses
+// "A / B / C" letters). For these, skip the section menu — render directly.
+const DIRECT_RENDER_DOCS = new Set(['glossary']);
+
 // Open one doc, return user's final navigation choice ('index' | 'exit').
 // Long docs (>2 H2 sections) get a section menu loop. Short docs render direct.
 const openDocAndPrompt = async (file) => {
+  const baseName = path.basename(file, '.md');
+  if (DIRECT_RENDER_DOCS.has(baseName)) {
+    clearScreen();
+    renderDoc(file);
+    return promptAfterRender({ hasMenu: false });
+  }
   const sections = parseDocSections(stripFm(fs.readFileSync(file, 'utf8')));
   if (sections.length > 2) return docSessionLoop(file);
   clearScreen();
@@ -730,6 +740,26 @@ const docSessionLoop = async (file) => {
   }
 };
 
+// Docs hidden from the member-facing top-level index. Still reachable via
+// `ai-kit doc <name>` directly. Hidden because either:
+//   - accessible from a parent hub menu (on-board → sdlc/tailieu)
+//   - maintainer-only (release process, contribution guide, ADRs)
+const HIDDEN_FROM_INDEX = new Set([
+  'on-board-sdlc',     // pick from on-board hub
+  'on-board-tailieu',  // pick from on-board hub
+  'maintainer',        // maintainer workflow
+  'contributing',      // contributor guide
+  'decision-log',      // architectural ADRs
+]);
+
+// Curated order for General group: on-board first (entry point), faq next
+// (most-asked), then catalogs + utility docs. Items not listed fall to end.
+const GENERAL_ORDER = ['on-board', 'faq', 'skills', 'agents', 'glossary', 'troubleshooting'];
+const orderRank = (name) => {
+  const i = GENERAL_ORDER.indexOf(name);
+  return i === -1 ? GENERAL_ORDER.length : i;
+};
+
 // Interactive top-level index — pickable list of all docs grouped by category.
 // Loops: pick a topic → open doc → return → pick again. Lets user browse without
 // re-running `ai-kit doc` for each topic.
@@ -737,25 +767,24 @@ const interactiveIndex = async () => {
   const docsDir = path.join(REPO_DIR, 'docs');
   while (true) {
     clearScreen();
-    const root = readDocItems(docsDir).filter(it => it.name !== 'README');
+    const root = readDocItems(docsDir)
+      .filter(it => it.name !== 'README' && !HIDDEN_FROM_INDEX.has(it.name))
+      .sort((a, b) => orderRank(a.name) - orderRank(b.name) || a.name.localeCompare(b.name));
     const workflows = readDocItems(path.join(docsDir, 'workflows'));
     const reference = readDocItems(path.join(docsDir, 'reference'));
     const choices = [];
-    const addGroup = (title, items, count) => {
+    const addGroup = (title, items) => {
       if (!items.length) return;
-      choices.push({ name: `── ${title} (${count})`, value: '__sep_' + title, disabled: ' ' });
+      choices.push({ name: `── ${title} (${items.length})`, value: '__sep_' + title, disabled: ' ' });
       for (const it of items) {
         const nm = (it.name || '').padEnd(22);
         const desc = (it.title || '').slice(0, 70);
         choices.push({ name: `  ${nm}  ${desc}`, value: it.name });
       }
     };
-    addGroup('General', root, root.length);
-    addGroup('Workflows', workflows, workflows.length);
-    addGroup('Reference', reference, reference.length);
-    choices.push({ name: '── Auto-indexes', value: '__sep_auto', disabled: ' ' });
-    choices.push({ name: '  skills                  Claude + Cursor skills (catalog)', value: 'skills' });
-    choices.push({ name: '  agents                  Claude + Cursor agents (catalog)', value: 'agents' });
+    addGroup('General', root);
+    addGroup('Workflows', workflows);
+    addGroup('Reference', reference);
     choices.push({ name: '──', value: '__sep_end', disabled: ' ' });
     choices.push({ name: '✕ Thoát', value: '__exit' });
 
