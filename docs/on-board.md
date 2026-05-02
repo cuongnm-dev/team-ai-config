@@ -5,7 +5,7 @@ order: 1
 
 # On-board — Bắt đầu ở đâu?
 
-> **Đọc tài liệu qua CLI**: `ai-kit doc <tên>` — vd `ai-kit doc on-board-sdlc`. Liệt kê: `ai-kit doc`. Tìm kiếm: `ai-kit doc --search <từ-khoá>`.
+> **Đọc tài liệu qua CLI**: `ai-kit doc` (mở menu interactive với mục Tìm kiếm) hoặc `ai-kit doc <tên>` để mở thẳng. Phím tắt menu: ↑↓ điều hướng, Enter chọn, Q thoát pager (`less`).
 
 `ai-kit` phục vụ **2 luồng công việc khác nhau**. **PHẢI xác định luồng trước** rồi mới đọc onboarding tương ứng — nếu nhầm, anh/chị sẽ dùng sai skill, sai agent, sai output dir.
 
@@ -19,7 +19,7 @@ Anh/chị đang **làm phần mềm để bàn giao cho khách hàng**.
 - **Quy trình**: from-doc/from-code → SDLC pipeline (BA→SA→TL→Dev→QA→Reviewer) → generate-docs
 - **Output**: code chạy được + 5 file Office nghiệm thu (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026
 - **Đối tượng**: BA, SA, Dev, FE-Dev, QA, Reviewer, PM
-- **Onboarding**: đọc `on-board-sdlc`
+- **Onboarding**: `ai-kit doc on-board-sdlc`
 
 ---
 
@@ -31,7 +31,7 @@ Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/
 - **Quy trình**: 4 spirals (research → DEDUP → outline → write) → adversarial review trước nộp
 - **Output**: 1 tài liệu Word duy nhất (Đề án CĐS, NCKT, HSMT/HSDT, dự toán, TKCS độc lập), tuân thủ NĐ 45/2026 + CT 34 + QĐ 749 + TT 04/2020
 - **Đối tượng**: cán bộ phòng CNTT/QLDA, người soạn đề án, người duyệt thầu
-- **Onboarding**: đọc `on-board-tailieu`
+- **Onboarding**: `ai-kit doc on-board-tailieu`
 
 ---
 

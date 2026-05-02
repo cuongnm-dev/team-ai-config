@@ -5,7 +5,7 @@ order: 12
 
 # On-board 🅱 — Luồng Tài liệu nhà nước
 
-Tài liệu này dành cho **cán bộ soạn Đề án Chuyển đổi số, hồ sơ thầu CNTT, NCKT** cấp Bộ/Tỉnh/Sở. Nếu anh/chị đang code phần mềm, xem `on-board-sdlc` thay vì file này.
+Tài liệu này dành cho **cán bộ soạn Đề án Chuyển đổi số, hồ sơ thầu CNTT, NCKT** cấp Bộ/Tỉnh/Sở. Nếu anh/chị đang code phần mềm, xem `ai-kit doc on-board-sdlc` thay vì file này.
 
 > Đọc xong tài liệu này, bạn sẽ biết:
 > - 4 loại tài liệu chính: Đề án CĐS, NCKT, HSMT/HSDT, dự toán

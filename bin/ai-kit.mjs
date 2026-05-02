@@ -819,21 +819,30 @@ const runSearch = (term) => {
 };
 
 const printSearchResults = (term, results) => {
+  if (results.length === 0) {
+    const out = process.stdout;
+    out.write(`\n  ${brand('Search results')}  ${S.gray}"${term}"${S.reset}\n\n`);
+    out.write(`  ${S.yellow}Không tìm thấy kết quả${S.reset} ${S.gray}— thử từ khoá khác hoặc kiểm tra chính tả${S.reset}\n\n`);
+    return;
+  }
+  // Build full text so long result lists can be paged through `less`.
   const w = _cols();
   const bar = '─'.repeat(w - 4);
-  const out = process.stdout;
-  out.write(`\n  ${brand('Search results')}  ${S.gray}"${term}"  ·  ${results.length} hit${results.length !== 1 ? 's' : ''}${S.reset}\n`);
-  out.write(`  ${S.dim}${bar}${S.reset}\n\n`);
+  let text = `\n  ${brand('Search results')}  ${S.gray}"${term}"  ·  ${results.length} hit${results.length !== 1 ? 's' : ''}${S.reset}\n`;
+  text += `  ${S.dim}${bar}${S.reset}\n\n`;
   let lastFile = '';
   results.forEach(r => {
     if (r.path !== lastFile) {
-      if (lastFile) out.write('\n');
-      out.write(`  ${S.magenta}${r.path}${S.reset}\n`);
+      if (lastFile) text += '\n';
+      text += `  ${S.magenta}${r.path}${S.reset}\n`;
       lastFile = r.path;
     }
-    out.write(`  ${S.gray}:${String(r.line).padStart(4)}${S.reset}  ${r.text}\n`);
+    text += `  ${S.gray}:${String(r.line).padStart(4)}${S.reset}  ${r.text}\n`;
   });
-  out.write(`\n  ${S.dim}${bar}${S.reset}\n\n`);
+  text += `\n  ${S.dim}${bar}${S.reset}\n`;
+  if (tryPager(text)) return;
+  process.stdout.write(text + '\n');
+  hintLessOnce();
 };
 
 // Read SKILL.md / agent .md descriptions for drilldown menus.
@@ -866,13 +875,20 @@ const readAgentEntries = (dir) => {
   return items.sort((a, b) => a.name.localeCompare(b.name));
 };
 
-// Drilldown for "skills" pick: list every Claude + Cursor skill, render SKILL.md on pick.
+// Drilldown for "skills" pick: catalog overview (docs/skills.md) at top + every
+// individual SKILL.md (Claude + Cursor) below. Member sees "when to use what" first,
+// then can drill into a specific skill.
 const interactiveSkillsBrowser = async () => {
+  const catalogFile = path.join(REPO_DIR, 'docs', 'skills.md');
   while (true) {
     clearScreen();
     const claudeSkills = readSkillEntries(path.join(REPO_DIR, 'claude', 'skills'));
     const cursorSkills = readSkillEntries(path.join(REPO_DIR, 'cursor', 'skills'));
     const choices = [];
+    if (exists(catalogFile)) {
+      choices.push({ name: '📖 Skills Catalog — khi nào dùng skill nào (decision matrix)', value: '__catalog' });
+      choices.push({ name: '──', value: '__sep_top', disabled: ' ' });
+    }
     const addGroup = (label, items) => {
       if (!items.length) return;
       choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
@@ -889,10 +905,15 @@ const interactiveSkillsBrowser = async () => {
     choices.push({ name: '✕ Thoát', value: '__exit' });
     let pick;
     try {
-      pick = await select({ message: 'Chọn skill để xem chi tiết:', choices, pageSize: 30 });
+      pick = await select({ message: 'Skills — chọn để xem chi tiết:', choices, pageSize: 30 });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
     if (pick === '__back') return 'back';
+    if (pick === '__catalog') {
+      const r = await openDocAndPrompt(catalogFile);
+      if (r === 'exit') return 'exit';
+      continue;
+    }
     if (!exists(pick)) continue;
     const r = await openDocAndPrompt(pick);
     if (r === 'exit') return 'exit';
@@ -901,11 +922,16 @@ const interactiveSkillsBrowser = async () => {
 };
 
 const interactiveAgentsBrowser = async () => {
+  const catalogFile = path.join(REPO_DIR, 'docs', 'agents.md');
   while (true) {
     clearScreen();
     const claudeAgents = readAgentEntries(path.join(REPO_DIR, 'claude', 'agents'));
     const cursorAgents = readAgentEntries(path.join(REPO_DIR, 'cursor', 'agents'));
     const choices = [];
+    if (exists(catalogFile)) {
+      choices.push({ name: '📖 Agents Catalog — vai trò + class A/B/C/D + ví dụ', value: '__catalog' });
+      choices.push({ name: '──', value: '__sep_top', disabled: ' ' });
+    }
     const addGroup = (label, items) => {
       if (!items.length) return;
       choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
@@ -922,10 +948,15 @@ const interactiveAgentsBrowser = async () => {
     choices.push({ name: '✕ Thoát', value: '__exit' });
     let pick;
     try {
-      pick = await select({ message: 'Chọn agent để xem chi tiết:', choices, pageSize: 30 });
+      pick = await select({ message: 'Agents — chọn để xem chi tiết:', choices, pageSize: 30 });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
     if (pick === '__back') return 'back';
+    if (pick === '__catalog') {
+      const r = await openDocAndPrompt(catalogFile);
+      if (r === 'exit') return 'exit';
+      continue;
+    }
     if (!exists(pick)) continue;
     const r = await openDocAndPrompt(pick);
     if (r === 'exit') return 'exit';
