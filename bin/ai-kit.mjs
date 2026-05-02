@@ -173,10 +173,10 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
   ),
   h(Section, {title: 'Documentation'},
     h(Row, {label: 'doc', value: 'Show docs index'}),
-    h(Row, {label: 'doc <topic>', value: 'Render specific doc page'}),
-    h(Row, {label: 'doc skills', value: 'Skills catalog (curated)'}),
-    h(Row, {label: 'doc agents', value: 'Agents catalog (curated)'}),
-    h(Row, {label: 'doc --search <t>', value: 'Search across docs + agents + skills'})
+    h(Row, {label: 'doc <topic>', value: 'Mở trang tài liệu cụ thể'}),
+    h(Row, {label: 'doc skills', value: 'Danh mục skills (đã chọn lọc)'}),
+    h(Row, {label: 'doc agents', value: 'Danh mục agents (đã chọn lọc)'}),
+    h(Row, {label: 'doc --search <t>', value: 'Tìm kiếm xuyên docs + agents + skills'})
   ),
   h(Section, {title: 'MCP control'},
     h(Row, {label: 'mcp <verb>', value: 'start | stop | restart | logs | pull | status'})
@@ -198,7 +198,7 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
     h(Row, {label: 'uninstall [--yes]', value: 'Remove ~/.ai-kit (keeps deployed)'})
   ),
   h(Section, {title: 'Global flags'},
-    h(Row, {label: '--quiet | -q', value: 'Suppress info/ok output (CI-friendly)'}),
+    h(Row, {label: '--quiet | -q', value: 'Ẩn output info/ok (phù hợp CI)'}),
     h(Row, {label: '--yes | -y', value: 'Skip confirmation prompts (clean, uninstall)'})
   ),
   h(Box, {marginTop: 1},
@@ -489,7 +489,7 @@ const docCommand = (args) => {
     return;
   }
   if (sub === '--search' || sub === '-s') {
-    if (!args[1]) { console.error('Usage: ai-kit doc --search <term>'); process.exit(1); }
+    if (!args[1]) { console.error('Cách dùng: ai-kit doc --search <từ khoá>'); process.exit(1); }
     const term = args[1];
     const search = (root) => {
       if (!exists(root)) return [];
@@ -701,20 +701,20 @@ const waitForDocker = (maxMs = 60000) => {
 // ─── update ────────────────────────────────────────────────────────────
 const cmdUpdate = () => {
   ensureRepo();
-  info('Checking for local changes');
+  info('Đang kiểm tra thay đổi cục bộ');
   const {stdout: dirty} = shQuiet('git', ['-C', REPO_DIR, 'status', '--porcelain']);
   if (dirty && dirty.trim()) {
-    err('Local changes detected. Run "ai-kit reset" to discard, or commit first.');
+    err('Có thay đổi cục bộ chưa commit — chạy "ai-kit reset" để bỏ, hoặc commit trước.');
     console.log(dirty);
     process.exit(1);
   }
-  info('Pulling latest team-ai-config');
+  info('Đang pull team-ai-config mới nhất');
   const r = sh('git', ['-C', REPO_DIR, 'pull', '--ff-only', '--quiet']);
-  if (r.exitCode !== 0) { err('git pull failed'); process.exit(1); }
-  ok('Repo updated');
+  if (r.exitCode !== 0) { err('git pull thất bại'); process.exit(1); }
+  ok('Repo đã cập nhật');
 
   // Refresh CLI itself
-  info('Refreshing ai-kit CLI in ~/.ai-kit/bin');
+  info('Đang làm mới ai-kit CLI tại ~/.ai-kit/bin');
   fs.mkdirSync(BIN_DIR, {recursive: true});
   for (const f of ['ai-kit', 'ai-kit.cmd', 'ai-kit.ps1', 'ai-kit.mjs', 'ai-kit.legacy', 'ai-kit.legacy.ps1']) {
     const src = path.join(REPO_DIR, 'bin', f);
@@ -726,22 +726,22 @@ const cmdUpdate = () => {
       }
     }
   }
-  ok('CLI refreshed');
+  ok('CLI đã làm mới');
 
   // Install Node deps into AI_KIT_HOME so ESM resolution from bin/ finds them
   const pkgSrc = path.join(REPO_DIR, 'package.json');
   if (exists(pkgSrc)) {
-    info('Installing Node deps into ~/.ai-kit');
+    info('Đang cài Node deps vào ~/.ai-kit');
     fs.copyFileSync(pkgSrc, path.join(AI_KIT_HOME, 'package.json'));
     const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     const npmArgs = ['install', '--omit=dev'];
     if (QUIET) npmArgs.push('--silent');
     const npmResult = sh(npmBin, npmArgs, {cwd: AI_KIT_HOME});
-    if (npmResult.exitCode !== 0) { err('npm install failed'); process.exit(1); }
+    if (npmResult.exitCode !== 0) { err('npm install thất bại'); process.exit(1); }
   }
 
   // Snapshot current live configs before overwriting → enables ai-kit rollback
-  info('Snapshotting current configs');
+  info('Đang sao lưu cấu hình hiện tại');
   const _snapTs = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const _snapName = `ai-config-backup-${_snapTs}`;
   const _cprSnap = (s, d) => {
@@ -762,10 +762,10 @@ const cmdUpdate = () => {
       if (exists(src)) _cprSnap(src, path.join(base, _snapName, item));
     }
   }
-  ok(`Configs backed up (${_snapName}) — restore with: ai-kit rollback`);
+  ok(`Đã sao lưu cấu hình (${_snapName}) — phục hồi bằng: ai-kit rollback`);
 
   // Deploy configs to ~/.claude + ~/.cursor — atomic: write to .tmp then swap
-  info('Deploying agents + skills to ~/.claude and ~/.cursor');
+  info('Đang triển khai agents + skills vào ~/.claude và ~/.cursor');
   const deploy = (subdir, target) => {
     const src = path.join(REPO_DIR, subdir);
     if (!exists(src)) return;
@@ -795,11 +795,11 @@ const cmdUpdate = () => {
   deploy('claude/skills', '.claude/skills');
   deploy('cursor/agents', '.cursor/agents');
   deploy('cursor/skills', '.cursor/skills');
-  ok('Configs deployed');
+  ok('Đã triển khai cấu hình');
 
   // MCP refresh — needs Docker. Friendly guidance + best-effort auto-start.
   if (exists(composeDir())) {
-    info('Refreshing MCP image (pull + restart)');
+    info('Đang làm mới MCP image (pull + restart)');
     let state = dockerHealth();
     if (state === 'not-running') {
       warn('Docker daemon không phản hồi — đang thử khởi động tự động…');
@@ -813,7 +813,7 @@ const cmdUpdate = () => {
     if (state === 'ok') {
       composeCmd('pull');
       composeCmd('up', '-d', '--force-recreate');
-      ok('MCP refreshed');
+      ok('MCP đã làm mới');
     } else {
       printDockerGuide(state);
       warn('Bỏ qua bước refresh MCP. Repo + agents/skills đã cập nhật.');
@@ -827,7 +827,7 @@ const cmdUpdate = () => {
     fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ahead: 0, ts: Date.now()}));
   } catch {}
 
-  ok('Update complete');
+  ok('Cập nhật hoàn tất');
 };
 
 // ─── mcp <verb> ────────────────────────────────────────────────────────
@@ -870,18 +870,18 @@ const cmdReset = (args) => {
   // Check for local changes before showing confirmation
   let dirty = '';
   try { dirty = execaSync('git', ['-C', REPO_DIR, 'status', '--short'], {stdio: ['ignore', 'pipe', 'ignore']}).stdout.trim(); } catch {}
-  if (!dirty) { ok('Repo already clean — nothing to reset'); return; }
+  if (!dirty) { ok('Repo đã sạch — không cần reset'); return; }
   if (!yes) {
-    warn('Will discard all local changes (git reset --hard + git clean -fd):');
+    warn('Sẽ huỷ tất cả thay đổi cục bộ (git reset --hard + git clean -fd):');
     dirty.split('\n').forEach(l => console.log(`    ${C.gray}${l}${C.reset}`));
-    warn('Re-run with --yes / -y to confirm: ai-kit reset --yes');
+    warn('Chạy lại với --yes / -y để xác nhận: ai-kit reset --yes');
     process.exit(0);
   }
   info(`Resetting ${REPO_DIR} to clean HEAD`);
   sh('git', ['-C', REPO_DIR, 'reset', '--hard', 'HEAD']);
   sh('git', ['-C', REPO_DIR, 'clean', '-fd']);
   sh('git', ['-C', REPO_DIR, 'pull', '--ff-only', '--quiet']);
-  ok('Repo reset + pulled');
+  ok('Đã reset + pull lại repo');
 };
 
 // ─── list-backups / rollback / clean ──────────────────────────────────
@@ -913,7 +913,7 @@ const cmdListBackups = () => {
 const cmdRollback = (args) => {
   const n = args[0] ? parseInt(args[0], 10) : null;
   const snaps = listBackupSnapshots();
-  if (!snaps.length) { err('No backups found'); process.exit(1); }
+  if (!snaps.length) { err('Không tìm thấy bản sao lưu'); process.exit(1); }
   const snap = n != null ? snaps[n] : snaps[snaps.length - 1];
   if (!snap) { err(`No snapshot at index ${n}`); process.exit(1); }
 
@@ -972,7 +972,7 @@ const cmdClean = (args) => {
       console.log(`    ${C.gray}${s.name}${C.reset}`);
       s.dirs.forEach(d => console.log(`      ${C.gray}${d}${C.reset}`));
     });
-    warn('Re-run with --yes / -y to confirm.');
+    warn('Chạy lại với --yes / -y để xác nhận.');
     process.exit(0);
   }
   toDrop.forEach(s => {
@@ -980,28 +980,28 @@ const cmdClean = (args) => {
     s.dirs.forEach(d => fs.rmSync(d, {recursive: true, force: true}));
   });
   ok(`Deleted ${toDrop.length} snapshot(s)`);
-  info('Pruning dangling Docker images (scoped to etc-platform)');
+  info('Đang dọn Docker image rời (chỉ etc-platform)');
   sh('docker', ['image', 'prune', '-f', '--filter', 'label=com.docker.compose.project=etc-platform']);
-  ok('Clean complete');
+  ok('Dọn dẹp hoàn tất');
 };
 
 // ─── upgrade (npm update) ─────────────────────────────────────────────
 const cmdUpgrade = () => {
   ensureRepo();
-  info('Updating Node.js deps in ~/.ai-kit (npm update)');
+  info('Đang cập nhật Node deps tại ~/.ai-kit (npm update)');
   const pkgSrc = path.join(REPO_DIR, 'package.json');
   if (!exists(pkgSrc)) { err('package.json not found'); process.exit(1); }
   fs.copyFileSync(pkgSrc, path.join(AI_KIT_HOME, 'package.json'));
   const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const r = sh(npmBin, ['update', '--omit=dev', ...(QUIET ? ['--silent'] : [])], {cwd: AI_KIT_HOME});
   if (r.exitCode !== 0) { err('npm update failed'); process.exit(1); }
-  ok('Deps upgraded');
+  ok('Đã nâng cấp deps');
 };
 
 // ─── pack / publish / diff / edit (maintainer) ────────────────────────
 const cmdPack = () => {
   ensureRepo();
-  info('Snapshot ~/.claude + ~/.cursor → repo');
+  info('Đang sao lưu ~/.claude + ~/.cursor → repo');
   const cpr = (s, d) => {
     if (!exists(s)) return;
     fs.mkdirSync(d, {recursive: true});
@@ -1023,23 +1023,23 @@ const cmdPack = () => {
   copy(path.join(os.homedir(), '.claude', 'skills'),  path.join(REPO_DIR, 'claude', 'skills'));
   copy(path.join(os.homedir(), '.cursor', 'agents'),  path.join(REPO_DIR, 'cursor', 'agents'));
   copy(path.join(os.homedir(), '.cursor', 'skills'),  path.join(REPO_DIR, 'cursor', 'skills'));
-  ok('Packed');
+  ok('Đã đóng gói');
   sh('git', ['-C', REPO_DIR, 'status', '--short']);
 };
 const cmdPublish = (args) => {
   ensureRepo();
   const msg = args.join(' ').trim();
-  if (!msg) { err('Usage: ai-kit publish "<commit message>"'); process.exit(1); }
+  if (!msg) { err('Cách dùng: ai-kit publish "<commit message>"'); process.exit(1); }
   // Fast-fail: verify remote reachable before any side-effectful pack
-  info('Checking git remote reachability');
+  info('Đang kiểm tra kết nối git remote');
   const lsr = sh('git', ['-C', REPO_DIR, 'ls-remote', '--exit-code', 'origin', 'HEAD'], {stdio: ['ignore', 'ignore', 'inherit']});
-  if (lsr.exitCode !== 0) { err('Cannot reach git remote — check credentials/network'); process.exit(1); }
+  if (lsr.exitCode !== 0) { err('Không kết nối được git remote — kiểm tra credentials / mạng'); process.exit(1); }
   cmdPack();
   sh('git', ['-C', REPO_DIR, 'add', '-A']);
   const r = sh('git', ['-C', REPO_DIR, 'commit', '-m', msg]);
-  if (r.exitCode !== 0) { warn('Nothing to commit'); return; }
+  if (r.exitCode !== 0) { warn('Không có gì để commit'); return; }
   sh('git', ['-C', REPO_DIR, 'push']);
-  ok('Published');
+  ok('Đã publish');
 };
 const cmdDiff = () => {
   ensureRepo();
@@ -1057,16 +1057,16 @@ const cmdUninstall = (args) => {
   const yes = args.includes('--yes') || args.includes('-y');
   warn(`This removes ${AI_KIT_HOME} (CLI + repo). Deployed ~/.claude + ~/.cursor stay.`);
   if (!yes) {
-    warn('Re-run with --yes / -y to confirm: ai-kit uninstall --yes');
+    warn('Chạy lại với --yes / -y để xác nhận: ai-kit uninstall --yes');
     process.exit(0);
   }
   fs.rmSync(AI_KIT_HOME, {recursive: true, force: true});
-  ok('Removed');
+  ok('Đã gỡ');
 };
 
 // ─── install (alias for bootstrap message) ────────────────────────────
 const cmdInstall = () => {
-  info('First-time install: use bootstrap one-liner.');
+  info('Cài lần đầu: dùng bootstrap one-liner.');
   console.log('  macOS/Linux: curl -sL https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.sh | bash');
   console.log('  Windows:     irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex');
 };
