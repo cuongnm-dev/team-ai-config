@@ -612,6 +612,92 @@ const composeCmd = (...args) => sh('docker', ['compose', ...args], {
   ...(QUIET ? {stdio: ['ignore', 'ignore', 'inherit']} : {}),
 });
 
+// Returns 'ok' | 'not-installed' | 'not-running'.
+// Probes `docker info` quietly — never throws.
+const dockerHealth = () => {
+  const which = shQuiet(process.platform === 'win32' ? 'where' : 'which', ['docker']);
+  if (which.exitCode !== 0) return 'not-installed';
+  const info = shQuiet('docker', ['info'], {timeout: 5000});
+  if (info.exitCode !== 0) return 'not-running';
+  return 'ok';
+};
+
+// Print friendly OS-specific guidance when Docker missing/stopped.
+const printDockerGuide = (state) => {
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+  warn(state === 'not-installed'
+    ? 'Docker chưa được cài đặt trên máy.'
+    : 'Docker daemon đang dừng — service MCP cần Docker để chạy.');
+  console.log('');
+  if (state === 'not-installed') {
+    if (isWin) {
+      console.log(`  ${C.cyan}Cài Docker Desktop cho Windows:${C.reset}`);
+      console.log('    1. Tải:  https://www.docker.com/products/docker-desktop/');
+      console.log('    2. Hoặc qua winget:  winget install Docker.DockerDesktop');
+      console.log('    3. Sau khi cài, mở Docker Desktop và đợi icon Docker xanh ở taskbar.');
+    } else if (isMac) {
+      console.log(`  ${C.cyan}Cài Docker Desktop cho macOS:${C.reset}`);
+      console.log('    1. Tải:  https://www.docker.com/products/docker-desktop/');
+      console.log('    2. Hoặc qua brew:  brew install --cask docker');
+      console.log('    3. Sau khi cài, mở Docker Desktop từ Applications.');
+    } else {
+      console.log(`  ${C.cyan}Cài Docker Engine cho Linux:${C.reset}`);
+      console.log('    curl -fsSL https://get.docker.com | sh');
+      console.log('    sudo usermod -aG docker $USER  # logout/login để áp dụng');
+      console.log('    sudo systemctl enable --now docker');
+    }
+  } else {
+    if (isWin) {
+      console.log(`  ${C.cyan}Bật Docker Desktop:${C.reset}`);
+      console.log('    1. Mở Start menu → tìm "Docker Desktop" → Run');
+      console.log('    2. Đợi icon Docker xanh ở taskbar (~30s)');
+      console.log('    3. Hoặc CLI:  Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"');
+    } else if (isMac) {
+      console.log(`  ${C.cyan}Bật Docker Desktop:${C.reset}`);
+      console.log('    open -a Docker');
+      console.log('    # Đợi icon Docker xuất hiện trên menu bar (~30s)');
+    } else {
+      console.log(`  ${C.cyan}Bật Docker daemon:${C.reset}`);
+      console.log('    sudo systemctl start docker');
+      console.log('    sudo systemctl enable docker  # tự động bật khi reboot');
+    }
+  }
+  console.log('');
+  console.log(`  ${C.gray}Sau khi xong, chạy lại:${C.reset}  ai-kit update`);
+  console.log('');
+};
+
+// Try to auto-start Docker Desktop on Windows / macOS (best-effort, returns true if started).
+const tryStartDocker = () => {
+  if (process.platform === 'win32') {
+    const exe = 'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe';
+    if (!exists(exe)) return false;
+    sh('powershell', ['-NoProfile', '-Command', `Start-Process -FilePath "${exe}"`]);
+    return true;
+  }
+  if (process.platform === 'darwin') {
+    sh('open', ['-a', 'Docker']);
+    return true;
+  }
+  // Linux: try systemctl (may need sudo — best-effort silent attempt)
+  const r = shQuiet('systemctl', ['start', 'docker']);
+  return r.exitCode === 0;
+};
+
+// Wait for Docker daemon to be ready (poll docker info up to ~60s).
+const waitForDocker = (maxMs = 60000) => {
+  const start = Date.now();
+  while (Date.now() - start < maxMs) {
+    const r = shQuiet('docker', ['info'], {timeout: 3000});
+    if (r.exitCode === 0) return true;
+    // sleep 2s
+    const end = Date.now() + 2000;
+    while (Date.now() < end) { /* busy-wait — small delay */ }
+  }
+  return false;
+};
+
 // ─── update ────────────────────────────────────────────────────────────
 const cmdUpdate = () => {
   ensureRepo();
@@ -711,12 +797,27 @@ const cmdUpdate = () => {
   deploy('cursor/skills', '.cursor/skills');
   ok('Configs deployed');
 
-  // MCP refresh
+  // MCP refresh — needs Docker. Friendly guidance + best-effort auto-start.
   if (exists(composeDir())) {
     info('Refreshing MCP image (pull + restart)');
-    composeCmd('pull');
-    composeCmd('up', '-d', '--force-recreate');
-    ok('MCP refreshed');
+    let state = dockerHealth();
+    if (state === 'not-running') {
+      warn('Docker daemon không phản hồi — đang thử khởi động tự động…');
+      if (tryStartDocker() && waitForDocker(60000)) {
+        ok('Docker đã sẵn sàng');
+        state = 'ok';
+      } else {
+        state = 'not-running';
+      }
+    }
+    if (state === 'ok') {
+      composeCmd('pull');
+      composeCmd('up', '-d', '--force-recreate');
+      ok('MCP refreshed');
+    } else {
+      printDockerGuide(state);
+      warn('Bỏ qua bước refresh MCP. Repo + agents/skills đã cập nhật.');
+    }
   }
 
   // Reset update-check cache so next invocation does not show stale "X behind" notice.
@@ -734,6 +835,14 @@ const cmdMcp = (args) => {
   ensureRepo();
   const verb = args[0] || 'status';
   if (!exists(composeDir())) { err(`MCP folder not found: ${composeDir()}`); process.exit(1); }
+  // Pre-flight Docker check (skip for verbs that don't need daemon)
+  if (!['help'].includes(verb)) {
+    const state = dockerHealth();
+    if (state !== 'ok') {
+      printDockerGuide(state);
+      process.exit(1);
+    }
+  }
   switch (verb) {
     case 'start':   info('docker compose up -d'); composeCmd('up', '-d'); break;
     case 'stop':    info('docker compose down'); composeCmd('down'); break;
