@@ -1178,6 +1178,52 @@ const fmtN = (n) => {
 };
 const fmtUsd = (n) => '$' + (n < 1 ? n.toFixed(3) : n.toFixed(2));
 
+// Threshold colorers
+const colorCost = (n) => {
+  const s = fmtUsd(n);
+  if (n >= 100) return `${S.red}${S.bold}${s}${S.reset}`;
+  if (n >= 10)  return `${S.red}${s}${S.reset}`;
+  if (n >= 1)   return `${S.yellow}${s}${S.reset}`;
+  if (n > 0)    return `${S.green}${s}${S.reset}`;
+  return `${S.gray}${s}${S.reset}`;
+};
+const colorTokens = (n) => {
+  const s = fmtN(n);
+  if (n >= 1e9) return `${S.magenta}${S.bold}${s}${S.reset}`;
+  if (n >= 1e8) return `${S.magenta}${s}${S.reset}`;
+  if (n >= 1e6) return `${S.cyan}${s}${S.reset}`;
+  return `${S.gray}${s}${S.reset}`;
+};
+const colorCount = (n, hi=50, mid=10) => {
+  const s = String(n);
+  if (n >= hi)  return `${S.bcyan}${s}${S.reset}`;
+  if (n >= mid) return `${S.cyan}${s}${S.reset}`;
+  return `${S.gray}${s}${S.reset}`;
+};
+const colorRate = (pct) => {
+  const s = pct.toFixed(1) + '%';
+  if (pct >= 10) return `${S.red}${s}${S.reset}`;
+  if (pct >= 3)  return `${S.yellow}${s}${S.reset}`;
+  return `${S.green}${s}${S.reset}`;
+};
+
+// Visible-length helper (strip ANSI for width math)
+const vlen = (s) => String(s).replace(/\x1b\[[0-9;]*m/g, '').length;
+const padR = (s, w) => s + ' '.repeat(Math.max(0, w - vlen(s)));
+const padL = (s, w) => ' '.repeat(Math.max(0, w - vlen(s))) + s;
+
+// Inline bar (Unicode block chars)
+const bar = (ratio, width = 12) => {
+  const r = Math.max(0, Math.min(1, ratio));
+  const blocks = '▏▎▍▌▋▊▉█';
+  const total = r * width;
+  const full = Math.floor(total);
+  const partial = Math.round((total - full) * 8);
+  let out = '█'.repeat(full);
+  if (partial > 0 && full < width) out += blocks[partial - 1];
+  return padR(out, width);
+};
+
 const collectStats = (sinceMs) => {
   const projectsRoot = path.join(os.homedir(), '.claude', 'projects');
   const S = {
@@ -1301,18 +1347,27 @@ const collectCliHistory = (sinceMs) => {
   return out;
 };
 
-const printTopTable = (title, rows, columns) => {
+const printTable = (title, rows, columns) => {
   if (!rows.length) return;
-  const w = _cols();
+  // Compute widths from visible (stripped) length
+  const widths = columns.map((c, i) =>
+    Math.max(vlen(c.label), ...rows.map(r => vlen(r[i] ?? '')))
+  );
+  const pad = (cell, i) => columns[i].align === 'r' ? padL(String(cell), widths[i]) : padR(String(cell), widths[i]);
+  const sep = (l, m, r) => `  ${S.dim}${l}${widths.map(w => '─'.repeat(w + 2)).join(m)}${r}${S.reset}\n`;
+
   process.stdout.write(`\n  ${S.bold}${title}${S.reset}\n`);
-  const widths = columns.map((c, i) => Math.max(c.label.length, ...rows.map(r => String(r[i]).length)));
-  const headerCells = columns.map((c, i) => (c.align === 'r' ? c.label.padStart(widths[i]) : c.label.padEnd(widths[i])));
-  process.stdout.write(`  ${S.gray}${headerCells.join('  ')}${S.reset}\n`);
-  process.stdout.write(`  ${S.dim}${headerCells.map((_, i) => '─'.repeat(widths[i])).join('  ')}${S.reset}\n`);
+  process.stdout.write(sep('┌', '┬', '┐'));
+  process.stdout.write(`  ${S.dim}│${S.reset} ` +
+    columns.map((c, i) => `${S.bold}${padR(c.label, widths[i])}${S.reset}`).join(` ${S.dim}│${S.reset} `) +
+    ` ${S.dim}│${S.reset}\n`);
+  process.stdout.write(sep('├', '┼', '┤'));
   for (const r of rows) {
-    const cells = r.map((v, i) => columns[i].align === 'r' ? String(v).padStart(widths[i]) : String(v).padEnd(widths[i]));
-    process.stdout.write(`  ${cells.join('  ')}\n`);
+    process.stdout.write(`  ${S.dim}│${S.reset} ` +
+      r.map((v, i) => pad(v ?? '', i)).join(` ${S.dim}│${S.reset} `) +
+      ` ${S.dim}│${S.reset}\n`);
   }
+  process.stdout.write(sep('└', '┴', '┘'));
 };
 
 const cmdStatistics = (args) => {
@@ -1350,69 +1405,113 @@ const cmdStatistics = (args) => {
   }
 
   const sinceLabel = sinceArg || '30d';
-  const w = _cols(), bar = '─'.repeat(w - 4);
+  const w = _cols(), divider = '─'.repeat(Math.min(w - 4, 80));
   const out = process.stdout;
-  out.write(`\n  ${brand('📊 ai-kit statistics')}  ${S.gray}— ${sinceLabel} qua  ·  100% local${S.reset}\n  ${S.dim}${bar}${S.reset}\n`);
+  out.write(`\n  ${brand('📊 ai-kit statistics')}  ${S.gray}— ${sinceLabel} qua  ·  ${S.reset}${S.green}100% local${S.reset}\n  ${S.dim}${divider}${S.reset}\n`);
 
   if (stats.parsedFiles === 0) {
     out.write(`\n  ${S.yellow}Không tìm thấy dữ liệu Claude Code${S.reset} ${S.gray}(~/.claude/projects rỗng)${S.reset}\n\n`);
     return;
   }
 
-  // Summary
-  out.write(`\n  ${S.bold}Tổng quan${S.reset}\n`);
-  out.write(`  ${S.gray}Sessions ${S.reset}${stats.sessions.size}    ${S.gray}Ngày hoạt động ${S.reset}${stats.days.size}    ${S.gray}API requests ${S.reset}${stats.requests}\n`);
-  out.write(`  ${S.gray}Tổng tokens ${S.reset}${S.cyan}${fmtN(stats.totalTokens)}${S.reset}    ${S.gray}Ước tính chi phí ${S.reset}${S.green}${fmtUsd(stats.totalCost)}${S.reset}    ${S.gray}Lỗi tool ${S.reset}${stats.errors}\n`);
+  const errRate = stats.requests ? (stats.errors / stats.requests) * 100 : 0;
+
+  // Summary card
+  const summary = [
+    `${S.gray}Sessions      ${S.reset}${S.bcyan}${String(stats.sessions.size).padStart(6)}${S.reset}    ${S.gray}Ngày hoạt động ${S.reset}${S.bcyan}${String(stats.days.size).padStart(4)}${S.reset}`,
+    `${S.gray}API requests  ${S.reset}${S.bcyan}${String(stats.requests).padStart(6)}${S.reset}    ${S.gray}Lỗi tool       ${S.reset}${S.bcyan}${String(stats.errors).padStart(4)}${S.reset} ${S.gray}(${colorRate(errRate)}${S.gray})${S.reset}`,
+    `${S.gray}Tổng tokens   ${S.reset}${colorTokens(stats.totalTokens)}`,
+    `${S.gray}Chi phí ước tính ${S.reset}${colorCost(stats.totalCost)} ${S.dim}(theo bảng giá Anthropic công khai)${S.reset}`,
+  ].join('\n');
+  out.write('\n' + boxen(summary, {
+    padding: {top: 0, bottom: 0, left: 1, right: 1},
+    borderStyle: 'round', borderColor: 'cyan',
+    title: `Tổng quan · ${sinceLabel}`, titleAlignment: 'left',
+    margin: {top: 0, bottom: 0, left: 2, right: 0},
+  }) + '\n');
 
   // Top skills
-  const skillRows = Object.entries(stats.bySkill)
-    .sort((a,b) => b[1].invocations - a[1].invocations)
-    .slice(0, top)
-    .map(([k, v]) => [k, v.invocations]);
-  if (skillRows.length) printTopTable(`Top ${skillRows.length} Skills`, skillRows, [{label: 'Skill'}, {label: 'Invocations', align: 'r'}]);
-  else out.write(`\n  ${S.gray}(Chưa có Skill invocation nào trong khoảng thời gian này)${S.reset}\n`);
+  const skillEntries = Object.entries(stats.bySkill).sort((a,b) => b[1].invocations - a[1].invocations).slice(0, top);
+  if (skillEntries.length) {
+    const max = skillEntries[0][1].invocations;
+    printTable(`Top ${skillEntries.length} Skills`, skillEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v.invocations, 20, 5),
+      `${S.dim}${bar(v.invocations / max)}${S.reset}`,
+    ]), [{label: 'Skill'}, {label: 'Invocations', align: 'r'}, {label: '', align: 'l'}]);
+  } else out.write(`\n  ${S.gray}(Chưa có Skill invocation nào)${S.reset}\n`);
 
   // Top agents
-  const agentRows = Object.entries(stats.byAgent)
-    .sort((a,b) => b[1].dispatches - a[1].dispatches)
-    .slice(0, top)
-    .map(([k, v]) => [k, v.dispatches, fmtN(v.tokens), fmtUsd(v.cost)]);
-  if (agentRows.length) printTopTable(`Top ${agentRows.length} Agents`, agentRows, [
-    {label: 'Agent'}, {label: 'Dispatches', align: 'r'}, {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'}
-  ]);
+  const agentEntries = Object.entries(stats.byAgent).sort((a,b) => b[1].cost - a[1].cost).slice(0, top);
+  if (agentEntries.length) {
+    const maxCost = Math.max(...agentEntries.map(([,v]) => v.cost), 0.0001);
+    printTable(`Top ${agentEntries.length} Agents (sort theo cost)`, agentEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v.dispatches, 10, 3),
+      colorTokens(v.tokens),
+      colorCost(v.cost),
+      `${S.dim}${bar(v.cost / maxCost)}${S.reset}`,
+    ]), [
+      {label: 'Agent'}, {label: 'Dispatches', align: 'r'},
+      {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'},
+      {label: '', align: 'l'},
+    ]);
+  }
 
   // Top tools
-  const toolRows = Object.entries(stats.byTool)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, top)
-    .map(([k, v]) => [k, v]);
-  if (toolRows.length) printTopTable(`Top ${toolRows.length} Tools`, toolRows, [{label: 'Tool'}, {label: 'Calls', align: 'r'}]);
+  const toolEntries = Object.entries(stats.byTool).sort((a,b) => b[1] - a[1]).slice(0, top);
+  if (toolEntries.length) {
+    const max = toolEntries[0][1];
+    printTable(`Top ${toolEntries.length} Tools`, toolEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v, 500, 100),
+      `${S.dim}${bar(v / max)}${S.reset}`,
+    ]), [{label: 'Tool'}, {label: 'Calls', align: 'r'}, {label: '', align: 'l'}]);
+  }
 
   // By model
-  const modelRows = Object.entries(stats.byModel)
-    .sort((a,b) => b[1].cost - a[1].cost)
-    .map(([k, v]) => [k, v.requests, fmtN(v.tokens), fmtUsd(v.cost)]);
-  if (modelRows.length) printTopTable('Theo Model', modelRows, [
-    {label: 'Model'}, {label: 'Requests', align: 'r'}, {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'}
-  ]);
+  const modelEntries = Object.entries(stats.byModel).sort((a,b) => b[1].cost - a[1].cost);
+  if (modelEntries.length) {
+    const totalCost = modelEntries.reduce((s, [,v]) => s + v.cost, 0) || 1;
+    printTable('Theo Model', modelEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v.requests, 1000, 100),
+      colorTokens(v.tokens),
+      colorCost(v.cost),
+      `${S.dim}${(v.cost/totalCost*100).toFixed(1).padStart(5)}%${S.reset}`,
+    ]), [
+      {label: 'Model'}, {label: 'Requests', align: 'r'},
+      {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'},
+      {label: 'Share', align: 'r'},
+    ]);
+  }
 
   // By project
-  const projRows = Object.entries(stats.byProject)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, top)
-    .map(([k, v]) => [k, v]);
-  if (projRows.length) printTopTable(`Top ${projRows.length} Projects (theo số message)`, projRows, [{label: 'Project'}, {label: 'Messages', align: 'r'}]);
+  const projEntries = Object.entries(stats.byProject).sort((a,b) => b[1] - a[1]).slice(0, top);
+  if (projEntries.length) {
+    const max = projEntries[0][1];
+    printTable(`Top ${projEntries.length} Projects (số message)`, projEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v, 1000, 200),
+      `${S.dim}${bar(v / max)}${S.reset}`,
+    ]), [{label: 'Project'}, {label: 'Messages', align: 'r'}, {label: '', align: 'l'}]);
+  }
 
   // CLI commands
-  const cliRows = Object.entries(cli.commands)
-    .sort((a,b) => b[1] - a[1])
-    .slice(0, top)
-    .map(([k, v]) => [k, v]);
-  if (cliRows.length) printTopTable(`ai-kit CLI commands`, cliRows, [{label: 'Command'}, {label: 'Runs', align: 'r'}]);
+  const cliEntries = Object.entries(cli.commands).sort((a,b) => b[1] - a[1]).slice(0, top);
+  if (cliEntries.length) {
+    const max = cliEntries[0][1];
+    printTable('ai-kit CLI commands', cliEntries.map(([k, v]) => [
+      `${S.cyan}${k}${S.reset}`,
+      colorCount(v, 50, 10),
+      `${S.dim}${bar(v / max)}${S.reset}`,
+    ]), [{label: 'Command'}, {label: 'Runs', align: 'r'}, {label: '', align: 'l'}]);
+  }
 
-  out.write(`\n  ${S.dim}${bar}${S.reset}\n`);
-  out.write(`  ${S.gray}Cờ: ${S.reset}--since 7d|30d|3m  ·  --top N  ·  --json${S.reset}\n`);
-  out.write(`  ${S.gray}Dữ liệu chỉ ở máy này — không gửi đi đâu.${S.reset}\n\n`);
+  out.write(`\n  ${S.dim}${divider}${S.reset}\n`);
+  out.write(`  ${S.gray}Cờ:${S.reset}  --since ${S.cyan}7d|30d|3m|24h${S.reset}  ·  --top ${S.cyan}N${S.reset}  ·  --json\n`);
+  out.write(`  ${S.gray}Ngưỡng cost:${S.reset} ${S.green}<\$1${S.reset}  ${S.yellow}\$1-\$10${S.reset}  ${S.red}\$10-\$100${S.reset}  ${S.red}${S.bold}≥\$100${S.reset}\n`);
+  out.write(`  ${S.dim}Dữ liệu 100% local — không gửi đi đâu.${S.reset}\n\n`);
 };
 
 // ─── help <command> ────────────────────────────────────────────────────
