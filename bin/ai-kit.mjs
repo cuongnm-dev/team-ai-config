@@ -394,6 +394,16 @@ const Doctor = ({checks, dockerDaemon, repoOk, pathOk, allRequiredOk}) =>
     )
   );
 
+// Clear viewport + scrollback + home cursor so doc content starts at line 1.
+// Skip when output is piped/redirected (not a TTY) so log files stay clean.
+// `\x1b[2J` clears viewport, `\x1b[3J` clears scrollback (Windows Terminal, iTerm2,
+// gnome-terminal, modern xterm), `\x1b[H` moves cursor to home position.
+const clearScreen = () => {
+  if (process.stdout.isTTY && process.env.NO_CLEAR !== '1') {
+    process.stdout.write('\x1b[2J\x1b[3J\x1b[H');
+  }
+};
+
 const renderDoc = (file) => {
   const content = fs.readFileSync(file, 'utf8');
   const stripped = stripFm(content);
@@ -532,6 +542,9 @@ const renderStaticLater = (el) => {
 // ─── Doc command dispatcher ────────────────────────────────────────────
 const docCommand = (args) => {
   ensureRepo();
+  // Clear console + scrollback so each doc invocation starts fresh at top.
+  // Disable with NO_CLEAR=1 (CI, log capture). No-op when stdout is not a TTY.
+  clearScreen();
   const docsDir = path.join(REPO_DIR, 'docs');
   const sub = args[0];
 
