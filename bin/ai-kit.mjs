@@ -392,11 +392,19 @@ const printItem = (name, title, nameWidth = 24) => {
 
 const readDocItems = (dir) => {
   if (!exists(dir)) return [];
-  return fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().map(f => {
+  const items = fs.readdirSync(dir).filter(f => f.endsWith('.md')).map(f => {
     const c = fs.readFileSync(path.join(dir, f), 'utf8');
-    const m = c.match(/^title:\s*(.+)$/m);
-    return {name: f.replace(/\.md$/, ''), title: m ? m[1].replace(/^["']|["']$/g, '') : f};
+    const tm = c.match(/^title:\s*(.+)$/m);
+    const om = c.match(/^order:\s*(\d+)\s*$/m);
+    return {
+      name: f.replace(/\.md$/, ''),
+      title: tm ? tm[1].replace(/^["']|["']$/g, '') : f,
+      order: om ? parseInt(om[1], 10) : 999,
+    };
   });
+  // Sort by `order` (asc, lower first), then alphabetically by name
+  items.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+  return items;
 };
 
 const printDocsIndex = () => {
