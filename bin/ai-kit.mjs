@@ -184,6 +184,7 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
     h(Row, {label: 'verify [--restore]', value: 'Kiểm tra toàn vẹn agents/skills (manifest SHA256)'}),
     h(Row, {label: 'search <term>', value: 'Tìm xuyên docs+agents+skills (--scope)'}),
     h(Row, {label: 'config get|set|list', value: 'Quản lý ~/.ai-kit/{billing,alerts}.json'}),
+    h(Row, {label: 'schedule update', value: 'Cron/Task Scheduler tự động update'}),
     h(Row, {label: 'version | -v', value: 'Show ai-kit + team-config + MCP versions'})
   ),
   h(Section, {title: 'Documentation'},
@@ -1178,6 +1179,73 @@ const cmdUninstall = (args) => {
   ok('Đã gỡ');
 };
 
+// ─── schedule: cross-platform recurring ai-kit update ────────────────
+// Windows: schtasks /Create /TN AiKitUpdate /TR "ai-kit update --quiet" /SC WEEKLY
+// Unix:    crontab entry
+const cmdSchedule = (args) => {
+  const verb = args[0];
+  if (!verb || verb === 'show' || verb === 'list') {
+    if (process.platform === 'win32') {
+      try {
+        const r = execaSync('schtasks', ['/Query', '/TN', 'AiKitUpdate', '/V', '/FO', 'LIST'], {stdio: ['ignore', 'pipe', 'ignore']});
+        console.log(r.stdout || '(không có lịch nào)');
+      } catch { info('Chưa có lịch ai-kit update.'); }
+    } else {
+      try {
+        const r = execaSync('crontab', ['-l'], {stdio: ['ignore', 'pipe', 'ignore']});
+        const matched = r.stdout.split('\n').filter(l => l.includes('ai-kit'));
+        console.log(matched.length ? matched.join('\n') : '(không có lịch ai-kit nào trong crontab)');
+      } catch { info('Crontab rỗng hoặc chưa cài cron.'); }
+    }
+    return;
+  }
+  if (verb === 'update') {
+    const interval = args[1] || '--weekly';
+    if (process.platform === 'win32') {
+      const sc = interval === '--daily' ? 'DAILY' : interval === '--monthly' ? 'MONTHLY' : 'WEEKLY';
+      const cmd = `"${process.execPath}" "${path.join(BIN_DIR, 'ai-kit.mjs')}" update --quiet`;
+      try {
+        execaSync('schtasks', ['/Create', '/TN', 'AiKitUpdate', '/TR', cmd, '/SC', sc, '/ST', '09:00', '/F'], {stdio: 'inherit'});
+        ok(`Đã đặt lịch ai-kit update ${sc.toLowerCase()} lúc 09:00`);
+      } catch (e) { err(`schtasks lỗi: ${e.message}`); process.exit(1); }
+    } else {
+      const cron = interval === '--daily' ? '0 9 * * *' : interval === '--monthly' ? '0 9 1 * *' : '0 9 * * 1';
+      const line = `${cron} ${path.join(BIN_DIR, 'ai-kit')} update --quiet # ai-kit-managed`;
+      try {
+        let existing = '';
+        try { existing = execaSync('crontab', ['-l'], {stdio: ['ignore', 'pipe', 'ignore']}).stdout; } catch {}
+        const cleaned = existing.split('\n').filter(l => !l.includes('# ai-kit-managed')).join('\n');
+        const newCron = (cleaned + '\n' + line + '\n').replace(/\n+/g, '\n');
+        const tmpFile = path.join(os.tmpdir(), 'ai-kit-cron-' + Date.now());
+        fs.writeFileSync(tmpFile, newCron);
+        execaSync('crontab', [tmpFile], {stdio: 'inherit'});
+        fs.unlinkSync(tmpFile);
+        ok(`Đã đặt lịch crontab: ${cron}`);
+      } catch (e) { err(`crontab lỗi: ${e.message}`); process.exit(1); }
+    }
+    return;
+  }
+  if (verb === 'remove' || verb === 'rm') {
+    if (process.platform === 'win32') {
+      try { execaSync('schtasks', ['/Delete', '/TN', 'AiKitUpdate', '/F'], {stdio: 'inherit'}); ok('Đã xoá lịch'); }
+      catch (e) { err(`schtasks lỗi: ${e.message}`); }
+    } else {
+      try {
+        const existing = execaSync('crontab', ['-l'], {stdio: ['ignore', 'pipe', 'ignore']}).stdout;
+        const cleaned = existing.split('\n').filter(l => !l.includes('# ai-kit-managed')).join('\n');
+        const tmpFile = path.join(os.tmpdir(), 'ai-kit-cron-' + Date.now());
+        fs.writeFileSync(tmpFile, cleaned);
+        execaSync('crontab', [tmpFile], {stdio: 'inherit'});
+        fs.unlinkSync(tmpFile);
+        ok('Đã xoá lịch ai-kit khỏi crontab');
+      } catch (e) { err(`crontab lỗi: ${e.message}`); }
+    }
+    return;
+  }
+  err(`Verb không hợp lệ: ${verb}. Dùng: show | update [--daily|--weekly|--monthly] | remove`);
+  process.exit(1);
+};
+
 // ─── verify: integrity check of deployed agents/skills ─────────────────
 // Compute SHA256 manifest of ~/.claude + ~/.cursor; compare with .manifest.lock.
 // Detects local tampering (manual edits, drift). Optional --restore re-runs deploy.
@@ -1727,6 +1795,97 @@ const cmdStatistics = (args) => {
   const stats = collectStats(sinceMs);
   const cli = collectCliHistory(sinceMs);
 
+  // --html: standalone HTML report (offline-shareable)
+  if (args.includes('--html')) {
+    const sinceLabel = sinceArg || '30d';
+    const idx = args.indexOf('--html');
+    const outFile = args[idx+1] && !args[idx+1].startsWith('-') ? args[idx+1] : `ai-kit-statistics-${new Date().toISOString().slice(0,10)}.html`;
+    const sortedTok = [...stats.requestTokens].sort((a,b) => a - b);
+    const totalIn = stats.inputTokens + stats.cacheReadTokens + stats.cacheCreationTokens;
+    const cacheHitRate = totalIn > 0 ? (stats.cacheReadTokens / totalIn) * 100 : 0;
+    const series = dailySeries(stats.byDay, sinceMs);
+    const wkLabels = ['CN','T2','T3','T4','T5','T6','T7'];
+    const sortObj = (o, k = (v) => v) => Object.entries(o).sort((a,b) => k(b[1]) - k(a[1]));
+    const tableRows = (entries, mapFn) => entries.map(mapFn).join('');
+    const html = `<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><title>ai-kit statistics — ${sinceLabel}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; color: #1a1a1a; background: #fafafa; }
+  h1 { background: linear-gradient(90deg, #00e5ff, #2979ff, #aa00ff); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 2em; }
+  h2 { border-bottom: 2px solid #2979ff; padding-bottom: 4px; margin-top: 2em; }
+  .card { background: white; border-radius: 8px; padding: 1.2em; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 1em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1em; }
+  .kpi { font-size: 1.6em; font-weight: 700; color: #2979ff; }
+  .label { font-size: 0.85em; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; margin: 0.5em 0; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+  th { background: #f5f5f5; font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar-container { background: #eee; height: 16px; border-radius: 3px; overflow: hidden; }
+  .bar-fill { background: linear-gradient(90deg, #00e5ff, #2979ff); height: 100%; }
+  .footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid #ddd; color: #888; font-size: 0.85em; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+  .pill.ok { background: #e8f5e9; color: #2e7d32; }
+  .pill.warn { background: #fff3e0; color: #e65100; }
+  .pill.err { background: #ffebee; color: #c62828; }
+</style></head><body>
+<h1>📊 ai-kit statistics</h1>
+<p style="color:#666">Khoảng thời gian: <strong>${sinceLabel}</strong> &middot; Sinh lúc ${new Date().toLocaleString('vi-VN')} &middot; <span class="pill ok">100% local</span></p>
+
+<h2>Tổng quan</h2>
+<div class="grid">
+  <div class="card"><div class="label">Sessions</div><div class="kpi">${fmtInt(stats.sessions.size)}</div></div>
+  <div class="card"><div class="label">API requests</div><div class="kpi">${fmtInt(stats.requests)}</div></div>
+  <div class="card"><div class="label">Tổng tokens</div><div class="kpi">${fmtN(stats.totalTokens)}</div></div>
+  <div class="card"><div class="label">Giá trị API tương đương</div><div class="kpi">${fmtUsd(stats.totalCost)}</div><div style="font-size:0.8em;color:#888">nếu pay-as-you-go</div></div>
+  <div class="card"><div class="label">Cache hit rate</div><div class="kpi">${cacheHitRate.toFixed(1)}%</div></div>
+  <div class="card"><div class="label">Lỗi thật</div><div class="kpi">${fmtInt(stats.realErrors)}</div><div style="font-size:0.8em;color:#888">${(stats.realErrors/Math.max(1,stats.requests)*100).toFixed(1)}% rate &middot; ${fmtInt(stats.errorCategories.shell_noise)} noise lọc</div></div>
+</div>
+
+<h2>Xu hướng theo ngày</h2>
+<div class="card"><table><thead><tr><th>Ngày</th><th class="num">Requests</th><th class="num">Tokens</th><th class="num">Cost</th><th>Bar</th></tr></thead><tbody>
+${tableRows(series.slice(-14), s => {
+  const max = Math.max(...series.map(x => x.cost), 0.0001);
+  return `<tr><td>${s.date}</td><td class="num">${fmtInt(s.requests)}</td><td class="num">${fmtN(s.tokens)}</td><td class="num">${fmtUsd(s.cost)}</td><td><div class="bar-container"><div class="bar-fill" style="width:${(s.cost/max*100).toFixed(1)}%"></div></div></td></tr>`;
+})}
+</tbody></table></div>
+
+<h2>Top Skills</h2>
+<div class="card"><table><thead><tr><th>Skill</th><th class="num">Invocations</th></tr></thead><tbody>
+${tableRows(sortObj(stats.bySkill, v => v.invocations).slice(0, 20), ([k,v]) => `<tr><td>${k}</td><td class="num">${fmtInt(v.invocations)}</td></tr>`)}
+</tbody></table></div>
+
+<h2>Top Agents (theo cost)</h2>
+<div class="card"><table><thead><tr><th>Agent</th><th class="num">Dispatches</th><th class="num">Tokens</th><th class="num">Cost</th></tr></thead><tbody>
+${tableRows(sortObj(stats.byAgent, v => v.cost).slice(0, 20), ([k,v]) => `<tr><td>${k}</td><td class="num">${fmtInt(v.dispatches)}</td><td class="num">${fmtN(v.tokens)}</td><td class="num">${fmtUsd(v.cost)}</td></tr>`)}
+</tbody></table></div>
+
+<h2>Theo Model</h2>
+<div class="card"><table><thead><tr><th>Model</th><th class="num">Requests</th><th class="num">Tokens</th><th class="num">Cost</th></tr></thead><tbody>
+${tableRows(sortObj(stats.byModel, v => v.cost), ([k,v]) => `<tr><td>${k}</td><td class="num">${fmtInt(v.requests)}</td><td class="num">${fmtN(v.tokens)}</td><td class="num">${fmtUsd(v.cost)}</td></tr>`)}
+</tbody></table></div>
+
+<h2>Top Tools</h2>
+<div class="card"><table><thead><tr><th>Tool</th><th class="num">Calls</th></tr></thead><tbody>
+${tableRows(sortObj(stats.byTool, v => v).slice(0, 15), ([k,v]) => `<tr><td>${k}</td><td class="num">${fmtInt(v)}</td></tr>`)}
+</tbody></table></div>
+
+<h2>Phân loại lỗi</h2>
+<div class="card"><table><thead><tr><th>Loại</th><th class="num">Số lượng</th><th class="num">Tỷ lệ</th></tr></thead><tbody>
+${tableRows(Object.entries(stats.errorCategories).filter(([,v]) => v > 0).sort((a,b) => b[1] - a[1]), ([k,v]) => `<tr><td>${k}</td><td class="num">${fmtInt(v)}</td><td class="num">${(v/stats.errors*100).toFixed(1)}%</td></tr>`)}
+</tbody></table></div>
+
+<div class="footer">
+  <p>Cost = giá API list-price tương đương, KHÔNG phải tiền thực trả gói Team/Pro.</p>
+  <p>Sinh bởi <code>ai-kit statistics --html</code> &middot; Dữ liệu 100% local.</p>
+</div>
+</body></html>`;
+    fs.writeFileSync(outFile, html);
+    console.log(`✓ Đã xuất ${outFile}`);
+    console.log(`  Mở: ${process.platform === 'win32' ? 'start ' : 'open '}${outFile}`);
+    return;
+  }
+
   // --member-share: anonymized JSON for master to merge across team
   if (args.includes('--member-share')) {
     const memberIdFile = path.join(AI_KIT_HOME, 'member-id');
@@ -2143,10 +2302,11 @@ const COMMAND_HELP = {
   mcp:     { usage: 'ai-kit mcp <verb>',                        desc: 'Control the etc-platform MCP Docker container.',                        flags: { start:'docker compose up -d', stop:'docker compose down', restart:'docker compose restart', logs:'Tail last 200 lines', pull:'Pull latest image', status:'Container state + API URLs (http://localhost:8001)' } },
   pack:    { usage: 'ai-kit pack',                              desc: 'Snapshot ~/.claude+~/.cursor agents/skills → repo working tree.' },
   diff:    { usage: 'ai-kit diff',                              desc: 'Show local repo vs origin diff (git status + diff --stat).' },
-  statistics: { usage: 'ai-kit statistics [--since 30d] [--top 10] [--json]', desc: 'Local-only telemetry: top skills/agents/tools/models + token cost. Parses ~/.claude/projects/*.jsonl.', flags: {'--since': 'Time window: 7d, 30d, 3m, 24h (default 30d)', '--top': 'Top-N rows per table (default 10)', '--json': 'Machine-readable JSON'}, notes: ['No data leaves the machine.', 'Cost is estimated using public Anthropic pricing — actual billing may differ.'] },
+  statistics: { usage: 'ai-kit statistics [--since 30d] [--top 10] [--json|--html|--member-share]', desc: 'Local-only telemetry: top skills/agents/tools/models + token cost. Parses ~/.claude/projects/*.jsonl.', flags: {'--since': 'Time window: 7d, 30d, 3m, 24h (default 30d)', '--top': 'Top-N rows per table (default 10)', '--json': 'Machine-readable JSON', '--html [file]': 'Standalone HTML report (offline-shareable)', '--member-share': 'Anonymized JSON for master to merge', '--merge f1 f2': '(master) Gộp nhiều file member-share'}, notes: ['No data leaves the machine.', 'Cost is estimated using public Anthropic pricing — actual billing may differ.'] },
   verify:     { usage: 'ai-kit verify [--restore | --update]', desc: 'Kiểm tra toàn vẹn ~/.claude+~/.cursor (manifest SHA256). Phát hiện local drift.', flags: {'--restore | -r': 'Chạy update để khôi phục từ team config', '--update': 'Chấp nhận trạng thái hiện tại — ghi manifest mới'} },
   search:     { usage: 'ai-kit search <term> [--scope all|docs|agents|skills]', desc: 'Tìm full-text xuyên docs + agents + skills. Group theo file, top 30 file.' },
   config:     { usage: 'ai-kit config <list|get|set> [<file>.<key>] [<value>]', desc: 'Quản lý ~/.ai-kit/{billing,alerts}.json. File ∈ billing|alerts.', notes: ['Ví dụ: ai-kit config set billing.monthly_usd 200', 'Ví dụ: ai-kit config get alerts.total_cost_warn'] },
+  schedule:   { usage: 'ai-kit schedule <show | update [--daily|--weekly|--monthly] | remove>', desc: 'Đặt lịch tự động ai-kit update qua Task Scheduler (Windows) hoặc crontab (Unix).', notes: ['Default: weekly Monday 09:00', 'Lệnh chạy: ai-kit update --quiet'] },
 };
 const cmdHelp = (topic) => {
   const resolved = ({up:'update',st:'status',dr:'doctor',upg:'upgrade'})[topic] || topic;
@@ -2240,7 +2400,7 @@ const KNOWN_COMMANDS = [
   'update', 'upgrade', 'status', 'doctor', 'doc', 'docs', 'logs', 'mcp',
   'reset', 'rollback', 'list-backups', 'clean', 'pack', 'publish', 'diff',
   'edit', 'uninstall', 'install', 'help', 'version', 'history', 'statistics',
-  'verify', 'search', 'config',
+  'verify', 'search', 'config', 'schedule',
 ];
 
 // suggestCommand moved to ./lib/util.mjs — wrapper using local KNOWN_COMMANDS list
@@ -2466,6 +2626,7 @@ switch (resolved) {
   case 'verify':       cmdVerify(args); break;
   case 'search':       cmdSearch(args); break;
   case 'config':       cmdConfig(args); break;
+  case 'schedule':     cmdSchedule(args); break;
   case 'pack':         cmdPack(); break;
   case 'publish':      cmdPublish(args); break;
   case 'diff':         cmdDiff(); break;
