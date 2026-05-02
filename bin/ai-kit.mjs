@@ -1460,7 +1460,14 @@ const collectStats = (sinceMs) => {
     for (const e of entries) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p);
-      else if (e.name.endsWith('.jsonl')) parseFile(p);
+      else if (e.name.endsWith('.jsonl')) {
+        // Skip file when its last-modified time is older than sinceMs (perf optimization)
+        try {
+          const st = fs.statSync(p);
+          if (st.mtimeMs < sinceMs) { S.parsedFiles++; continue; }
+        } catch {}
+        parseFile(p);
+      }
     }
   };
 
@@ -1602,9 +1609,10 @@ const collectCliHistory = (sinceMs) => {
   const out = {commands: {}, total: 0};
   if (!exists(HISTORY_FILE)) return out;
   const lines = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
-  // History has no timestamps yet — count all entries (sinceMs ignored for now)
   for (const l of lines) {
-    const verb = l.split(/\s+/)[0];
+    const {ts, cmd} = parseHistLine(l);
+    if (ts && ts < sinceMs) continue;  // filter by --since when timestamp present
+    const verb = cmd.split(/\s+/)[0];
     if (!verb) continue;
     out.commands[verb] = (out.commands[verb]||0) + 1;
     out.total++;
@@ -1718,6 +1726,102 @@ const cmdStatistics = (args) => {
 
   const stats = collectStats(sinceMs);
   const cli = collectCliHistory(sinceMs);
+
+  // --member-share: anonymized JSON for master to merge across team
+  if (args.includes('--member-share')) {
+    const memberIdFile = path.join(AI_KIT_HOME, 'member-id');
+    let memberId;
+    if (exists(memberIdFile)) memberId = fs.readFileSync(memberIdFile, 'utf8').trim();
+    else {
+      memberId = crypto.randomBytes(8).toString('hex');
+      fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+      fs.writeFileSync(memberIdFile, memberId);
+    }
+    const sortedTok = [...stats.requestTokens].sort((a,b) => a - b);
+    const totalIn = stats.inputTokens + stats.cacheReadTokens + stats.cacheCreationTokens;
+    const share = {
+      schema_version: 1,
+      anon_member_id: memberId,
+      since: new Date(sinceMs).toISOString(),
+      generated: new Date().toISOString(),
+      window_days: Math.ceil((Date.now() - sinceMs) / 86400_000),
+      sessions: stats.sessions.size,
+      active_days: stats.days.size,
+      requests: stats.requests,
+      total_tokens: stats.totalTokens,
+      total_cost_api_equivalent: stats.totalCost,
+      cache_hit_rate: totalIn > 0 ? stats.cacheReadTokens / totalIn : 0,
+      tokens_p50: sortedTok[Math.floor(sortedTok.length * 0.5)] || 0,
+      tokens_p95: sortedTok[Math.floor(sortedTok.length * 0.95)] || 0,
+      errors_total: stats.errors,
+      errors_real: stats.realErrors,
+      error_categories: stats.errorCategories,
+      by_model: stats.byModel,
+      by_skill: stats.bySkill,
+      by_agent: Object.fromEntries(Object.entries(stats.byAgent).map(([k,v]) => [k, {dispatches: v.dispatches, tokens: v.tokens, cost: v.cost}])),
+      by_tool: stats.byTool,
+      by_day: stats.byDay,
+      by_hour: stats.byHour,
+      by_weekday: stats.byWeekday,
+      // NOTE: by_project intentionally omitted (could leak project names)
+      // NOTE: error_messages intentionally omitted (could leak file paths)
+    };
+    const outFile = `ai-kit-share-${memberId}-${new Date().toISOString().slice(0,10)}.json`;
+    fs.writeFileSync(outFile, JSON.stringify(share, null, 2));
+    console.log(`✓ Đã xuất ${outFile} (anon_member_id: ${memberId})`);
+    console.log('  Gửi file này cho master qua email/chat. Toàn bộ project names + file paths đã loại bỏ.');
+    return;
+  }
+
+  // --merge: master gộp nhiều file share lại
+  if (args.includes('--merge')) {
+    const files = args.filter(a => a.endsWith('.json'));
+    if (!files.length) { err('Cách dùng: ai-kit statistics --merge file1.json file2.json [...]'); process.exit(1); }
+    const merged = {
+      members: files.length, since: null, generated: new Date().toISOString(),
+      total_sessions: 0, total_requests: 0, total_tokens: 0, total_cost_api_equivalent: 0,
+      total_errors_real: 0, by_skill: {}, by_agent: {}, by_tool: {}, by_model: {},
+      per_member: [],
+    };
+    for (const f of files) {
+      try {
+        const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+        if (!merged.since || d.since < merged.since) merged.since = d.since;
+        merged.total_sessions += d.sessions || 0;
+        merged.total_requests += d.requests || 0;
+        merged.total_tokens += d.total_tokens || 0;
+        merged.total_cost_api_equivalent += d.total_cost_api_equivalent || 0;
+        merged.total_errors_real += d.errors_real || 0;
+        for (const [k, v] of Object.entries(d.by_skill || {})) {
+          const m = merged.by_skill[k] ||= {invocations: 0};
+          m.invocations += v.invocations || 0;
+        }
+        for (const [k, v] of Object.entries(d.by_agent || {})) {
+          const m = merged.by_agent[k] ||= {dispatches: 0, tokens: 0, cost: 0};
+          m.dispatches += v.dispatches || 0;
+          m.tokens += v.tokens || 0;
+          m.cost += v.cost || 0;
+        }
+        for (const [k, v] of Object.entries(d.by_tool || {})) merged.by_tool[k] = (merged.by_tool[k]||0) + v;
+        for (const [k, v] of Object.entries(d.by_model || {})) {
+          const m = merged.by_model[k] ||= {requests: 0, tokens: 0, cost: 0};
+          m.requests += v.requests || 0;
+          m.tokens += v.tokens || 0;
+          m.cost += v.cost || 0;
+        }
+        merged.per_member.push({
+          anon_member_id: d.anon_member_id,
+          requests: d.requests,
+          total_tokens: d.total_tokens,
+          cost: d.total_cost_api_equivalent,
+          cache_hit_rate: d.cache_hit_rate,
+          active_days: d.active_days,
+        });
+      } catch (e) { warn(`Bỏ qua ${f}: ${e.message}`); }
+    }
+    console.log(JSON.stringify(merged, null, 2));
+    return;
+  }
 
   if (json) {
     const sortedTok = [...stats.requestTokens].sort((a,b) => a - b);
@@ -2068,15 +2172,24 @@ const cmdHelp = (topic) => {
 // ─── History (Batch 4) ─────────────────────────────────────────────────
 const HISTORY_FILE = path.join(AI_KIT_HOME, 'history');
 const HISTORY_MAX = 100;
+// History format: "ISO_TIMESTAMP\tcommand args"  (TSV, sortable, since-filterable)
+// Old format (line = "command args") still supported on read for backward compat.
+const parseHistLine = (l) => {
+  const tabIdx = l.indexOf('\t');
+  if (tabIdx > 0 && /^\d{4}-\d{2}-\d{2}T/.test(l.slice(0, tabIdx))) {
+    return {ts: Date.parse(l.slice(0, tabIdx)), cmd: l.slice(tabIdx + 1)};
+  }
+  return {ts: 0, cmd: l};
+};
 const recordHistory = (argv) => {
   if (!argv?.length) return;
-  const line = argv.join(' ');
+  const cmdLine = argv.join(' ');
   if (['!!', 'history', '-h', '--help', '-v', '--version'].includes(argv[0])) return;
   try {
     fs.mkdirSync(AI_KIT_HOME, {recursive: true});
     let lines = exists(HISTORY_FILE) ? fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean) : [];
-    if (lines[lines.length - 1] === line) return;  // dedupe consecutive
-    lines.push(line);
+    if (lines.length && parseHistLine(lines[lines.length - 1]).cmd === cmdLine) return;
+    lines.push(`${new Date().toISOString()}\t${cmdLine}`);
     if (lines.length > HISTORY_MAX) lines = lines.slice(-HISTORY_MAX);
     fs.writeFileSync(HISTORY_FILE, lines.join('\n') + '\n');
   } catch {}
@@ -2084,16 +2197,18 @@ const recordHistory = (argv) => {
 const lastHistory = () => {
   if (!exists(HISTORY_FILE)) return null;
   const lines = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
-  return lines[lines.length - 1] || null;
+  return lines.length ? parseHistLine(lines[lines.length - 1]).cmd : null;
 };
 const cmdShowHistory = () => {
   if (!exists(HISTORY_FILE)) { info('Chưa có lịch sử.'); return; }
   const lines = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
-  const w = _cols(), bar = '─'.repeat(w - 4);
-  process.stdout.write(`\n  ${brand('Lịch sử lệnh')}  ${S.gray}${lines.length}/${HISTORY_MAX}${S.reset}\n  ${S.dim}${bar}${S.reset}\n\n`);
+  const w = _cols(), divider = '─'.repeat(w - 4);
+  process.stdout.write(`\n  ${brand('Lịch sử lệnh')}  ${S.gray}${lines.length}/${HISTORY_MAX}${S.reset}\n  ${S.dim}${divider}${S.reset}\n\n`);
   lines.slice(-30).forEach((l, i) => {
+    const {ts, cmd} = parseHistLine(l);
     const idx = lines.length - Math.min(lines.length, 30) + i + 1;
-    process.stdout.write(`  ${S.gray}${String(idx).padStart(3)}${S.reset}  ai-kit ${S.cyan}${l}${S.reset}\n`);
+    const tsStr = ts ? new Date(ts).toLocaleString('vi-VN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}) : '       ';
+    process.stdout.write(`  ${S.gray}${String(idx).padStart(3)}${S.reset}  ${S.dim}${tsStr.padEnd(11)}${S.reset}  ai-kit ${S.cyan}${cmd}${S.reset}\n`);
   });
   process.stdout.write(`\n  ${S.gray}Chạy lại lệnh cuối: ${S.reset}ai-kit !!\n\n`);
 };
