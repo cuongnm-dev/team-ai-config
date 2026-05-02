@@ -404,6 +404,38 @@ const clearScreen = () => {
   }
 };
 
+// Page long doc through `less -R` (Unix + Git Bash on Win) or `more` (Win fallback).
+// Pager is interactive, content starts at TOP of viewport, user scrolls with Space/PgDn.
+// Skipped when stdout not a TTY (piped/redirected) or NO_PAGER=1.
+const tryPager = (text) => {
+  if (!process.stdout.isTTY || process.env.NO_PAGER === '1') return false;
+  const viewport = process.stdout.rows || 30;
+  const lines = text.split('\n').length;
+  if (lines <= viewport - 2) return false; // Fits on screen — no need to page
+
+  const tmpFile = path.join(os.tmpdir(), `ai-kit-doc-${process.pid}-${Date.now()}.txt`);
+  try {
+    if (cmdAvail('less')) {
+      // -R = pass through ANSI colors; -F = quit if 1 page; -X = no clear on exit (preserves doc visible after quit)
+      fs.writeFileSync(tmpFile, text);
+      execaSync('less', ['-R', '-F', '-X', tmpFile], {stdio: 'inherit'});
+      return true;
+    }
+    if (process.platform === 'win32' && cmdAvail('more')) {
+      // Windows `more` doesn't render ANSI escapes — strip them for paged view
+      const plain = text.replace(/\x1b\[[0-9;]*m/g, '');
+      fs.writeFileSync(tmpFile, plain);
+      execaSync('more', [tmpFile], {stdio: 'inherit'});
+      return true;
+    }
+  } catch {
+    // Pager failed — caller falls through to direct stdout write
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
+  }
+  return false;
+};
+
 const renderDoc = (file) => {
   const content = fs.readFileSync(file, 'utf8');
   const stripped = stripFm(content);
@@ -411,21 +443,21 @@ const renderDoc = (file) => {
   // around individual characters, breaking diagram visuals
   const hasAsciiArt = /[┌┐└┘├┤┬┴┼]/.test(stripped);
   if (cmdAvail('glow') && !hasAsciiArt) {
-    // Windows lacks 'less' for -p paging; let terminal handle scrolling natively
-    const glowArgs = process.platform === 'win32' ? [file] : ['-p', file];
+    // glow with -p uses its own pager. Windows-only check for `less` fallback.
+    const glowArgs = process.platform === 'win32' && !cmdAvail('less') ? [file] : ['-p', file];
     try { execaSync('glow', glowArgs, {stdio: 'inherit'}); return; } catch {}
   }
   const w = _cols();
   const bar = '─'.repeat(w - 4);
   const relPath = path.relative(REPO_DIR, file);
-  const out = process.stdout;
-  out.write('\n');
-  out.write(`  ${S.dim}${relPath}${S.reset}\n`);
-  out.write(`  ${S.dim}${bar}${S.reset}\n\n`);
-  out.write(marked.parse(stripped).trimEnd());
-  out.write('\n\n');
-  out.write(`  ${S.dim}${bar}${S.reset}\n`);
-  out.write(`  ${S.gray}ai-kit doc  ·  ai-kit doc --search <term>${S.reset}\n\n`);
+  // Build full output as string so we can decide pager vs direct write
+  const text = `\n  ${S.dim}${relPath}${S.reset}\n` +
+    `  ${S.dim}${bar}${S.reset}\n\n` +
+    marked.parse(stripped).trimEnd() + '\n\n' +
+    `  ${S.dim}${bar}${S.reset}\n` +
+    `  ${S.gray}ai-kit doc  ·  ai-kit doc --search <term>${S.reset}\n`;
+  if (tryPager(text)) return;
+  process.stdout.write(text + '\n');
 };
 
 
