@@ -174,6 +174,7 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
     h(Row, {label: 'status | st', value: 'Versions + deployed counts + MCP health'}),
     h(Row, {label: 'logs', value: 'Tail MCP container logs'}),
     h(Row, {label: 'doctor | dr', value: 'Verify deps + paths'}),
+    h(Row, {label: 'statistics | stats', value: 'Top skills/agents/tokens/cost (local-only)'}),
     h(Row, {label: 'version | -v', value: 'Show ai-kit + team-config + MCP versions'})
   ),
   h(Section, {title: 'Documentation'},
@@ -1122,6 +1123,285 @@ const cmdInstall = () => {
   console.log('  Windows:     irm https://raw.githubusercontent.com/cuongnm-dev/team-ai-config/main/bootstrap.ps1 | iex');
 };
 
+// ─── statistics ────────────────────────────────────────────────────────
+// Local-only telemetry: parse ~/.claude/projects/*.jsonl + ~/.ai-kit/history.
+// No network, no transmission. Every byte stays on the member machine.
+
+// Anthropic pricing (USD per 1M tokens). Update when official pricing changes.
+const PRICING = {
+  'claude-opus-4':   {in: 15,  out: 75, cr: 1.50, cw: 18.75},
+  'claude-sonnet-4': {in:  3,  out: 15, cr: 0.30, cw:  3.75},
+  'claude-haiku-4':  {in:  0.8,out:  4, cr: 0.08, cw:  1.00},
+  'claude-3-5-sonnet':{in: 3,  out: 15, cr: 0.30, cw:  3.75},
+  'claude-3-5-haiku': {in: 0.8,out:  4, cr: 0.08, cw:  1.00},
+  default:           {in:  3,  out: 15, cr: 0.30, cw:  3.75},
+};
+const priceOf = (model) => {
+  if (!model) return PRICING.default;
+  for (const k of Object.keys(PRICING)) if (k !== 'default' && model.startsWith(k)) return PRICING[k];
+  return PRICING.default;
+};
+const costOf = (model, u) => {
+  const p = priceOf(model);
+  return ((u.input_tokens||0)*p.in + (u.output_tokens||0)*p.out
+        + (u.cache_read_input_tokens||0)*p.cr
+        + (u.cache_creation_input_tokens||0)*p.cw) / 1_000_000;
+};
+
+const parseSince = (s) => {
+  if (!s) return Date.now() - 30*86400_000;
+  const m = String(s).match(/^(\d+)([dwmh])$/);
+  if (!m) return Date.now() - 30*86400_000;
+  const n = parseInt(m[1], 10);
+  const mult = {h: 3600_000, d: 86400_000, w: 7*86400_000, m: 30*86400_000}[m[2]];
+  return Date.now() - n * mult;
+};
+
+const fmtN = (n) => {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return String(n|0);
+};
+const fmtUsd = (n) => '$' + (n < 1 ? n.toFixed(3) : n.toFixed(2));
+
+const collectStats = (sinceMs) => {
+  const projectsRoot = path.join(os.homedir(), '.claude', 'projects');
+  const S = {
+    sessions: new Set(), days: new Set(),
+    totalTokens: 0, totalCost: 0, requests: 0,
+    byModel: {}, byTool: {}, byAgent: {}, bySkill: {}, byProject: {},
+    bySubagentFile: {},  // file -> {tokens, cost}
+    errors: 0,
+    parsedFiles: 0,
+  };
+  if (!exists(projectsRoot)) return S;
+
+  const walk = (dir) => {
+    let entries; try { entries = fs.readdirSync(dir, {withFileTypes: true}); } catch { return; }
+    for (const e of entries) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.jsonl')) parseFile(p);
+    }
+  };
+
+  // Correlation maps for token attribution to subagents.
+  // Chain: Agent tool_use (assistant) → tool_result (user, has promptId) → subagent file (has same promptId).
+  const agentToolIds = {};       // toolu_xxx -> subagent_type
+  const promptIdToAgent = {};    // promptId  -> subagent_type
+  const subagentFileTokens = {}; // file      -> {tokens, cost, promptIds: Set}
+
+  const parseFile = (file) => {
+    let data; try { data = fs.readFileSync(file, 'utf8'); } catch { return; }
+    S.parsedFiles++;
+    const isSubagent = file.includes(`${path.sep}subagents${path.sep}`);
+    let fileTokens = 0, fileCost = 0;
+    const filePromptIds = new Set();
+
+    for (const line of data.split('\n')) {
+      if (!line) continue;
+      let obj; try { obj = JSON.parse(line); } catch { continue; }
+      const ts = obj.timestamp ? Date.parse(obj.timestamp) : 0;
+      if (ts && ts < sinceMs) continue;
+
+      if (obj.sessionId) S.sessions.add(obj.sessionId);
+      if (ts) S.days.add(new Date(ts).toISOString().slice(0,10));
+      if (obj.cwd && !isSubagent) {
+        const proj = path.basename(obj.cwd);
+        S.byProject[proj] = (S.byProject[proj]||0) + 1;
+      }
+      if (isSubagent && obj.promptId) filePromptIds.add(obj.promptId);
+
+      const msg = obj.message;
+      if (!msg) continue;
+
+      // Assistant message: usage + tool_use blocks
+      if (msg.role === 'assistant' && msg.usage) {
+        const model = msg.model || 'unknown';
+        const u = msg.usage;
+        const tok = (u.input_tokens||0)+(u.output_tokens||0)+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0);
+        const cost = costOf(model, u);
+        S.totalTokens += tok; S.totalCost += cost; S.requests++;
+        fileTokens += tok; fileCost += cost;
+        const mb = S.byModel[model] ||= {tokens:0, cost:0, requests:0};
+        mb.tokens += tok; mb.cost += cost; mb.requests++;
+
+        if (Array.isArray(msg.content)) {
+          for (const c of msg.content) {
+            if (c.type !== 'tool_use') continue;
+            const tn = c.name;
+            S.byTool[tn] = (S.byTool[tn]||0) + 1;
+            if (tn === 'Agent' && c.input?.subagent_type) {
+              const at = c.input.subagent_type;
+              const ab = S.byAgent[at] ||= {tokens:0, cost:0, dispatches:0};
+              ab.dispatches++;
+              if (c.id) agentToolIds[c.id] = at;
+            }
+            if (tn === 'Skill' && c.input?.skill) {
+              const sk = c.input.skill;
+              const sb = S.bySkill[sk] ||= {invocations:0};
+              sb.invocations++;
+            }
+          }
+        }
+      }
+      // tool_result lines (user role) carry promptId at top level + tool_use_id inside
+      if (msg.role === 'user' && Array.isArray(msg.content) && obj.promptId) {
+        for (const c of msg.content) {
+          if (c.type === 'tool_result') {
+            if (c.is_error) S.errors++;
+            const tuid = c.tool_use_id;
+            if (tuid && agentToolIds[tuid]) promptIdToAgent[obj.promptId] = agentToolIds[tuid];
+          }
+        }
+      }
+    }
+    if (isSubagent) subagentFileTokens[file] = {tokens: fileTokens, cost: fileCost, promptIds: filePromptIds};
+  };
+
+  walk(projectsRoot);
+
+  // Pass 2: credit subagent file tokens to subagent_type via promptId match.
+  for (const t of Object.values(subagentFileTokens)) {
+    let agentType = null;
+    for (const pid of t.promptIds) if (promptIdToAgent[pid]) { agentType = promptIdToAgent[pid]; break; }
+    if (agentType) {
+      const ab = S.byAgent[agentType] ||= {tokens:0, cost:0, dispatches:0};
+      ab.tokens += t.tokens; ab.cost += t.cost;
+    }
+  }
+  return S;
+};
+
+const collectCliHistory = (sinceMs) => {
+  const out = {commands: {}, total: 0};
+  if (!exists(HISTORY_FILE)) return out;
+  const lines = fs.readFileSync(HISTORY_FILE, 'utf8').split('\n').filter(Boolean);
+  // History has no timestamps yet — count all entries (sinceMs ignored for now)
+  for (const l of lines) {
+    const verb = l.split(/\s+/)[0];
+    if (!verb) continue;
+    out.commands[verb] = (out.commands[verb]||0) + 1;
+    out.total++;
+  }
+  return out;
+};
+
+const printTopTable = (title, rows, columns) => {
+  if (!rows.length) return;
+  const w = _cols();
+  process.stdout.write(`\n  ${S.bold}${title}${S.reset}\n`);
+  const widths = columns.map((c, i) => Math.max(c.label.length, ...rows.map(r => String(r[i]).length)));
+  const headerCells = columns.map((c, i) => (c.align === 'r' ? c.label.padStart(widths[i]) : c.label.padEnd(widths[i])));
+  process.stdout.write(`  ${S.gray}${headerCells.join('  ')}${S.reset}\n`);
+  process.stdout.write(`  ${S.dim}${headerCells.map((_, i) => '─'.repeat(widths[i])).join('  ')}${S.reset}\n`);
+  for (const r of rows) {
+    const cells = r.map((v, i) => columns[i].align === 'r' ? String(v).padStart(widths[i]) : String(v).padEnd(widths[i]));
+    process.stdout.write(`  ${cells.join('  ')}\n`);
+  }
+};
+
+const cmdStatistics = (args) => {
+  const sinceArg = (() => {
+    const i = args.findIndex(a => a === '--since');
+    return i >= 0 ? args[i+1] : null;
+  })();
+  const sinceMs = parseSince(sinceArg || '30d');
+  const top = (() => {
+    const i = args.findIndex(a => a === '--top');
+    return i >= 0 ? Math.max(1, parseInt(args[i+1], 10) || 10) : 10;
+  })();
+  const json = args.includes('--json');
+
+  const stats = collectStats(sinceMs);
+  const cli = collectCliHistory(sinceMs);
+
+  if (json) {
+    console.log(JSON.stringify({
+      since: new Date(sinceMs).toISOString(),
+      sessions: stats.sessions.size,
+      days: stats.days.size,
+      requests: stats.requests,
+      totalTokens: stats.totalTokens,
+      totalCost: stats.totalCost,
+      errors: stats.errors,
+      byModel: stats.byModel,
+      byTool: stats.byTool,
+      byAgent: stats.byAgent,
+      bySkill: stats.bySkill,
+      byProject: stats.byProject,
+      cli: cli.commands,
+    }, null, 2));
+    return;
+  }
+
+  const sinceLabel = sinceArg || '30d';
+  const w = _cols(), bar = '─'.repeat(w - 4);
+  const out = process.stdout;
+  out.write(`\n  ${brand('📊 ai-kit statistics')}  ${S.gray}— ${sinceLabel} qua  ·  100% local${S.reset}\n  ${S.dim}${bar}${S.reset}\n`);
+
+  if (stats.parsedFiles === 0) {
+    out.write(`\n  ${S.yellow}Không tìm thấy dữ liệu Claude Code${S.reset} ${S.gray}(~/.claude/projects rỗng)${S.reset}\n\n`);
+    return;
+  }
+
+  // Summary
+  out.write(`\n  ${S.bold}Tổng quan${S.reset}\n`);
+  out.write(`  ${S.gray}Sessions ${S.reset}${stats.sessions.size}    ${S.gray}Ngày hoạt động ${S.reset}${stats.days.size}    ${S.gray}API requests ${S.reset}${stats.requests}\n`);
+  out.write(`  ${S.gray}Tổng tokens ${S.reset}${S.cyan}${fmtN(stats.totalTokens)}${S.reset}    ${S.gray}Ước tính chi phí ${S.reset}${S.green}${fmtUsd(stats.totalCost)}${S.reset}    ${S.gray}Lỗi tool ${S.reset}${stats.errors}\n`);
+
+  // Top skills
+  const skillRows = Object.entries(stats.bySkill)
+    .sort((a,b) => b[1].invocations - a[1].invocations)
+    .slice(0, top)
+    .map(([k, v]) => [k, v.invocations]);
+  if (skillRows.length) printTopTable(`Top ${skillRows.length} Skills`, skillRows, [{label: 'Skill'}, {label: 'Invocations', align: 'r'}]);
+  else out.write(`\n  ${S.gray}(Chưa có Skill invocation nào trong khoảng thời gian này)${S.reset}\n`);
+
+  // Top agents
+  const agentRows = Object.entries(stats.byAgent)
+    .sort((a,b) => b[1].dispatches - a[1].dispatches)
+    .slice(0, top)
+    .map(([k, v]) => [k, v.dispatches, fmtN(v.tokens), fmtUsd(v.cost)]);
+  if (agentRows.length) printTopTable(`Top ${agentRows.length} Agents`, agentRows, [
+    {label: 'Agent'}, {label: 'Dispatches', align: 'r'}, {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'}
+  ]);
+
+  // Top tools
+  const toolRows = Object.entries(stats.byTool)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, top)
+    .map(([k, v]) => [k, v]);
+  if (toolRows.length) printTopTable(`Top ${toolRows.length} Tools`, toolRows, [{label: 'Tool'}, {label: 'Calls', align: 'r'}]);
+
+  // By model
+  const modelRows = Object.entries(stats.byModel)
+    .sort((a,b) => b[1].cost - a[1].cost)
+    .map(([k, v]) => [k, v.requests, fmtN(v.tokens), fmtUsd(v.cost)]);
+  if (modelRows.length) printTopTable('Theo Model', modelRows, [
+    {label: 'Model'}, {label: 'Requests', align: 'r'}, {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'}
+  ]);
+
+  // By project
+  const projRows = Object.entries(stats.byProject)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, top)
+    .map(([k, v]) => [k, v]);
+  if (projRows.length) printTopTable(`Top ${projRows.length} Projects (theo số message)`, projRows, [{label: 'Project'}, {label: 'Messages', align: 'r'}]);
+
+  // CLI commands
+  const cliRows = Object.entries(cli.commands)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, top)
+    .map(([k, v]) => [k, v]);
+  if (cliRows.length) printTopTable(`ai-kit CLI commands`, cliRows, [{label: 'Command'}, {label: 'Runs', align: 'r'}]);
+
+  out.write(`\n  ${S.dim}${bar}${S.reset}\n`);
+  out.write(`  ${S.gray}Cờ: ${S.reset}--since 7d|30d|3m  ·  --top N  ·  --json${S.reset}\n`);
+  out.write(`  ${S.gray}Dữ liệu chỉ ở máy này — không gửi đi đâu.${S.reset}\n\n`);
+};
+
 // ─── help <command> ────────────────────────────────────────────────────
 const COMMAND_HELP = {
   update:  { usage: 'ai-kit update [--quiet]',                  desc: 'Pull latest team-ai-config, redeploy configs, refresh MCP image.',     notes: ['Fails fast if local uncommitted changes exist.', 'Auto-snapshots configs before overwriting — use `ai-kit rollback` to undo.', 'Deploy is atomic: writes to .tmp then renames into place.'] },
@@ -1135,6 +1415,7 @@ const COMMAND_HELP = {
   mcp:     { usage: 'ai-kit mcp <verb>',                        desc: 'Control the etc-platform MCP Docker container.',                        flags: { start:'docker compose up -d', stop:'docker compose down', restart:'docker compose restart', logs:'Tail last 200 lines', pull:'Pull latest image', status:'Container state + API URLs (http://localhost:8001)' } },
   pack:    { usage: 'ai-kit pack',                              desc: 'Snapshot ~/.claude+~/.cursor agents/skills → repo working tree.' },
   diff:    { usage: 'ai-kit diff',                              desc: 'Show local repo vs origin diff (git status + diff --stat).' },
+  statistics: { usage: 'ai-kit statistics [--since 30d] [--top 10] [--json]', desc: 'Local-only telemetry: top skills/agents/tools/models + token cost. Parses ~/.claude/projects/*.jsonl.', flags: {'--since': 'Time window: 7d, 30d, 3m, 24h (default 30d)', '--top': 'Top-N rows per table (default 10)', '--json': 'Machine-readable JSON'}, notes: ['No data leaves the machine.', 'Cost is estimated using public Anthropic pricing — actual billing may differ.'] },
 };
 const cmdHelp = (topic) => {
   const resolved = ({up:'update',st:'status',dr:'doctor',upg:'upgrade'})[topic] || topic;
@@ -1216,7 +1497,7 @@ const printStatusBadges = () => {
 const KNOWN_COMMANDS = [
   'update', 'upgrade', 'status', 'doctor', 'doc', 'docs', 'logs', 'mcp',
   'reset', 'rollback', 'list-backups', 'clean', 'pack', 'publish', 'diff',
-  'edit', 'uninstall', 'install', 'help', 'version', 'history',
+  'edit', 'uninstall', 'install', 'help', 'version', 'history', 'statistics',
 ];
 
 const suggestCommand = (input) => {
@@ -1331,6 +1612,7 @@ const runInteractiveMenu = async () => {
       {name: 'backups   ›    — Sao lưu / khôi phục', value: '__backups__'},
       {name: 'maintainer›    — pack/publish/diff/edit', value: '__maint__'},
       {name: 'doctor         — Kiểm tra môi trường', value: 'doctor'},
+      {name: 'statistics     — Top skills/agents/tokens (local-only)', value: 'statistics'},
       {name: 'history        — Xem lịch sử lệnh', value: 'history'},
       {name: 'help           — Xem toàn bộ lệnh', value: 'help'},
       {name: 'thoát', value: EXIT},
@@ -1364,7 +1646,7 @@ const aliasMap = {
   '-v': 'version', '--version': 'version',
   '-h': 'help', '--help': 'help',
   'up': 'update', 'st': 'status', 'dr': 'doctor', 'doc': 'docs',
-  'upg': 'upgrade',
+  'upg': 'upgrade', 'stat': 'statistics', 'stats': 'statistics',
   // 1-letter shortcuts (Batch 3)
   's': 'status', 'u': 'update', 'd': 'docs', 'm': 'mcp',
   'r': 'rollback', 'h': 'help', 'v': 'version', 'l': 'logs',
@@ -1442,6 +1724,7 @@ switch (resolved) {
   case 'list-backups': cmdListBackups(); break;
   case 'rollback':     cmdRollback(args); break;
   case 'clean':        cmdClean(args); break;
+  case 'statistics':   cmdStatistics(args); break;
   case 'pack':         cmdPack(); break;
   case 'publish':      cmdPublish(args); break;
   case 'diff':         cmdDiff(); break;
