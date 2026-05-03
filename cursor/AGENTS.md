@@ -101,9 +101,11 @@ Three delivery paths. **PM selects path after BA completes** (dispatcher escalat
 
 ## etc-platform MCP (centralized shared state)
 
-`localhost:8001/sse` (separate from `etc-platform` on 8000). Tools: `template_registry_load`, `outline_load`, `kb_query/save`, `dedup_check/register`, `intel_cache_lookup/contribute`. **Default ON** for any agent/skill referencing local KB / DEDUP / templates / outlines. Local file fallback when MCP unavailable. Full contract: `~/.claude/CLAUDE.md` § MCP-1 to MCP-5.
+Unified server at `localhost:8001/sse` (post-merge 2026-04-28; `:8000` back-compat alias active during migration). Tools: `template_registry_load`, `outline_load`, `kb_query/save`, `dedup_check/register`, `intel_cache_lookup/contribute` + render pipeline (`validate`, `export`, `job_status`, `merge_content`, ...). **Default ON** cho mọi agent/skill reference local KB / DEDUP / templates / outlines. Local file fallback khi MCP unavailable.
 
-Anonymization mandate (`intel_cache_contribute`): `contributor_consent=True` required; server scan rejects PII / customer hints. Explicit user opt-in per project.
+**Single source of truth:** `~/.claude/schemas/intel/MCP-CONTRACT.md` (24 tools, topology, anonymization, CD-8 forbidden patterns, migration path).
+
+Anonymization mandate (`intel_cache_contribute`): `contributor_consent=True` required; server scan rejects PII / customer hints.
 
 ---
 
@@ -146,13 +148,15 @@ Available SDLC commands (see `commands/sdlc-roles.md` for index):
 - PM adaptive escalation reads telemetry (last 50 events) before deciding — replaces static `risk_score` thresholds. See `agents/ref-pm-proactive.md`.
 - Auto-attached SDLC rule: `rules/50-sdlc-role-coding.mdc` (globs on `src/**`, `tests/**`).
 
-## Token Attribution Rules (CD-10 extended for Cursor)
+## Cursor Token Rules (extends Claude CD-10)
 
-**Rule 19 — Tier-aware intel reads.** Base-tier agents (`dev`, `qa`, `reviewer`, `ba`, `sa` non-pro) MUST read `_snapshot.md` first. Fall back to canonical JSON only when snapshot stale OR judgment-critical section needed (auth, full AC text, workflow variants). Pro-tier agents (`*-pro`, `tech-lead`, `security`) MUST read canonical JSON. See `agents/ref-canonical-intel.md` § Tier-aware read protocol.
+> **Numbering note**: Claude global `~/.claude/CLAUDE.md` § CD-10 reserves numbers 1–21 (last: Production-line lifecycle contract). Cursor extensions start at **22** to avoid clash. Always cite the source: `CD-10 #N` for Claude rules; `Cursor Rule N` for these extensions.
 
-**Rule 20 — Token usage breakdown.** All agents MUST emit `token_usage` v2 schema in verdict (input_fresh, input_cache_read, input_cache_write, output_text, output_reasoning, apply_model). Use `null` for fields the platform doesn't expose — NEVER fake zero. Telemetry computes real cost via weighted formula (cache reads × 0.1, output × 5.0, etc). See `agents/ref-pm-standards.md` § Token Tracking Standard v2 + `commands/telemetry-report.md` § Real-cost formula.
+**Cursor Rule 22 — Tier-aware intel reads.** Base-tier agents (`dev`, `qa`, `reviewer`, `ba`, `sa` non-pro) MUST read `_snapshot.md` first. Fall back to canonical JSON only when snapshot stale OR judgment-critical section needed (auth, full AC text, workflow variants). Pro-tier agents (`*-pro`, `tech-lead`, `security`) MUST read canonical JSON. See `agents/ref-canonical-intel.md` § Tier-aware read protocol.
 
-**Rule 21 — Snapshot regen contract.** Producers (`from-doc`, `from-code`, `intel-merger`) MUST call `python ~/.cursor/skills/intel-snapshot/generate.py` after writing any canonical intel artifact. Failure to regen = stale snapshot = consumers fall back to expensive full JSON reads. Drift gate: `close-feature` runs `--check` before sealing.
+**Cursor Rule 23 — Token usage breakdown.** All agents MUST emit `token_usage` v2 schema in verdict (input_fresh, input_cache_read, input_cache_write, output_text, output_reasoning, apply_model). Use `null` for fields the platform doesn't expose — NEVER fake zero. Telemetry computes real cost via weighted formula (cache reads × 0.1, output × 5.0, etc). See `agents/ref-pm-standards.md` § Token Tracking Standard v2 + `commands/telemetry-report.md` § Real-cost formula.
+
+**Cursor Rule 24 — Snapshot regen contract.** Producers (`from-doc`, `from-code`, `intel-merger`) MUST call `python ~/.cursor/skills/intel-snapshot/generate.py` after writing any canonical intel artifact. Failure to regen = stale snapshot = consumers fall back to expensive full JSON reads. Drift gate: `close-feature` runs `--check` before sealing.
 
 ## Universal Agent Guardrails
 

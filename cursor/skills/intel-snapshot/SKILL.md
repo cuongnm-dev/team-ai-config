@@ -52,7 +52,7 @@ Consumers check freshness:
 2. Compute current sha256 of canonical files
 3. Match → snapshot fresh, use it. Mismatch → STALE, fall back to canonical JSON OR re-run generator.
 
-## Consumer rules (per CD-10 Quy tắc 14, new)
+## Consumer rules (per Cursor Rule 22 — Tier-aware intel reads)
 
 **Base tier agents (dev, qa, reviewer) — MUST read snapshot first:**
 1. Try `Read({intel-path}/_snapshot.md)`. If exists + fresh → use snapshot for orientation

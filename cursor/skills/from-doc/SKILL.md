@@ -205,7 +205,7 @@ Expected output (sequential):
 - IF generator exits non-zero → WARN user: "Snapshot regen failed — base-tier agents fall back to canonical JSON (slower, no correctness impact)". Continue to dispatcher.
 - IF Tier 1 inputs missing → snapshot generates partial (script handles internally). Continue.
 
-Reference: `~/.cursor/skills/intel-snapshot/SKILL.md`. CD-10 Quy tắc 21.
+Reference: `~/.cursor/skills/intel-snapshot/SKILL.md`. Cursor Rule 24.
 
 ## What's next
 

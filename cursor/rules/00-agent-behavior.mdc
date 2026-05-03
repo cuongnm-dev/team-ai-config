@@ -4,6 +4,17 @@ alwaysApply: true
 ---
 
 <!-- Pipeline architecture, context bundles, agent roles → [AGENTS.md](mdc:.cursor/AGENTS.md) -->
+<!-- Cursor rule file numbering legend (kept in HTML comment so it never enters LLM context):
+       00-09 — Universal guardrails (alwaysApply: true)
+       10-19 — Project structure / workspace layout (auto-attach by glob)
+       20-29 — RESERVED (future: data/migration rules)
+       30-39 — UI / template conventions (auto-attach by glob)
+       40-49 — Project knowledge / domain glossary (manual inject by PM)
+       50-89 — Development discipline (auto-attach by code/test glob)
+       60-79 — RESERVED (future: language-specific or stack-specific rules)
+       80-89 — RESERVED (future: deployment / ops rules)
+       90+   — Pipeline reference / SDLC playbook (manual lookup or PM-injected)
+     Gaps in numbering are intentional reserves for future tiers, not legacy holes. -->
 <!-- Workaround for Windows AGENTS.md load bug: mdc pointer ensures it is reachable by background agents.
      Cost note: this rule (~1.2K tokens) + AGENTS.md (~2.9K tokens after 2026-04 slim) = ~4K tokens loaded
      on every request via alwaysApply. Pre-slim it was ~10K. If reducing further is needed:

@@ -45,7 +45,7 @@ Both producers emit IDENTICAL structure at `{repo-path}/docs/intel/`:
 | `_meta.json` | Provenance, TTL, staleness | `_meta.schema.json` |
 | `_snapshot.md` | Compressed view (regen via intel-snapshot/generate.py) | — |
 
-Plus 1 `_state.md` per feature at `{features-root}/{feature-id}/_state.md`, status `implemented`, frontmatter shape identical to `/from-doc` and `/new-feature` (CD-10 Quy tắc 20).
+Plus 1 `_state.md` per feature at `{features-root}/{feature-id}/_state.md`, status `implemented`, frontmatter shape identical to `/from-doc` and `/new-feature` (CD-10 #20).
 
 ---
 
@@ -95,7 +95,7 @@ From auth/RBAC patterns + role enum/constant declarations:
 
 Group routes + handlers + UI pages into features (1 feature ≈ 1 user-visible capability).
 - **Heuristic**: route prefix + auth role union + DB table touched = feature seed.
-- **ID assignment**: canonical `F-NNN` (mini) or `{service}-F-NNN` (mono) per CD-10 Quy tắc 19. Reuse existing `feature-map.yaml` IDs if present; else issue fresh.
+- **ID assignment**: canonical `F-NNN` (mini) or `{service}-F-NNN` (mono) per CD-10 #19. Reuse existing `feature-map.yaml` IDs if present; else issue fresh.
 - **Status**: `implemented` (since code exists). Set `confidence: medium` baseline; `high` if route + handler + tests all present.
 - Write `feature-catalog.json` + `sitemap.json`.
 - Optional intel-cache contribute (with consent + PII scan).
@@ -169,8 +169,8 @@ Reason: {one-line}
 
 - ❌ Bịa role/route khi không tìm thấy trong code → set `confidence: low` + `[CẦN BỔ SUNG]`, KHÔNG fabricate.
 - ❌ Skip Phase 4 (`_state.md` per feature) → resume-feature/generate-docs sẽ thiếu input.
-- ❌ Skip Phase 5 snapshot regen → vi phạm CD-10 Quy tắc 21, base-tier agents fall back canonical (lose 95% saving).
-- ❌ Re-issue feature ID đã có trong feature-map.yaml → vi phạm CD-10 Quy tắc 19 (immutable IDs).
+- ❌ Skip Phase 5 snapshot regen → vi phạm Cursor Rule 24, base-tier agents fall back canonical (lose 95% saving).
+- ❌ Re-issue feature ID đã có trong feature-map.yaml → vi phạm CD-10 #19 (immutable IDs).
 
 ## What's next
 

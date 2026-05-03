@@ -55,6 +55,18 @@ Check `{{content:X.Y}}` filled, outline intact, cross-refs valid.
 ### G5: Document content in files
 Agents viết trực tiếp vào files. Chat chỉ hiển thị summary/status.
 
+### G6: Security review gate (gov IT compliance)
+Tài liệu kỹ thuật chứa nội dung nhạy cảm — auth/RBAC, mã hoá, sơ đồ deploy/kết nối, role-permission matrix, threat model, danh sách PII, tài khoản dịch vụ, secret management — PHẢI có security sign-off trước khi publish/export.
+
+**Trigger:** Thiết kế ATTT (NĐ 85/2016, TT 12/2022 BTTTT), TKCS Đ13 NĐ 45/2026, TKCT mục an toàn, HSMT mục yêu cầu kỹ thuật ATTT, NCKT mục giải pháp ATTT.
+
+**Producer:** `security-reviewer` agent (Cursor) hoặc `tdoc-reviewer --focus=security` (Claude Code).
+**Artifact:** `{docs-path}/06c-security-review.md` với: cấp độ ATTT theo TT 12/2022, threat model summary (STRIDE/MITRE), gap list, sign-off verdict (Approved | Approved-with-followups | Changes-requested | Blocked).
+
+**Hard-stop:** Không export Office (DOCX/PDF) khi `06c-security-review.md` thiếu hoặc verdict = Blocked. Bypass `--skip-security-gate` LOG vào audit trail + ghi vào `feature-catalog.features[].security_status`.
+
+**Cross-vendor:** Cursor SDLC Path L bao gồm sẵn `security-design` + `security-review` stages (xem `~/.cursor/AGENTS.md` § Path L). Claude tài liệu pipeline gọi security-reviewer manual hoặc tự động khi outline có section ATTT.
+
 ## Document Structure (NĐ 30/2020)
 
 ### Section numbering
@@ -208,48 +220,16 @@ Shared knowledge layer giữa `from-doc`, `from-code`, `generate-docs` (và SDLC
 
 21. **Production-line lifecycle contract**: All skills/agents that READ or WRITE intel artifacts MUST conform to a contract box defined in `~/.claude/schemas/intel/LIFECYCLE.md` §5. The contract enforces 9 principles (P1-P9): single-writer per field, read-validate-write, no re-discovery, no silent drift, stale-block, information sufficiency, anti-fishing, role refusal, context economy. Each contract box specifies ROLE, READ-GATES, OWN-WRITE, ENRICH, FORBID, EXIT-GATES, FAILURE, TOKEN-BUDGET. Stage agents (ba/sa/qa/dev/etc.) follow individual boxes (§5.1-§5.7); support agents follow class contracts (§5.8 Class A stage-report writers; §5.9 Class B verifiers; §5.10 Class C orchestrators; §5.11 Class D doc-generation consumers). Skill/agent edits PR that violate the contract are blocked. New skills MUST add a contract box before merge.
 
-## etc-platform MCP Rules (UNIFIED — post-merge 2026-04-28)
+## etc-platform MCP Rules
 
-### MCP-1: Single unified MCP server (port 8001)
-**Sau merge ngày 2026-04-28**, etc-platform + etc-platform được hợp nhất thành 1 MCP server duy nhất tại `localhost:8001`. Container name: `etc-platform` (đã rename). Image: `etc-platform:latest`. FastMCP internal name vẫn là `etc-platform` → tool prefix trong client = `mcp__etc-platform__*` (canonical). Port :8000 vẫn expose làm back-compat alias trong giai đoạn migration. Source folder: `~/.ai-kit/team-ai-config/mcp/etc-platform/` (sẽ rename `etc-platform/` khi WSL2 lock release — defer until reboot).
+**Single source of truth:** `~/.claude/schemas/intel/MCP-CONTRACT.md`. Quy tắc tóm tắt:
 
-**Tool surface (24 tools)**:
+- **MCP-1:** Unified server tại `localhost:8001/sse` (FastMCP) + `localhost:8001` (HTTP API). 24 tools, prefix `mcp__etc-platform__*`. Container `etc-platform` (image `o0mrblack0o/etc-platform:latest`).
+- **MCP-2:** Default ON, opt-out `--no-mcp` / `ETC_USE_MCP=0`. Skills prefer MCP over local KB / DEDUP / templates / outlines khi session có MCP.
+- **MCP-3:** Bootstrap qua `docker compose up -d` trong `~/.ai-kit/team-ai-config/mcp/etc-platform/`.
+- **MCP-4:** Anonymization mandate cho `intel_cache_contribute` — `contributor_consent=True` + server-side PII scan default-deny.
 
-**Render pipeline (kế thừa từ etc-platform)**:
-- `validate(content_data)` / `validate_uploaded(upload_id)` / `validate_workspace(workspace_id)` — Pydantic ContentData validation
-- `export(...)` / `export_async(...)` — render Office files
-- `job_status(job_id)` / `cancel_job(job_id)` / `upload_capacity()` — job queue management
-- `schema()` / `section_schema(doc_type)` — content data schema introspection
-- `merge_content(base, patch)` — deep merge content-data partials
-- `field_map(doc_type)` — interview-to-field mapping
-- `template_list()` / `template_fork(source_path, kind)` — Office template management
-
-**Registry (kế thừa từ etc-platform)**:
-- `outline_load(doc_type, version)` / `outlines_list()` — IMMUTABLE outlines NĐ 45/2026 (TKCT/TKCS/TKKT/HSMT/HSDT/dự toán/NCKT/thuyết minh/báo cáo CT)
-- `kb_query/kb_save` — knowledge base (legal refs, ATTT patterns, NFR boilerplate)
-- `dedup_check/dedup_register` — CT 34 §6 cross-project deduplication
-- `intel_cache_lookup/intel_cache_contribute` — cross-project pattern library (AGI #2). Anonymization default-deny.
-- `template_registry_load(namespace, template_id)` / `templates_registry_list(namespace)` — new-workspace stack scaffolds (renamed from `template_load/templates_list` to avoid collision với render-side `template_list/template_fork`).
-
-**HTTP API** (FastAPI, port 8001): `/uploads`, `/jobs`, `/workspaces`, `/jobs/{id}/files/{name}`, `/healthz`, `/readyz`.
-
-### MCP-2: Default ON, opt-out via `--no-mcp` or `ETC_USE_MCP=0`
-Skills default to MCP for centralized state. Local fallback when MCP unavailable; skill must still complete (print warning).
-
-**Universal rule for ANY agent/skill referencing local KB / DEDUP / templates / outlines**: when running on MCP-enabled session, prefer the corresponding MCP tool over local file scan. Files NOT individually updated still inherit this default.
-
-### MCP-3: Bootstrap order
-First install: `docker compose up -d` in `~/.ai-kit/team-ai-config/mcp/etc-platform/`. Outlines + KB schema baked into image; KB starts empty (use `kb_save` to populate).
-
-### MCP-4: Anonymization mandate (intel cache)
-`intel_cache_contribute` requires `contributor_consent=True` AND server scan passes (no email/phone/CCCD/Bộ-Tỉnh-Sở patterns). Caller pre-redacts; server is last line of defense.
-
-### MCP-5: DEPRECATED (was: co-existence with etc-platform)
-Pre-merge state. Both servers consolidated into single etc-platform MCP at :8001 on 2026-04-28. The dual-server architecture is no longer used.
-
-**Migration path for existing skills**:
-- Replace `localhost:8000` references → `localhost:8001` (back-compat alias :8000 still active during migration)
-- Tool prefix: unified `mcp__etc-platform__*` (FastMCP server-internal name). Cursor `mcp.json` registers both `etc-platform` (:8000/sse) and `etc-platform` (:8001/sse) aliases — both work. Claude Code `settings.json` only enables `etc-platform` alias — use `mcp__etc-platform__*` prefix.
+Tool surface, migration history, CD-8 forbidden patterns, PDF conversion notes — xem MCP-CONTRACT.md đầy đủ.
 
 ## Knowledge Base Rules
 

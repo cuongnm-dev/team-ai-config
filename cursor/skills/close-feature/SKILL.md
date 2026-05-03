@@ -270,7 +270,7 @@ Consolidate into `docs/intel/test-evidence/{feature-id}.json` per `~/.claude/sch
 
 If QA stage did NOT produce evidence (skipped or pre-MVP feature) → skip this step but record `intel-warning: no-test-evidence` in summary.
 
-## Step 6.7 — Regenerate intel snapshot (CD-10 Quy tắc 21) — MANDATORY
+## Step 6.7 — Regenerate intel snapshot (Cursor Rule 24) — MANDATORY
 
 After feature-catalog.json + _meta.json updates, snapshot is now stale. Regen:
 
