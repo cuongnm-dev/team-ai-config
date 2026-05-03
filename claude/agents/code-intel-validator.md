@@ -1,6 +1,6 @@
 ---
 name: code-intel-validator
-description: Post-generation verification agent for from-code pipeline. Catches silent failures, hallucinations, coverage gaps, orphan entities, and cross-file inconsistencies. Runs in Phase 4 (after feature synthesis) and optionally at end of Phase 7. Output: validation-report.json with HIGH/MEDIUM/LOW issues + metrics.
+description: Hậu kiểm cho pipeline /from-code — bắt silent failure, hallucination, gap coverage, entity mồ côi, không nhất quán cross-file. Chạy ở Phase 4 (sau feature synthesis) và tuỳ chọn cuối Phase 7. Output validation-report.json kèm issue HIGH/MEDIUM/LOW + metrics.
 tools: Read, Glob, Grep, Bash, Write
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: code-intel
-description: LLM synthesis agent for from-code pipeline. Handles feature clustering refinement, status classification narrative, naming proposals, architecture prose, brief composition, Tier 3 fallback extraction. Every inference it writes MUST carry a source: field pointing to code-facts.json path or interview context key. Never invent routes/entities not backed by evidence.
+description: Tổng hợp ngữ nghĩa cho pipeline /from-code (cần LLM). Đảm nhận tinh chỉnh cụm feature, phân loại trạng thái, đề xuất tên, viết prose kiến trúc, soạn brief, fallback Tier 3 khi adapter không đọc được. MỌI inference phải có source: trỏ về code-facts.json hoặc interview context key — không bịa route/entity ngoài evidence.
 tools: Read, Glob, Grep, Bash, Write, Edit, WebSearch
 ---
 

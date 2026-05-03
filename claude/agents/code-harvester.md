@@ -1,6 +1,6 @@
 ---
 name: code-harvester
-description: Deterministic code extraction agent. Runs Tier 1 universal primitives + Tier 2 framework adapters. Zero LLM tokens for extraction — only orchestrates subprocess calls (tree-sitter, scc, ctags, grep) and adapter Python modules. Output: normalized JSON files matching code-facts.schema.json.
+description: Trích xuất facts từ mã nguồn theo phương pháp deterministic (zero token LLM). Chạy Tier 1 universal (tree-sitter, scc, ctags, grep) + Tier 2 framework adapter (Python module) qua subprocess. Output JSON khớp code-facts.schema.json. Dùng cho Phase 1-2 của /from-code khi cần dữ liệu khách quan, không suy luận.
 tools: Read, Glob, Grep, Bash, Write
 ---
 
