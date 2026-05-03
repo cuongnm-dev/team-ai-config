@@ -1,4 +1,10 @@
-# Dispatcher Loop — resume-feature variant (cost-fix discipline)
+# Dispatcher Loop — resume-feature variant (DEPRECATED REFERENCE — content inlined into SKILL.md 2026-05-04)
+
+> **⚠️ DEPRECATED 2026-05-04**: The critical loop logic (Step 6 + Step 7) has been INLINED into `resume-feature/SKILL.md` Section 6.1-6.7 because Cursor sometimes fails to load this notepad relative-path (observed F-007 spike: "Không có .cursor/notepads/dispatcher-loop.md trong workspace") which caused composer-2 to fall back to "do work yourself" mode, breaking the entire orchestration.
+>
+> **The authoritative loop is now in `SKILL.md` itself.** This file is kept as supplementary reference for cache-discipline edge cases and history of the Active Context Bundle revert (2026-05-01).
+>
+> If you are reading this file because SKILL.md said to: STOP. You should be reading SKILL.md Section 6 directly.
 
 Loaded on demand by `resume-feature/SKILL.md` after `_state.md` is parsed and validated (skill Steps 1-5).
 

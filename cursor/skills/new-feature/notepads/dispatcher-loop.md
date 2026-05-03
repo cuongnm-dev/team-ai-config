@@ -1,4 +1,8 @@
-# Dispatcher Loop — new-feature variant
+# Dispatcher Loop — new-feature variant (DEPRECATED REFERENCE — content inlined into SKILL.md 2026-05-04)
+
+> **⚠️ DEPRECATED 2026-05-04**: The critical loop logic has been INLINED into `new-feature/SKILL.md` Step 5 because Cursor sometimes fails to load this notepad relative-path (cf. F-007 spike). Inline = robust against load failure.
+>
+> **Authoritative loop is now in `SKILL.md` Step 5.** This file is kept for reference and historical context (Active Context Bundle revert, cache discipline notes).
 
 Loaded on demand by `new-feature/SKILL.md` after a fresh pipeline is initialized OR an existing one is reset for update.
 

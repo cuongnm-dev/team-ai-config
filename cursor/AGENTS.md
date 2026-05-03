@@ -22,12 +22,14 @@ Skill (entry)  →  Dispatcher (loop)  →  Agent (work)
                    PM (judgment)
 ```
 
-- **Skill** = entry point. Creates `_state.md`, runs dispatcher loop.
-- **Dispatcher** = executor. Runs one stage per invocation. Mechanical routing + state management. Escalates to PM when judgment needed.
-- **PM** = orchestrator. Makes judgment calls: path selection, extended roles, exception handling. Only invoked on `pm-required` status from dispatcher, or directly by user (`@pm`).
-- **Agent** = specialist. Does the actual work (ba, sa, dev, qa...).
+- **Skill** = entry point AND outer orchestrator. Creates `_state.md`, runs the dispatcher loop in-place (calls `Task(dispatcher)` repeatedly until legitimate stop).
+- **Dispatcher** = stage executor. **1 invocation = 1 stage** (atomic). Reads `_state.md`, routes to specialist agent via `Task(agent)`, validates artifact, updates `_state.md`, returns verdict. Does NOT loop internally.
+- **PM** = judgment caller. Path selection, extended roles, exception handling. Invoked by skill on `status=pm-required` from dispatcher, or directly by user (`@pm`). PM does NOT call `Task(agent)` — only updates `_state.md` and returns `resume:true|false`.
+- **Agent** = specialist. Does the actual work (ba, sa, dev, qa...). Returns verdict JSON. Never spawns other agents.
 
-Dispatcher runs the loop. PM is called **into** the loop when needed — not on every stage.
+**Loop ownership: SKILL.** Dispatcher and PM are stateless per-invocation; skill drives iteration via `Task()` calls. PM is called **into** the loop on `pm-required` — when PM returns `resume:true`, skill loops back to dispatcher.
+
+> History (2026-05-04): Earlier versions of this doc said "Dispatcher runs the loop". That described design intent but was never deployed — the WHILE loop has always lived in skill (`{skill}/SKILL.md` § 6 inlined; previously `notepads/dispatcher-loop.md` until inlined to fix Cursor relative-path load failures observed in F-007 spike).
 
 ## Entry Points — When to Use What
 
@@ -217,10 +219,14 @@ Every agent response must include a clear completion signal. Verdict labels serv
 ## Subagent Technical Notes (Cursor-specific)
 
 - Each agent runs in **isolated context** — no conversation history is inherited.
-- `pm` passes `docs-path`, `feature-id`, and relevant artifact file paths in each subagent prompt. Each agent reads the files it needs directly — do not inline full artifact content unless the agent requires deep context (sa, tech-lead, reviewer).
-- Use `Task` tool from `pm` to invoke agents. Parallelize read-only agents when safe.
-- Do not use `Auto` model — always use Sonnet or Opus to ensure `Task` tool is available.
-- Nested subagents (subagent spawning subagent) are **not supported**. Only `pm` spawns agents.
+- `dispatcher` (invoked by skill) reads `_state.md` and passes `docs-path`, `feature-id`, and Context Bundle paths (see `agents/ref-pm-dispatch.md`) when invoking specialist agents. Each agent reads its own files — do not inline full artifact content unless the agent requires deep context (sa, tech-lead, reviewer).
+- `Task` tool invocation (Cursor reality post-2026-05):
+  - **Skill (main-chat)** is the primary `Task()` caller. Skill spawns `Task(dispatcher)` per stage iteration, and `Task(pm)` on `pm-required`.
+  - **Dispatcher** invokes specialist agents via `Task(subagent_type="{role}")` per the Routing Table in `dispatcher.md`. This works in deployed Cursor 3.x (forum bug report from nightly/early-access builds about Task tool unavailability does NOT apply to stable channel as of 2026-05).
+  - **PM** does NOT invoke agents — PM is a thin judgment caller that updates `_state.md` and returns `resume:bool` to skill (per `pm.md` line 177).
+  - **Specialist agents** (ba/sa/dev/qa/reviewer/tech-lead) NEVER invoke other agents. Each returns verdict JSON to its caller (dispatcher).
+- `model: auto` is supported and is the **default** for all SDLC agents (post 2026-05-01 cost-fix Phase 2). Cursor IDE auto-routes per user's Settings → Default model. Tiered routing is via DUAL-AGENT FILE pattern (`{role}.md` + `{role}-pro.md`) — different system prompts, NOT call-time `model:` parameter (Task tool's `model:` field accepts only `"fast"` or `"inherit"` per forum-confirmed limitation).
+- Nesting depth: skill → dispatcher → agent (2 levels of `Task()` from main-chat) is the working pattern. Going deeper (agent spawning sub-agent) is not supported and not needed — each specialist is a leaf.
 
 ### Prompt Caching (cost optimization)
 

@@ -10,6 +10,16 @@ User-facing output: Vietnamese. Artifact files and dispatcher prompts: English.
 
 ---
 
+## ⚠️⚠️⚠️ ORCHESTRATOR DISCIPLINE — READ FIRST
+
+You are the outer orchestrator for hotfix pipeline. After Steps 1-5 setup, Step 6 = dispatcher loop. You are NOT the worker.
+
+**Forbidden:** Reading `tech-lead.md`/`dev.md`/`qa.md` to "do work yourself". Writing artifacts directly. Stopping after 1 stage transition. Returning to user with "chạy lại /resume-feature ..." after only 1 stage.
+
+**Required:** Loop `Task(dispatcher)` until status ∈ {`done`, hard `blocked`, `pm-required`→`resume:false`, `iter>=200`}. Anything else = LOOP.
+
+---
+
 ## Step 1 — Qualify the hotfix (do not skip)
 
 Confirm ALL conditions are true. If any is false → route to `/new-feature`.
@@ -152,34 +162,51 @@ After write: `python ~/.claude/scripts/intel/meta_helper.py update docs/intel/ f
 
 If intel layer absent: skip — hotfix uses `feature-map.yaml` only (legacy).
 
-## Step 6 — Dispatcher loop (with PM escalation)
+## Step 6 — Dispatcher loop (INLINE — same protocol as resume-feature SKILL.md § 6)
 
 ```
-loop:
-  # Cache-aware prompt (see new-feature/SKILL.md for rationale)
-  result = Task(
-    subagent_type="dispatcher",
-    prompt="
-## Feature Context
-feature-id: {hotfix-id}
-docs-path: docs/hotfixes/{hotfix-id}
-repo-path: .
-output-mode: lean
+iter = 0; pm_count = 0; transient_retry_count = 0; last_verdict = "none"
+FROZEN_HEADER = "## Pipeline Context\npipeline-type: sdlc\nfeature-id: {hotfix-id}\ndocs-path: docs/hotfixes/{hotfix-id}\nrepo-path: .\noutput-mode: lean".rstrip("\n")
+PM_FROZEN = build_pm_frozen().rstrip("\n")
 
-## Inputs
-(dispatcher reads current-stage from _state.md)
-"
-  )
-  → status=continuing: print "[{stage}] ✓ {verdict}", loop
-  → status=done:       proceed to Step 7
-  → status=blocked:    surface blockers, stop
-  → status=pm-required:
-      pm_result = Task(subagent_type="pm", prompt="pm-trigger: {result.pm-trigger}\npm-context: {result.pm-context}\ndocs-path: ...\nfeature-id: ...")
-      if pm_result is not valid JSON or missing "resume" field: surface raw output, stop
-      if pm_result.resume = true: loop
-      else: surface PM's message, stop
-  → unknown status: surface result to user, stop
+WHILE iter < 200:
+  iter++
+  prompt = FROZEN_HEADER + "\n\n## Current State\ncurrent-stage: {current-stage}\niter: {iter}\nlast-verdict: {last_verdict}"
+
+  result = Task(subagent_type="dispatcher", prompt=prompt)
+  status = result.get("status") or "continuing"
+
+  CASE status:
+    "continuing":
+      last_verdict = result.verdict or "in-progress"
+      print "[{stage}] ✓ {verdict}"
+      loop                                  # ← do NOT exit on stage transition
+
+    "done":
+      reread _state.md
+      IF stages-queue non-empty: last_verdict="auto-continue"; loop
+      ELSE: proceed to Step 7
+
+    "blocked":
+      IF result.blockers contains PARSE-001 or NO-INVOKE-001 AND transient_retry_count < 1:
+        transient_retry_count++; continue
+      surface blockers, stop                # ← legitimate stop
+
+    "pm-required":
+      pm_count++
+      IF pm_count > 5: STOP
+      pm_result = Task(subagent_type="pm", prompt=PM_FROZEN + "\n\n" + truncate(result.pm-context, 8K))
+      IF pm_result invalid OR missing `resume`: surface raw output; STOP
+      IF pm_result.resume == true: last_verdict="pm-resolved"; loop   # ← baton back
+      ELSE: surface pm_result.message + clarification; STOP   # ← legitimate stop (user-needed)
+
+    default:
+      print "⚠ Unknown status — treating as continuing"
+      last_verdict = result.verdict or "unknown-status"
+      loop
 ```
+
+**Stop conditions (only 4):** `done` + queue empty (proceed Step 7) | hard `blocked` | `pm-required`→`resume:false` | iter ≥ 200. Anything else = LOOP.
 
 ## Step 7 — Post-merge checklist
 
