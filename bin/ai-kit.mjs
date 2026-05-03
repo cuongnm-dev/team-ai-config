@@ -877,41 +877,68 @@ const readAgentEntries = (dir) => {
   return items.sort((a, b) => a.name.localeCompare(b.name));
 };
 
-// Drilldown for "skills" pick: catalog overview (docs/skills.md) at top + every
-// individual SKILL.md (Claude + Cursor) below. Member sees "when to use what" first,
-// then can drill into a specific skill.
-const interactiveSkillsBrowser = async () => {
-  const catalogFile = path.join(REPO_DIR, 'docs', 'skills.md');
+// Read-only catalog browser for skills/agents. Member sees full list with
+// descriptions wrapping naturally to multiple lines, then picks: catalog (decision
+// matrix doc) / back / exit. NO drilldown into individual SKILL.md / agent .md —
+// member should invoke skills via Cursor/Claude, not read raw config files.
+const browseCatalog = async ({ kind, claudeDir, cursorDir, catalogFile, readEntries }) => {
+  const heading = kind === 'skills' ? 'Skills' : 'Agents';
+  const claudeLabel = kind === 'skills' ? 'Claude skills' : 'Claude agents';
+  const cursorLabel = kind === 'skills' ? 'Cursor skills' : 'Cursor agents';
+  const catalogLabel = kind === 'skills'
+    ? '📖 Skills Catalog — decision matrix (khi nào dùng skill nào)'
+    : '📖 Agents Catalog — vai trò + class A/B/C/D + ví dụ';
+
+  // Word-wrap helper: never breaks mid-word, fits within `width` cols.
+  const wrap = (s, width) => {
+    const words = s.split(/\s+/);
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      if ((line + ' ' + w).trim().length > width) { if (line) lines.push(line); line = w; }
+      else line = (line ? line + ' ' : '') + w;
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+
   while (true) {
     clearScreen();
-    const claudeSkills = readSkillEntries(path.join(REPO_DIR, 'claude', 'skills'));
-    const cursorSkills = readSkillEntries(path.join(REPO_DIR, 'cursor', 'skills'));
-    const choices = [];
-    if (exists(catalogFile)) {
-      choices.push({ name: '📖 Skills Catalog — khi nào dùng skill nào (decision matrix)', value: '__catalog' });
-      choices.push({ name: '──', value: '__sep_top', disabled: ' ' });
-    }
-    const addGroup = (label, items) => {
+    const claudeItems = readEntries(claudeDir);
+    const cursorItems = readEntries(cursorDir);
+    let text = `\n  ${brand(heading)}  ${S.gray}— danh sách read-only${S.reset}\n\n`;
+
+    const printList = (label, items) => {
       if (!items.length) return;
-      choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
+      text += `  ${S.bold}── ${label}${S.reset}\n\n`;
+      const width = Math.max(40, _cols() - 6);
       for (const it of items) {
-        const nm = (it.name || '').padEnd(26);
-        // Available width = terminal cols − (indent 4 + name 26 + gap 2 + cursor/scroll buffer 6).
-        // Inquirer wraps overflowed lines; truncate with ellipsis to keep one line per item.
-        const maxDesc = Math.max(30, _cols() - 38);
-        let desc = it.desc || '';
-        if (desc.length > maxDesc) desc = desc.slice(0, maxDesc - 1) + '…';
-        choices.push({ name: `  ${nm}  ${S.gray}${desc}${S.reset}`, value: it.path });
+        text += `  ${S.cyan}${it.name}${S.reset}\n`;
+        if (it.desc) {
+          for (const ln of wrap(it.desc, width)) text += `    ${S.gray}${ln}${S.reset}\n`;
+        }
+        text += '\n';
       }
     };
-    addGroup('Claude skills', claudeSkills);
-    addGroup('Cursor skills', cursorSkills);
-    choices.push({ name: '──', value: '__sep_end', disabled: ' ' });
+    printList(claudeLabel, claudeItems);
+    printList(cursorLabel, cursorItems);
+
+    // Page through `less` if available + content overflows; else write directly.
+    // less -X keeps content visible after quit so the action prompt below still
+    // makes sense in context.
+    if (!tryPager(text)) {
+      process.stdout.write(text);
+      hintLessOnce();
+    }
+
+    const choices = [];
+    if (exists(catalogFile)) choices.push({ name: catalogLabel, value: '__catalog' });
     choices.push({ name: '↩ Quay lại', value: '__back' });
     choices.push({ name: '✕ Thoát', value: '__exit' });
+
     let pick;
     try {
-      pick = await select({ message: 'Skills — chọn để xem chi tiết:', choices, pageSize: 30, loop: false });
+      pick = await select({ message: ' ', choices, pageSize: choices.length, loop: false });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
     if (pick === '__back') return 'back';
@@ -920,58 +947,24 @@ const interactiveSkillsBrowser = async () => {
       if (r === 'exit') return 'exit';
       continue;
     }
-    if (!exists(pick)) continue;
-    const r = await openDocAndPrompt(pick);
-    if (r === 'exit') return 'exit';
-    // 'back' → loop, stay in skill list (preserves position)
   }
 };
 
-const interactiveAgentsBrowser = async () => {
-  const catalogFile = path.join(REPO_DIR, 'docs', 'agents.md');
-  while (true) {
-    clearScreen();
-    const claudeAgents = readAgentEntries(path.join(REPO_DIR, 'claude', 'agents'));
-    const cursorAgents = readAgentEntries(path.join(REPO_DIR, 'cursor', 'agents'));
-    const choices = [];
-    if (exists(catalogFile)) {
-      choices.push({ name: '📖 Agents Catalog — vai trò + class A/B/C/D + ví dụ', value: '__catalog' });
-      choices.push({ name: '──', value: '__sep_top', disabled: ' ' });
-    }
-    const addGroup = (label, items) => {
-      if (!items.length) return;
-      choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
-      for (const it of items) {
-        const nm = (it.name || '').padEnd(26);
-        // Available width = terminal cols − (indent 4 + name 26 + gap 2 + cursor/scroll buffer 6).
-        // Inquirer wraps overflowed lines; truncate with ellipsis to keep one line per item.
-        const maxDesc = Math.max(30, _cols() - 38);
-        let desc = it.desc || '';
-        if (desc.length > maxDesc) desc = desc.slice(0, maxDesc - 1) + '…';
-        choices.push({ name: `  ${nm}  ${S.gray}${desc}${S.reset}`, value: it.path });
-      }
-    };
-    addGroup('Claude agents', claudeAgents);
-    addGroup('Cursor agents', cursorAgents);
-    choices.push({ name: '──', value: '__sep_end', disabled: ' ' });
-    choices.push({ name: '↩ Quay lại', value: '__back' });
-    choices.push({ name: '✕ Thoát', value: '__exit' });
-    let pick;
-    try {
-      pick = await select({ message: 'Agents — chọn để xem chi tiết:', choices, pageSize: 30, loop: false });
-    } catch { return 'exit'; }
-    if (pick === '__exit') return 'exit';
-    if (pick === '__back') return 'back';
-    if (pick === '__catalog') {
-      const r = await openDocAndPrompt(catalogFile);
-      if (r === 'exit') return 'exit';
-      continue;
-    }
-    if (!exists(pick)) continue;
-    const r = await openDocAndPrompt(pick);
-    if (r === 'exit') return 'exit';
-  }
-};
+const interactiveSkillsBrowser = () => browseCatalog({
+  kind: 'skills',
+  claudeDir: path.join(REPO_DIR, 'claude', 'skills'),
+  cursorDir: path.join(REPO_DIR, 'cursor', 'skills'),
+  catalogFile: path.join(REPO_DIR, 'docs', 'skills.md'),
+  readEntries: readSkillEntries,
+});
+
+const interactiveAgentsBrowser = () => browseCatalog({
+  kind: 'agents',
+  claudeDir: path.join(REPO_DIR, 'claude', 'agents'),
+  cursorDir: path.join(REPO_DIR, 'cursor', 'agents'),
+  catalogFile: path.join(REPO_DIR, 'docs', 'agents.md'),
+  readEntries: readAgentEntries,
+});
 
 // Interactive top-level index — pickable list of all docs grouped by category.
 // Loops: pick a topic → open doc → return → pick again. Lets user browse without
