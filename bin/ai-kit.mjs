@@ -438,9 +438,11 @@ const tryPager = (text) => {
 
   const tmpFile = path.join(os.tmpdir(), `ai-kit-doc-${process.pid}-${Date.now()}.txt`);
   try {
-    // -R = pass through ANSI colors; -F = quit if 1 page; -X = no clear on exit (doc remains visible)
+    // -R = ANSI colors; -F = quit if 1 page; -X = no clear on exit;
+    // -P = custom prompt so members know how to exit (default "(END)" is confusing).
     fs.writeFileSync(tmpFile, text);
-    execaSync('less', ['-R', '-F', '-X', tmpFile], {stdio: 'inherit'});
+    const prompt = '?eHẾT — nhấn q để về menu:?ltDòng %lt-%lb / %L  ·  ?Pb%Pb\\%  ·  q = thoát · ↑↓/PgUp/PgDn = cuộn · / = tìm kiếm';
+    execaSync('less', ['-R', '-F', '-X', '-P', prompt, tmpFile], {stdio: 'inherit'});
     return true;
   } catch {
     return false; // Pager failed — caller falls through to direct stdout write
