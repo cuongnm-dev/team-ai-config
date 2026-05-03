@@ -99,7 +99,19 @@ const _cols = () => {
   if (envW > 20) return envW;
   return process.stdout.columns || 100;
 };
-marked.use(markedTerminal({reflowText: true, width: _cols()}, {useNewRenderer: true}));
+// Tables: full unicode box-drawing borders (matches on-board ASCII boxes look).
+// Default cli-table3 chars omit some bars → pass full set for consistent appearance.
+const TABLE_CHARS = {
+  top: '─', 'top-mid': '┬', 'top-left': '┌', 'top-right': '┐',
+  bottom: '─', 'bottom-mid': '┴', 'bottom-left': '└', 'bottom-right': '┘',
+  left: '│', 'left-mid': '├', mid: '─', 'mid-mid': '┼',
+  right: '│', 'right-mid': '┤', middle: '│',
+};
+marked.use(markedTerminal({
+  reflowText: true,
+  width: _cols(),
+  tableOptions: { chars: TABLE_CHARS, wordWrap: true },
+}, {useNewRenderer: true}));
 // Override heading + code renderers — only when color output is active
 if (USE_COLOR) marked.use({
   renderer: {

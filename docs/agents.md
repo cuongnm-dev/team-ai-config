@@ -15,13 +15,12 @@ Trang này giúp anh/chị biết **agent nào làm gì, khi nào được dispa
 
 ## 1. Bức tranh tổng thể
 
-| Chỉ số | Số lượng | Ghi chú |
-|---|---|---|
-| Tổng agents | **53** | 22 Claude + 31 Cursor |
-| Stage agents (Cursor — SDLC pipeline) | 9 | + variant `*-pro` cho high-risk |
-| Tdoc agents (Claude — code → tài liệu) | 11 | từ `/from-code` đến `/generate-docs` |
-| Strategic + Doc-line agents (Luồng B) | 8 | Đề án CĐS, NCKT, HSMT |
-| Phụ trợ (Class A/B/C/D) | 25 | orchestrator, validator, merger, … |
+**Tổng 53 agents** (22 Claude + 31 Cursor), chia thành 4 nhóm:
+
+- **9 stage agents** (Cursor — chạy trong pipeline `/resume-feature`) — có variant `*-pro` cho high-risk
+- **11 tdoc agents** (Claude — code → tài liệu) — từ `/from-code` đến `/generate-docs`
+- **8 strategic + doc-line agents** (Luồng B — Tài liệu nhà nước) — Đề án CĐS, NCKT, HSMT/HSDT
+- **25 agents phụ trợ** (Class A/B/C/D) — orchestrator, validator, merger, snapshot…
 
 ---
 
