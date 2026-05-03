@@ -186,9 +186,26 @@ locate: feature-map.yaml (PRIMARY) → docs/features/ → docs/hotfixes/ → glo
 - [ ] completed-stages has doc-intel
 - [ ] stages-queue non-empty
 - [ ] repo-type matches workspace
-- [ ] Intel snapshot regenerated (CD-10 Quy tắc 21):
-      `python ~/.cursor/skills/intel-snapshot/generate.py --intel-path {intel-path}`
-      Verify with `--check` → must print `[OK] Snapshot fresh`. Without this, all base-tier agents will read full canonical JSON in subsequent stages (≥40K tokens duplicate per agent).
+
+## Mandatory post-validation step — Intel snapshot regen
+
+Right after the validation checklist passes, BEFORE dispatcher hands off the first stage, run the snapshot generator. This is **NOT optional** — without it, base-tier agents (`dev`, `qa`, `reviewer`, `ba`, `sa`) re-read full canonical Tier 1 JSON in every subsequent dispatch (~40K duplicate tokens per agent per feature).
+
+```bash
+python ~/.cursor/skills/intel-snapshot/generate.py --intel-path {intel-path}
+python ~/.cursor/skills/intel-snapshot/generate.py --intel-path {intel-path} --check
+```
+
+Expected output (sequential):
+- `[WROTE] {intel-path}/_snapshot.md (X.X KB ~ NNN tokens)`
+- `[WROTE] {intel-path}/_snapshot.meta.json`
+- `[OK] Snapshot fresh`
+
+**Failure handling** (per intel-snapshot SKILL.md "snapshot is optimization, not correctness"):
+- IF generator exits non-zero → WARN user: "Snapshot regen failed — base-tier agents fall back to canonical JSON (slower, no correctness impact)". Continue to dispatcher.
+- IF Tier 1 inputs missing → snapshot generates partial (script handles internally). Continue.
+
+Reference: `~/.cursor/skills/intel-snapshot/SKILL.md`. CD-10 Quy tắc 21.
 
 ## What's next
 

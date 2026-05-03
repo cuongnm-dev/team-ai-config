@@ -1189,8 +1189,34 @@ for artifact in produced_artifacts:
     --source-evidence "doc-brief.md + tech-brief.md"
 ```
 
-**State**: `current_step: "6"`, `steps.5h.status: "done"`
-**Exit print**: "✅ Step 5h complete (Intel gate passed). Proceeding to Step 6 (handoff report)..."
+**State**: `current_step: "5i"`, `steps.5h.status: "done"`
+**Exit print**: "✅ Step 5h complete (Intel gate passed). Proceeding to Step 5i (snapshot regen)..."
+→ IMMEDIATELY execute Step 5i below.
+
+---
+
+## Step 5i — Generate intel snapshot (MANDATORY — non-blocking)
+
+**Entry print**: "▶️ Starting Step 5i: Intel snapshot regen"
+
+After Tier 1 artifacts validated + `_meta.json` updated, regenerate `_snapshot.md` so base-tier consumers (Cursor SDLC `dev`/`qa`/`reviewer`/`ba`/`sa`) read compressed view (~95% smaller). Without this, base-tier agents in subsequent SDLC stages re-read full canonical → ≥40K duplicate tokens per agent dispatch.
+
+```bash
+python ~/.cursor/skills/intel-snapshot/generate.py --intel-path {workspace}/docs/intel
+python ~/.cursor/skills/intel-snapshot/generate.py --intel-path {workspace}/docs/intel --check
+```
+
+Expected sequential output:
+- `[WROTE] {workspace}/docs/intel/_snapshot.md (X.X KB ~ NNN tokens)`
+- `[WROTE] {workspace}/docs/intel/_snapshot.meta.json`
+- `[OK] Snapshot fresh`
+
+**Failure handling** (per intel-snapshot SKILL.md "snapshot is optimization, not correctness"):
+- IF generator exits non-zero → WARN: "Snapshot regen failed — base-tier agents fall back to canonical JSON (slower, no correctness impact)". Continue.
+- IF Tier 1 inputs missing → snapshot generates partial. Continue.
+
+**State**: `current_step: "6"`, `steps.5i.status: "done"`, `steps.5i.snapshot_regenerated: true|false_with_reason`
+**Exit print**: "✅ Step 5i complete. Proceeding to Step 6 (handoff report)..."
 → IMMEDIATELY execute Step 6 below.
 
 ---

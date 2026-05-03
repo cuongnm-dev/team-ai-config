@@ -138,6 +138,25 @@ TTL defaults per `~/.claude/schemas/intel/README.md` § TTL Defaults:
 - feature-catalog/sitemap: 30d | permission-matrix: 60d | actor-registry: 90d
 - api-spec: 14d | data-model: 30d | architecture: 60d | integrations: 30d
 
+## Step 6.1.6 — Generate intel snapshot (MANDATORY — non-blocking)
+
+After all Tier 1+2 artifacts pass quality gate + `_meta.json` updated, regenerate `_snapshot.md` so base-tier consumers (Cursor SDLC `dev`/`qa`/`reviewer`/`ba`/`sa`) read compressed view (~95% smaller) instead of full canonical JSON. Without this step, base-tier agents in subsequent SDLC stages re-read canonical Tier 1 → ≥40K duplicate tokens per agent dispatch.
+
+```bash
+python ~/.cursor/skills/intel-snapshot/generate.py --intel-path docs/intel
+python ~/.cursor/skills/intel-snapshot/generate.py --intel-path docs/intel --check
+```
+
+Expected:
+- First call: `[WROTE] docs/intel/_snapshot.md (X.X KB ~ NNN tokens)` + `[WROTE] _snapshot.meta.json`
+- `--check` follow-up: `[OK] Snapshot fresh`
+
+**Failure handling** (per intel-snapshot SKILL.md "snapshot is optimization, not correctness"):
+- IF generator exits non-zero → WARN user: "Snapshot regen failed — base-tier agents will fall back to canonical JSON (slower, no correctness impact)". Continue Step 6.2.
+- IF Tier 1 inputs missing → snapshot generates partial (handled inside script). Continue.
+
+**State**: `state.steps["6"].snapshot_regenerated: true|false_with_reason`. Do NOT block handoff on snapshot failure.
+
 ## Step 6.2 — Display summary card
 
 Mini:
