@@ -642,6 +642,7 @@ const promptAfterRender = async () => {
         { name: '✕ Thoát', value: 'exit' },
       ],
       pageSize: 2,
+      loop: false,
     });
   } catch { return 'exit'; }
 };
@@ -668,6 +669,7 @@ const pickH2 = async (file, sections) => {
       message: `Chọn mục từ ${path.basename(file, '.md')}:`,
       choices,
       pageSize: 15,
+      loop: false,
     });
   } catch { return { kind: 'exit' }; }
   if (pick === '__exit') return { kind: 'exit' };
@@ -691,7 +693,7 @@ const h3Loop = async (file, sec) => {
     ];
     let pick;
     try {
-      pick = await select({ message: `${sec.title} →`, choices, pageSize: 15 });
+      pick = await select({ message: `${sec.title} →`, choices, pageSize: 15, loop: false });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
     if (pick === '__back') return 'back';
@@ -894,7 +896,11 @@ const interactiveSkillsBrowser = async () => {
       choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
       for (const it of items) {
         const nm = (it.name || '').padEnd(26);
-        const desc = (it.desc || '').slice(0, 70);
+        // Available width = terminal cols − (indent 4 + name 26 + gap 2 + cursor/scroll buffer 6).
+        // Inquirer wraps overflowed lines; truncate with ellipsis to keep one line per item.
+        const maxDesc = Math.max(30, _cols() - 38);
+        let desc = it.desc || '';
+        if (desc.length > maxDesc) desc = desc.slice(0, maxDesc - 1) + '…';
         choices.push({ name: `  ${nm}  ${S.gray}${desc}${S.reset}`, value: it.path });
       }
     };
@@ -905,7 +911,7 @@ const interactiveSkillsBrowser = async () => {
     choices.push({ name: '✕ Thoát', value: '__exit' });
     let pick;
     try {
-      pick = await select({ message: 'Skills — chọn để xem chi tiết:', choices, pageSize: 30 });
+      pick = await select({ message: 'Skills — chọn để xem chi tiết:', choices, pageSize: 30, loop: false });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
     if (pick === '__back') return 'back';
@@ -937,7 +943,11 @@ const interactiveAgentsBrowser = async () => {
       choices.push({ name: `── ${label}`, value: '__sep_' + label, disabled: ' ' });
       for (const it of items) {
         const nm = (it.name || '').padEnd(26);
-        const desc = (it.desc || '').slice(0, 70);
+        // Available width = terminal cols − (indent 4 + name 26 + gap 2 + cursor/scroll buffer 6).
+        // Inquirer wraps overflowed lines; truncate with ellipsis to keep one line per item.
+        const maxDesc = Math.max(30, _cols() - 38);
+        let desc = it.desc || '';
+        if (desc.length > maxDesc) desc = desc.slice(0, maxDesc - 1) + '…';
         choices.push({ name: `  ${nm}  ${S.gray}${desc}${S.reset}`, value: it.path });
       }
     };
@@ -948,7 +958,7 @@ const interactiveAgentsBrowser = async () => {
     choices.push({ name: '✕ Thoát', value: '__exit' });
     let pick;
     try {
-      pick = await select({ message: 'Agents — chọn để xem chi tiết:', choices, pageSize: 30 });
+      pick = await select({ message: 'Agents — chọn để xem chi tiết:', choices, pageSize: 30, loop: false });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
     if (pick === '__back') return 'back';
@@ -984,7 +994,9 @@ const interactiveIndex = async ({ allowBack = false } = {}) => {
       choices.push({ name: `── ${title}`, value: '__sep_' + title, disabled: ' ' });
       for (const it of items) {
         const nm = (it.name || '').padEnd(22);
-        const desc = (it.title || '').slice(0, 70);
+        const maxDesc = Math.max(30, _cols() - 34);
+        let desc = it.title || '';
+        if (desc.length > maxDesc) desc = desc.slice(0, maxDesc - 1) + '…';
         choices.push({ name: `  ${nm}  ${desc}`, value: it.name });
       }
     };
@@ -1002,6 +1014,7 @@ const interactiveIndex = async ({ allowBack = false } = {}) => {
         message: 'ai-kit Documentation — chọn tài liệu:',
         choices,
         pageSize: 25,
+        loop: false,
       });
     } catch { return allowBack ? 'back' : 'exit'; }
     if (pick === '__back') return 'back';
@@ -1073,6 +1086,7 @@ const interactiveOnboardMenu = async () => {
           { name: '✕ Thoát', value: '__exit' },
         ],
         pageSize: 10,
+        loop: false,
       });
     } catch { return 'exit'; }
     if (pick === '__exit') return 'exit';
