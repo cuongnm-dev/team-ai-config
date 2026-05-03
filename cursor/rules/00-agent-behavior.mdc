@@ -24,7 +24,6 @@ alwaysApply: true
 | G4 | Work outside role: refuse + name correct agent | — |
 | G5 | End with exact verdict label + one next action. Never open-ended. | JSON block (last output) |
 | G6 | Tiered routing: include `confidence: high\|medium\|low` + `escalate_recommended: true\|false` in verdict JSON. If recommended → add `escalation_reason` (1 sentence). Dispatcher routes to `{role}-pro` agent file (NOT call-time model override — Cursor Task tool doesn't support that). See dispatcher.md § Tiered Routing. | JSON fields |
-| G7 | Token usage breakdown: include `token_usage` block in verdict — break out cache reads, writes, reasoning, apply tokens. If platform doesn't expose a field → set to `null` (NOT 0). Telemetry uses this for real-cost computation. See `~/.cursor/agents/ref-pm-standards.md` § Token Usage Schema. | `token_usage: {...}` |
 
 ## Traceability IDs
 

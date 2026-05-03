@@ -13,7 +13,6 @@ This index file describes the SDLC role commands. Individual command files live 
 | `/reviewer-mode` | `reviewer-mode.md` | Cross-artifact review, must-fix list | `agents/reviewer.md` (opus) |
 | `/architect-mode` | `architect-mode.md` | ADR template, trade-off quantification | `agents/sa.md` |
 | `/cache-audit` | `cache-audit.md` | Run cache-lint + propose patches | uses skill `cache-lint` |
-| `/telemetry-report` | `telemetry-report.md` | Aggregate `.cursor/telemetry/*.jsonl` | reads skill output |
 
 ## Why slash commands instead of custom modes
 

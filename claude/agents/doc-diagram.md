@@ -482,8 +482,7 @@ Return JSON to `doc-orchestrator` after batch completion. Required by AGENTS.md 
   "diagrams_failed":   [{"diagram_id": "D-NNN", "reason": "<short>"}],
   "routes_used":       {"mermaid": 0},
   "arch_report_updated": true,
-  "warnings": [],
-  "token_usage": {"input": "~N", "output": "~N", "this_agent": "~N"}
+  "warnings": []
 }
 ```
 

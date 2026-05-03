@@ -116,7 +116,6 @@ Read `notepads/dispatcher-loop.md` → follow FROZEN_HEADER + DYNAMIC_SUFFIX con
 
 After each iteration in the loop:
 - Append checkpoint markers per `notepads/checkpoints.md` (on stage advance + wave-boundary snapshot)
-- Append inline telemetry JSONL per `notepads/telemetry.md` (Bash + jq, no Task() spawn)
 
 ---
 

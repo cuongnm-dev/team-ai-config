@@ -561,8 +561,7 @@ For **multi-role**: add `by-role` breakdown per feature + `workspace_screenshots
     "postprocess-s": 12,
     "total-s": 99
   },
-  "warnings": [],
-  "token_usage": {"input":"~2K","output":"~500","this_agent":"~5K"}
+  "warnings": []
 }
 ```
 

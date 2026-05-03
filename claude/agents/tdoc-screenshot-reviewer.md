@@ -241,8 +241,7 @@ retry-recommended = (wrong-state + wrong-feature + blank + broken) >= total * 0.
   "quality-score": 89,
   "retry-recommended": true,
   "flagged-count": {"wrong-state": 10, "wrong-feature": 3, "blank": 4, "broken": 1},
-  "output-file": "{docs-path}/intel/verification-report.json",
-  "token_usage": {"input": "~N", "output": "~N", "this_agent": "~N", "pipeline_total": "~N"}
+  "output-file": "{docs-path}/intel/verification-report.json"
 }
 ```
 

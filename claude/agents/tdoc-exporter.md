@@ -162,8 +162,7 @@ warnings. User can convert manually via Word UI.
     "Open docx in Word + press F9 to refresh TOC",
     "If xlsx formulas show stale values: any cell edit triggers recalc"
   ],
-  "warnings": [],
-  "token_usage": {"input":"~2K","output":"~500","this_agent":"~3K"}
+  "warnings": []
 }
 ```
 

@@ -1590,8 +1590,7 @@ Return verdict JSON (FINAL output — nothing after this):
   "screens-found": 0,
   "blocking-gaps": 0,
   "confidence": "High | Medium | Low",
-  "stages-configured": [],
-  "token_usage": {"input": "~N", "output": "~N"}
+  "stages-configured": []
 }
 ```
 

@@ -101,7 +101,6 @@ WHILE iter < 200:                                     # bumped 50→200 (cost-fi
     "continuing":
       last_verdict = result.verdict or "in-progress"
       print "[{stage}] ✓ {verdict}" (dots after iter>10)
-      append_telemetry_inline(stage-complete)          # see notepads/telemetry.md
       checkpoint_if_wave_boundary()                    # see notepads/checkpoints.md
       loop  # ← CRITICAL: do NOT exit even if verdict says "wave done", "stage advanced", etc.
 
@@ -113,7 +112,6 @@ WHILE iter < 200:                                     # bumped 50→200 (cost-fi
         last_verdict = "auto-continue"
         loop                                             # do NOT exit
       ELSE:
-        append_telemetry_inline(done)
         report final summary
         release lock
         exit

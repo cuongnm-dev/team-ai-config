@@ -359,8 +359,7 @@ Orchestrator runs this assertion block before Phase 4. Failure → data-writer m
     "cabosung_markers": 8,
     "features_cross_referenced_ba": 12
   },
-  "warnings": [],
-  "token_usage": {"input":"~N","output":"~N","this_agent":"~N"}
+  "warnings": []
 }
 ```
 

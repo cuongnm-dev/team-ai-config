@@ -206,8 +206,7 @@ Return verdict JSON:
     "menu-items-per-role": {"admin": 18, "manager": 9, "staff": 6},
     "workflow-variants-detected": 4
   },
-  "warnings": [],
-  "token_usage": {"input":"~N","output":"~N","this_agent":"~N","pipeline_total":"~N"}
+  "warnings": []
 }
 ```
 
