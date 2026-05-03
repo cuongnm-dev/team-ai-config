@@ -5,67 +5,110 @@ order: 3
 
 # Agents Catalog
 
-> Đọc xong, bạn sẽ biết **agent nào làm gì, khi nào dispatch, output trông ra sao**, kèm ví dụ thực tế.
+Trang này giúp anh/chị biết **agent nào làm gì, khi nào được dispatch, output ra sao**.
 
-54 agents được phân thành **stage agents** (làm chính cho SDLC) + **4 class** (A/B/C/D — phụ trợ).
+> 🧠 **Agent là gì?** Một LLM-driven worker có *vai trò cố định* (BA, SA, Dev, QA, …), chạy trong context riêng. Skill orchestrator dispatch agent theo nhu cầu. Member không gọi agent trực tiếp — chỉ chạy skill (vd `/resume-feature`), skill tự gọi đúng agent.
 
-> ⚠ **2 luồng độc lập** (xem README §Hai luồng). Agent Luồng A khác hoàn toàn agent Luồng B — đừng dispatch chéo.
-
----
-
-## Phân nhóm agents theo luồng
-
-### 🅰 Luồng A — SDLC (sản xuất phần mềm)
-
-**Stage agents** (Cursor — interactive trong pipeline `/resume-feature`):
-`ba` `sa` `tech-lead` `dev` `fe-dev` `qa` `reviewer` `pm` `dispatcher` (+ pro variants)
-
-**Tdoc agents** (Claude — `/from-code` và `/generate-docs` orchestration):
-`tdoc-researcher` `tdoc-actor-enum` `tdoc-test-runner` `tdoc-screenshot-reviewer` `tdoc-data-writer` `tdoc-exporter` `tdoc-tkkt-writer` `tdoc-tkcs-writer` `tdoc-tkct-writer` (writer cho NĐ 45/2026 phần mềm) `tdoc-testcase-writer` `tdoc-manual-writer`
-
-**Class A/B/C/D** (phụ trợ): orchestrator, validator, merger, snapshot, ... — đa phần phục vụ Luồng A.
-
-### 🅱 Luồng B — Tài liệu nhà nước (Đề án CĐS / đấu thầu)
-
-**Strategic agents** (Claude — `/new-strategic-document` 4 spirals):
-- `strategy-analyst` — Bộ não chiến lược, dẫn interview, phân tích gap, DEDUP
-- `policy-researcher` — Nghiên cứu chính sách CNTT VN (QĐ/CT/NĐ), map ecosystem (NDXP/LGSP/CSDLQG)
-- `structure-advisor` — Kiến trúc sư outline Đề án CĐS
-
-**Doc-line agents** (Claude — `/new-document-workspace` cho HSMT/HSDT/dự toán/NCKT):
-- `doc-orchestrator` — Điều phối pipeline tài liệu hành chính
-- `doc-writer` — Viết section, văn phong nghị định, có web research
-- `doc-reviewer` — Rà soát chất lượng theo NĐ 30/2020 + compliance pháp lý
-- `doc-diagram` — Sinh sơ đồ PlantUML/Mermaid theo Khung CPĐT 4.0
-- `tdoc-nckt-writer` — Specialist viết block nckt.* (NCKT NĐ 45/2026 Đ12 — 19 chương)
-
-> Lưu ý: `tdoc-tkcs-writer` và `tdoc-tkct-writer` xuất hiện ở CẢ 2 luồng. Trong Luồng A là 1 phần của bộ nghiệm thu phần mềm; trong Luồng B là tài liệu thầu/dự toán độc lập theo NĐ 45/2026 Đ13/Đ14. Skill orchestrator phân biệt qua `content-data.json` schema.
+> ⚠️ **2 luồng độc lập** (xem `ai-kit doc on-board`). Agent Luồng A (SDLC) **khác hoàn toàn** agent Luồng B (Tài liệu nhà nước) — không bao giờ dispatch chéo.
 
 ---
 
-## Production-line analogy
+## 1. Bức tranh tổng thể
 
-Trước khi vào chi tiết, nhớ phép ẩn dụ trong `lifecycle`:
-
-```
-Skill          = khâu trên dây chuyền
-Agent          = nhân viên trong khâu (chuyên môn hẹp)
-Intel          = hồ sơ work-in-progress
-Tokens         = vật tư, đắt khi sai
-Drift          = phế phẩm (phát hiện sớm rẻ hơn cuối)
-```
-
-Nguyên tắc cốt lõi:
-- **Mỗi agent có ROLE hẹp** — không "tiện tay làm hộ khâu khác"
-- **Single-writer per field per stage** — 1 agent = 1 phần dữ liệu, không xung đột
-- **Read-validate-write** — đọc upstream, validate freshness, write phần mình
-- **No silent drift** — thấy hồ sơ sai → báo cáo, không tự fix
+| Chỉ số | Số lượng | Ghi chú |
+|---|---|---|
+| Tổng agents | **53** | 22 Claude + 31 Cursor |
+| Stage agents (Cursor — SDLC pipeline) | 9 | + variant `*-pro` cho high-risk |
+| Tdoc agents (Claude — code → tài liệu) | 11 | từ `/from-code` đến `/generate-docs` |
+| Strategic + Doc-line agents (Luồng B) | 8 | Đề án CĐS, NCKT, HSMT |
+| Phụ trợ (Class A/B/C/D) | 25 | orchestrator, validator, merger, … |
 
 ---
 
-## Stage agents — SDLC pipeline (Cursor)
+## 2. Bốn nguyên tắc cốt lõi (đọc 1 lần, áp dụng mãi)
 
-Đây là 6 agents chính mà anh/chị sẽ tương tác mỗi khi `/resume-feature`.
+| Nguyên tắc | Ý nghĩa |
+|---|---|
+| **ROLE hẹp** | Mỗi agent chỉ làm 1 việc, không "tiện tay làm hộ" |
+| **Single-writer per field** | 1 agent = 1 phần dữ liệu trong intel layer; không bao giờ 2 agent cùng ghi |
+| **Read → Validate → Write** | Đọc upstream, kiểm freshness rồi mới ghi phần của mình |
+| **No silent drift** | Phát hiện hồ sơ sai → báo cáo lên PM, KHÔNG tự sửa |
+
+> 🏭 **Phép ẩn dụ "dây chuyền sản xuất"**: skill = khâu · agent = nhân viên · intel = hồ sơ work-in-progress · tokens = vật tư (đắt khi sai) · drift = phế phẩm (sớm phát hiện thì rẻ).
+
+---
+
+## 3. 🅰 Luồng A — Agents cho SDLC (sản xuất phần mềm)
+
+### 3.1 Stage agents (Cursor — chạy trong pipeline `/resume-feature`)
+
+Đây là **9 agent member sẽ thấy nhiều nhất** khi làm phần mềm.
+
+| Agent | Vai trò | Khi nào chạy |
+|---|---|---|
+| `ba` | Phân tích nghiệp vụ, viết AC + business rules | Stage đầu, sau khi feature mới được tạo |
+| `sa` | Thiết kế kiến trúc: routes, entities, RBAC | Sau `ba` Pass |
+| `tech-lead` | Phân rã thành tasks + execution waves | Sau `sa` Pass |
+| `dev` | Implement backend (1 task / wave) | Sau `tech-lead` plan |
+| `fe-dev` | Implement frontend (component, accessibility) | Song song với `dev` |
+| `qa` | Test + sinh atomic triple (TC + Playwright + screenshots) | Sau dev/fe-dev waves done |
+| `reviewer` | Rà PR cuối, verdict Approved/Changes/Blocked | Sau `qa` Pass |
+| `pm` | Resolve blocker, escalation, judgment calls | Khi agent khác `pm-required` |
+| `dispatcher` | Đọc `_state.md`, dispatch đúng agent | Mọi iteration của `/resume-feature` |
+
+> **Pro variants** (`ba-pro`, `sa-pro`, `dev-pro`, `qa-pro`, `reviewer-pro`): dùng Opus model khi `risk_score ≥ 4`, compliance phức tạp, hoặc test failure rate cao.
+
+Chi tiết từng agent (Vai trò · Trigger · OWN · FORBID · ví dụ output) — xem các section bên dưới.
+
+### 3.2 Tdoc agents (Claude — orchestration cho `/from-code` và `/generate-docs`)
+
+| Agent | Phase | Output |
+|---|---|---|
+| `tdoc-researcher` | `/from-code` Phase 1-2 | 7 intel JSON (system, actor, sitemap, …) |
+| `tdoc-actor-enum` | `/from-code` Phase 1.5 | `actor-registry` + draft `permission-matrix` |
+| `tdoc-test-runner` | `/from-code` Phase 2 | Playwright screenshots cho features |
+| `tdoc-screenshot-reviewer` | `/from-code` Phase 2.5 | Vision verify, flag screenshot sai |
+| `tdoc-data-writer` | `/from-code` Phase 3 | `content-data.json` (single file) |
+| `tdoc-exporter` | `/from-code` Phase 4 | Office files qua etc-platform MCP |
+| `tdoc-tkkt-writer` | `/generate-docs` | Block `architecture.*` (TKKT) |
+| `tdoc-tkcs-writer` | `/generate-docs` | Block `tkcs.*` (TKCS phần mềm) |
+| `tdoc-tkct-writer` | `/generate-docs` | Block `tkct.*` (TKCT) |
+| `tdoc-testcase-writer` | `/generate-docs` | Block `test_cases.*` (xlsx) |
+| `tdoc-manual-writer` | `/generate-docs` | Block `services[].features[]` (HDSD) |
+
+### 3.3 Class A/B/C/D — Phụ trợ
+
+`orchestrator`, `validator`, `merger`, `snapshot`, … — chạy ngầm cho intel pipeline. Member không trực tiếp gọi.
+
+---
+
+## 4. 🅱 Luồng B — Agents cho Tài liệu nhà nước (Đề án CĐS, đấu thầu)
+
+### 4.1 Strategic agents (`/new-strategic-document` — 4 spirals)
+
+| Agent | Vai trò |
+|---|---|
+| `strategy-analyst` | Bộ não chiến lược: dẫn interview, phân tích gap, DEDUP catalog |
+| `policy-researcher` | Tra cứu CNTT VN (QĐ/CT/NĐ), map ecosystem NDXP/LGSP/CSDLQG |
+| `structure-advisor` | Customize outline Đề án CĐS theo đặc thù tổ chức |
+
+### 4.2 Doc-line agents (`/new-document-workspace` — HSMT/HSDT/dự toán/NCKT)
+
+| Agent | Vai trò |
+|---|---|
+| `doc-orchestrator` | Điều phối pipeline tài liệu hành chính, manage waves |
+| `doc-writer` | Viết section: văn phong nghị định, có web research |
+| `doc-reviewer` | Rà soát NĐ 30/2020 + compliance pháp lý + cross-reference |
+| `doc-diagram` | Sinh PlantUML/Mermaid theo Khung CPĐT 4.0 |
+| `tdoc-nckt-writer` | Block `nckt.*` (NCKT NĐ 45/2026 Đ12 — 19 chương) |
+
+> ⚠️ **Trùng tên 2 luồng**: `tdoc-tkcs-writer` và `tdoc-tkct-writer` xuất hiện ở CẢ 2 luồng. Trong Luồng A là 1 block của bộ nghiệm thu phần mềm; trong Luồng B là tài liệu thầu/dự toán độc lập (NĐ 45/2026 Đ13/Đ14). Skill orchestrator phân biệt qua `content-data.json` schema.
+
+---
+
+## 5. Chi tiết stage agents — SDLC pipeline (Cursor)
+
+Phần dưới mô tả từng agent trong section 3.1 ở trên với **Vai trò · Trigger · OWN · FORBID · Ví dụ output**. Đọc khi cần hiểu rõ 1 agent cụ thể.
 
 ### `ba` — Business Analyst
 
