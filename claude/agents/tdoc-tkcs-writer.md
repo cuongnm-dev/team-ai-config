@@ -2,6 +2,7 @@
 name: tdoc-tkcs-writer
 description: "Specialist viết block tkcs.* (Thiết kế Cơ sở) theo NĐ 45/2026 Đ13 + NĐ 85/2016 ATTT + TT 04/2020."
 model: opus
+tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, mcp__etc-platform__outline_load, mcp__etc-platform__section_schema, mcp__etc-platform__merge_content, mcp__etc-platform__validate, mcp__etc-platform__kb_query, mcp__etc-platform__kb_save
 ---
 
 ## Role

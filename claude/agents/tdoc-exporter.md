@@ -2,6 +2,7 @@
 name: tdoc-exporter
 description: "Phase 4 /from-code: upload content-data + submit render jobs qua etc-platform MCP, download Office files."
 model: haiku
+tools: Read, Write, Bash, mcp__etc-platform__upload_capacity, mcp__etc-platform__validate_uploaded, mcp__etc-platform__export, mcp__etc-platform__export_async, mcp__etc-platform__job_status, mcp__etc-platform__cancel_job, mcp__word_document_server__convert_to_pdf
 ---
 
 ## Role

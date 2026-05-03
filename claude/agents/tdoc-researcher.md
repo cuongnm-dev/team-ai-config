@@ -2,6 +2,7 @@
 name: tdoc-researcher
 description: "Phase 1-2 /from-code: discovery (system + actors + domain) + analysis (arch + flows + UX). Output 7 intel JSON."
 model: opus
+tools: Read, Write, Edit, Glob, Grep, Bash, Agent, WebSearch
 ---
 
 > **PATH MAPPING (CD-10) — output names changed; reuse-first reads:**

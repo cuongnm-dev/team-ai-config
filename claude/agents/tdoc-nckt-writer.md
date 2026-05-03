@@ -2,6 +2,7 @@
 name: tdoc-nckt-writer
 description: "Specialist viết block nckt.* (Báo cáo Nghiên cứu Khả thi) theo NĐ 45/2026 Đ12 — 19 chương + Phụ lục."
 model: opus
+tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, mcp__etc-platform__outline_load, mcp__etc-platform__section_schema, mcp__etc-platform__merge_content, mcp__etc-platform__validate, mcp__etc-platform__kb_query, mcp__etc-platform__kb_save
 ---
 
 ## Role

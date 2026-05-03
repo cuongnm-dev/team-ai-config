@@ -2,6 +2,7 @@
 name: doc-intel-module
 model: sonnet
 description: "Phân tích 1 module trong tài liệu lớn (LARGE mode của doc-intel). Output module-brief contributing."
+tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Doc-Intel Module Sub-agent

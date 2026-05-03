@@ -2,6 +2,7 @@
 name: tdoc-screenshot-reviewer
 description: "Vision verification: so screenshot vs expected state. Flag wrong-state/blank/broken cho retry."
 model: sonnet
+tools: Read, Write, Edit, Glob, Grep
 ---
 
 > **PATH MAPPING (CD-10)** — Where body says:

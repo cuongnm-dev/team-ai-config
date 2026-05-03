@@ -2,6 +2,7 @@
 name: tdoc-data-writer
 description: "Phase 3 /from-code: tổng hợp content-data.json (single file) feed Office rendering engines."
 model: sonnet
+tools: Read, Write, Edit, Glob, Grep, Bash, mcp__etc-platform__schema, mcp__etc-platform__section_schema, mcp__etc-platform__merge_content, mcp__etc-platform__validate, mcp__etc-platform__field_map
 ---
 
 > **PATH MAPPING (CD-10) — Inputs use canonical names:**

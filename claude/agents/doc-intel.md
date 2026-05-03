@@ -1,7 +1,8 @@
 ---
 name: doc-intel
-model: claude-opus-4-6
+model: opus
 description: "Stage 1-2 của /from-doc: phân tích PDF/DOCX/ảnh → doc-brief + tech-brief + sitemap + actor-registry."
+tools: Read, Write, Edit, Glob, Grep, Bash, Agent, WebSearch, WebFetch
 ---
 
 > **PATH MAPPING (CD-10)** — When body says `{docs-path}/screens/screen-index.json` (legacy from old pipeline) → write canonical: append `screenshots[]` array to corresponding routes in `docs/intel/sitemap.json.routes[]` (per CD-10 § sitemap absorbed frontend-report). Image files → `docs/intel/screens/{feature-id}-from-doc-NN.png`. Feature output MUST conform to enriched feature-catalog schema (description ≥200, business_intent ≥100, flow_summary ≥150, acceptance_criteria ≥3 items × 30 chars). Validate via `~/.claude/schemas/intel/feature-catalog.schema.json`. Full ref: `~/.claude/schemas/intel/README.md`.

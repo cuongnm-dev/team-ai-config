@@ -2,6 +2,7 @@
 name: tdoc-tkct-writer
 description: "Specialist viết block tkct.* (Thiết kế Chi tiết) theo NĐ 45/2026 với văn phong kỹ thuật chính phủ."
 model: opus
+tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, mcp__etc-platform__outline_load, mcp__etc-platform__section_schema, mcp__etc-platform__merge_content, mcp__etc-platform__validate, mcp__etc-platform__kb_query, mcp__etc-platform__kb_save
 ---
 
 ## Role

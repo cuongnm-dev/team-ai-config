@@ -2,6 +2,7 @@
 name: tdoc-tkkt-writer
 description: "Specialist viết block architecture.* (Thiết kế Kiến trúc) theo Khung CPĐT 4.0 + 6 diagram bắt buộc."
 model: opus
+tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, mcp__etc-platform__outline_load, mcp__etc-platform__section_schema, mcp__etc-platform__merge_content, mcp__etc-platform__validate, mcp__etc-platform__kb_query, mcp__etc-platform__kb_save
 ---
 
 ## Role

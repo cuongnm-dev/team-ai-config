@@ -1,7 +1,8 @@
 ---
 name: doc-intel-validator
-model: claude-haiku-4-5
+model: haiku
 description: "Kiểm tra hậu xử lý doc-intel: hallucination, incoherence, truncation, semantic. Chạy trước Gate A."
+tools: Read, Write, Glob, Grep, Bash, Agent
 ---
 
 # Doc-Intel Validator
