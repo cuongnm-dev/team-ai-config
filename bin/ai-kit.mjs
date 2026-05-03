@@ -797,13 +797,22 @@ const HIDDEN_FROM_INDEX = new Set([
   'decision-log',      // architectural ADRs
 ]);
 
-// Curated order for General group: on-board first (entry point), faq next
-// (most-asked), then catalogs + utility docs. Items not listed fall to end.
-const GENERAL_ORDER = ['on-board', 'faq', 'skills', 'agents', 'glossary', 'troubleshooting'];
-const orderRank = (name) => {
-  const i = GENERAL_ORDER.indexOf(name);
-  return i === -1 ? GENERAL_ORDER.length : i;
+// Member journey: on-board first (entry point) → faq + glossary (concepts) →
+// troubleshooting (when stuck). Catalogs separated into their own group.
+const START_HERE_ORDER = ['on-board', 'faq', 'glossary', 'troubleshooting'];
+const CATALOG_ORDER = ['skills', 'agents'];
+
+// Workflows grouped by SDLC journey: input → start → continue → end.
+const WORKFLOW_ORDER = ['from-doc', 'from-code', 'new-feature', 'resume-feature', 'close-feature'];
+
+// Reference: CLI first (members use most), then infrastructure.
+const REFERENCE_ORDER = ['ai-kit', 'mcp-server', 'agents'];
+
+const rankBy = (order) => (name) => {
+  const i = order.indexOf(name);
+  return i === -1 ? order.length : i;
 };
+const orderRank = rankBy(START_HERE_ORDER); // back-compat for menuDocs
 
 // Run a full-text search across docs + agents and print results to stdout.
 const runSearch = (term) => {
@@ -990,11 +999,24 @@ const interactiveIndex = async ({ allowBack = false } = {}) => {
   const docsDir = path.join(REPO_DIR, 'docs');
   while (true) {
     clearScreen();
-    const root = readDocItems(docsDir)
-      .filter(it => it.name !== 'README' && !HIDDEN_FROM_INDEX.has(it.name))
-      .sort((a, b) => orderRank(a.name) - orderRank(b.name) || a.name.localeCompare(b.name));
-    const workflows = readDocItems(path.join(docsDir, 'workflows'));
-    const reference = readDocItems(path.join(docsDir, 'reference'));
+    // Bucket root docs by purpose: "Bắt đầu" (concepts, troubleshoot) vs "Catalog".
+    const allRoot = readDocItems(docsDir)
+      .filter(it => it.name !== 'README' && !HIDDEN_FROM_INDEX.has(it.name));
+    const sortBy = (order) => (a, b) =>
+      rankBy(order)(a.name) - rankBy(order)(b.name) || a.name.localeCompare(b.name);
+    const startHere = allRoot
+      .filter(it => START_HERE_ORDER.includes(it.name))
+      .sort(sortBy(START_HERE_ORDER));
+    const catalog = allRoot
+      .filter(it => CATALOG_ORDER.includes(it.name))
+      .sort(sortBy(CATALOG_ORDER));
+    const otherRoot = allRoot
+      .filter(it => !START_HERE_ORDER.includes(it.name) && !CATALOG_ORDER.includes(it.name))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const workflows = readDocItems(path.join(docsDir, 'workflows')).sort(sortBy(WORKFLOW_ORDER));
+    const reference = readDocItems(path.join(docsDir, 'reference')).sort(sortBy(REFERENCE_ORDER));
+
     const choices = [];
     const addGroup = (title, items) => {
       if (!items.length) return;
@@ -1007,9 +1029,17 @@ const interactiveIndex = async ({ allowBack = false } = {}) => {
         choices.push({ name: `  ${nm}  ${desc}`, value: it.name });
       }
     };
-    addGroup('General', root);
-    addGroup('Workflows', workflows);
-    addGroup('Reference', reference);
+    // Order from frequently-used (top) to specialised (bottom):
+    //   🚀 Bắt đầu (member mới đọc trước)
+    //   📚 Catalog (tra cứu skills/agents)
+    //   🔄 Workflows (đào sâu pipeline theo journey: from-doc/code → new → resume → close)
+    //   📖 Reference (chi tiết kỹ thuật: CLI, MCP)
+    //   Khác (fallback nếu có doc lạ)
+    addGroup('🚀 Bắt đầu', startHere);
+    addGroup('📚 Catalog', catalog);
+    addGroup('🔄 Workflows', workflows);
+    addGroup('📖 Reference', reference);
+    if (otherRoot.length) addGroup('Khác', otherRoot);
     choices.push({ name: '──', value: '__sep_actions', disabled: ' ' });
     choices.push({ name: '🔍 Tìm kiếm full-text', value: '__search' });
     if (allowBack) choices.push({ name: '↩ Quay lại menu chính', value: '__back' });
