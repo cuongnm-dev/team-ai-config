@@ -1381,7 +1381,11 @@ const cmdUpdate = async () => {
     {
       title: 'Pull team-ai-config mới nhất',
       task: (_, task) => {
-        const r = sh('git', ['-C', REPO_DIR, 'pull', '--ff-only', '--quiet']);
+        // shQuiet (pipe-based stdio) — `sh` inherits stdio which corrupts Listr's
+        // renderer state on Windows PowerShell, producing duplicated task lines
+        // (each render tick re-emits prior frame because clear-line ANSI fails
+        // mid-pipe handover with the child git process).
+        const r = shQuiet('git', ['-C', REPO_DIR, 'pull', '--ff-only', '--quiet']);
         if (r.exitCode !== 0) throw new Error('git pull thất bại');
         task.title = 'Đã pull team-ai-config';
       },
