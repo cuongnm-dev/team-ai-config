@@ -288,6 +288,24 @@ expected: `[OK] Snapshot fresh`. If `--check` returns 1 → snapshot regen faile
 
 Failure to regen at close = silent token bloat across ALL future features in this workspace.
 
+### Step 6.7.1 — Intel-refresh handoff (when drift detected)
+
+Read `_state.md.frontmatter.intel-drift`:
+
+- IF `intel-drift: true` (set by dev/fe-dev when code change touched auth/role/route/RBAC/migration during this pipeline):
+  - Snapshot regen ở Step 6.7 chỉ compress canonical JSON HIỆN TẠI — không re-derive từ code state mới.
+  - **MUST** suggest user chạy `/intel-refresh` để re-extract sitemap + permission-matrix từ code mới (Tier 1+2 regen) trước khi feature tiếp theo bắt đầu.
+  - Print prompt:
+    ```
+    ⚠ intel-drift được set trong pipeline này (code change đã chạm auth/role/route).
+    Snapshot đã regen nhưng có thể stale vs code state mới.
+    Khuyến nghị: chạy `/intel-refresh` trước khi /new-feature kế tiếp.
+    Override: skip nếu drift là minor (ví dụ chỉ rename internal variable).
+    ```
+  - Set `feature-catalog.features[id].intel-refresh-pending: true` để feature tiếp theo (`new-feature` Step 2.5) phát hiện và block-if-missing escalate.
+
+- IF `intel-drift: false | unset` → skip (snapshot regen ở Step 6.7 là đủ).
+
 ## Step 6.7 — Populate `40-project-knowledge.mdc` (MANDATORY when lessons exist)
 
 This file is the team's living knowledge base — empty unless someone fills it. Before sealing, scan the retrospective + reviewer findings for transferable lessons and append at least one entry per applicable section in `~/.cursor/rules/40-project-knowledge.mdc`:
@@ -333,5 +351,6 @@ To free context: /clear then /new-feature or /hotfix
 | Outcome | Next skill |
 |---|---|
 | Closed successfully | Done — no action needed |
+| `intel-drift: true` was set | `/intel-refresh` để re-derive sitemap + permission-matrix từ code state mới (xem Step 6.7.1) |
 | Rework count > 0 | `@pm` for deeper retrospective analysis (no dedicated `/retrospective` skill yet — PM agent generates inline via `ref-pm-retrospective.md`) |
 | Hotfix severity Critical | `@pm` postmortem (no `/postmortem` skill yet) |

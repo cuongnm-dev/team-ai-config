@@ -54,11 +54,11 @@ Read `docs/intel/_meta.json.artifacts[*].stale` để identify artifact đã fla
 ### Cursor-native invocation
 
 ```
-@from-code --resume --phases 1,2          # Code drift
-@from-doc --resume --step doc-intel       # Doc drift
+@from-code {repo-path}        # Code drift — re-runs full extract; idempotent on intel layer
+@from-doc {doc-paths}         # Doc drift — re-extracts doc-intel
 ```
 
-(Cả 2 skill phải hỗ trợ `--resume` flag để skip Phase 0 stack-detect khi rerun. Nếu chưa có, gọi full skill — overhead nhỏ.)
+Flag `--resume --phases X,Y` / `--step doc-intel` để skip Phase 0 và chỉ re-run subset là **future enhancement**, hiện tại chưa support. Hệ quả: full skill chạy lại, overhead nhỏ vì Phase 1 harvest dùng `_meta.checksum_sources` bỏ qua file unchanged. Idempotent: re-write artifact với cùng nội dung không gây drift.
 
 ## Step 3 — Conflict reconciliation (Both)
 
