@@ -1234,6 +1234,33 @@ const err  = m => console.error(`  ${C.red}✗${C.reset} ${m}`);   // always sho
 const sh = (cmd, args, opts = {}) => execaSync(cmd, args, {stdio: 'inherit', reject: false, ...opts});
 const shQuiet = (cmd, args, opts = {}) => execaSync(cmd, args, {stdio: ['ignore', 'pipe', 'pipe'], reject: false, ...opts});
 
+// streamShIntoTask — Listr-safe child process runner.
+// Uses pipe stdio (NEVER inherit inside a Listr task — child stdio handover
+// corrupts the renderer's cursor state on PowerShell, producing duplicated
+// frames). Streams the last non-empty line of stdout/stderr to `task.output`
+// so the user sees live progress without breaking the frame.
+const streamShIntoTask = async (cmd, args, task, opts = {}) => {
+  const child = execa(cmd, args, {stdio: ['ignore', 'pipe', 'pipe'], reject: false, ...opts});
+  const tail = (stream) => {
+    if (!stream) return;
+    let buf = '';
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => {
+      buf += chunk;
+      const lines = buf.split(/\r?\n/);
+      buf = lines.pop() || '';
+      for (const line of lines) {
+        const t = line.trim();
+        if (t) task.output = t.length > 120 ? t.slice(0, 117) + '…' : t;
+      }
+    });
+  };
+  tail(child.stdout);
+  tail(child.stderr);
+  const r = await child;
+  return r;
+};
+
 // ─── Background update-check (non-blocking) ────────────────────────────
 // Reads last cached result (from previous background run) and displays notice.
 // Spawns a detached Node process to refresh cache every 1h — does NOT block exit.
@@ -1506,8 +1533,8 @@ const cmdUpdate = async () => {
     },
     {
       title: 'Triển khai agents + skills vào ~/.claude và ~/.cursor',
-      task: (_, task) => {
-        const deploy = (subdir, target) => {
+      task: async (_, task) => {
+        const deploy = async (subdir, target) => {
           const src = path.join(REPO_DIR, subdir);
           if (!exists(src)) return;
           const dst = path.join(os.homedir(), target);
@@ -1515,7 +1542,7 @@ const cmdUpdate = async () => {
           if (exists(dstTmp)) fs.rmSync(dstTmp, {recursive: true, force: true});
           if (cmdAvail('rsync')) {
             fs.mkdirSync(dstTmp, {recursive: true});
-            sh('rsync', ['-a', '--delete', src + '/', dstTmp + '/']);
+            await streamShIntoTask('rsync', ['-a', '--delete', src + '/', dstTmp + '/'], task);
           } else {
             const cpr = (s, d) => {
               if (!exists(s)) return;
@@ -1531,10 +1558,10 @@ const cmdUpdate = async () => {
           if (exists(dst)) fs.rmSync(dst, {recursive: true, force: true});
           fs.renameSync(dstTmp, dst);
         };
-        deploy('claude/agents', '.claude/agents');
-        deploy('claude/skills', '.claude/skills');
-        deploy('cursor/agents', '.cursor/agents');
-        deploy('cursor/skills', '.cursor/skills');
+        await deploy('claude/agents', '.claude/agents');
+        await deploy('claude/skills', '.claude/skills');
+        await deploy('cursor/agents', '.cursor/agents');
+        await deploy('cursor/skills', '.cursor/skills');
         task.title = 'Đã triển khai agents + skills';
       },
     },
@@ -1557,14 +1584,21 @@ const cmdUpdate = async () => {
           return;
         }
         task.output = 'Pulling image…';
-        composeCmd('pull');
+        await streamShIntoTask('docker', ['compose', 'pull'], task, {cwd: composeDir()});
         task.output = 'Recreating container…';
-        composeCmd('up', '-d', '--force-recreate');
+        await streamShIntoTask('docker', ['compose', 'up', '-d', '--force-recreate'], task, {cwd: composeDir()});
         task.title = 'Đã làm mới MCP image';
       },
     },
   ], {
+    // Renderer selection (enterprise-grade output stability):
+    //   default — TTY-rich live updates with spinner (interactive shell)
+    //   simple  — line-by-line append, no cursor magic (CI / dumb terminal / piped)
+    // Force `simple` whenever stdout isn't a real TTY OR a CI marker is set,
+    // so logs to file/CI artifact stay clean (no ANSI cruft, no half-overwritten frames).
+    renderer: (process.stdout.isTTY && !process.env.CI && process.env.TERM !== 'dumb') ? 'default' : 'simple',
     rendererOptions: {collapseSubtasks: false, showSubtasks: true},
+    fallbackRenderer: 'simple',
     exitOnError: true,
   });
 
