@@ -43,8 +43,12 @@ Per LIFECYCLE.md P5 (stale-block), check intel freshness BEFORE trusting any rea
 ```
 
 If `docs/intel/` empty or not initialized:
-- Warn user (Vietnamese, user-facing): `⚠ Intel layer chưa khởi tạo. Tính năng sẽ chỉ ghi vào feature-map.yaml, không có canonical record. Khuyến nghị chạy /from-doc hoặc /from-code trước.`
+- Warn user (Vietnamese, user-facing): `⚠ Intel layer chưa khởi tạo (vi phạm CD-10 #7 block-if-missing). Tính năng sẽ chỉ ghi vào feature-map.yaml, không có canonical record. Generate-docs / resume-feature downstream sẽ phải re-discover (token waste). Khuyến nghị STRONG: chạy /from-doc hoặc /from-code trước.`
 - User picks: `[c]ontinue` (legacy mode, feature-map only) | `[a]bort`
+- IF user picks `[c]ontinue`:
+  - Set `feature-map.yaml.features.{id}.intel-warning: "missing-canonical-intel"` for compliance audit trail.
+  - Log warning to `_state.md.frontmatter.intel-warning: missing-canonical-intel`.
+  - Reviewer audit at close-feature surfaces these features (CD-10 Quy tắc 6.7).
 
 If intel exists, use it for:
 - **Role visibility prompts**: show `roles[].slug` list, user selects which roles see this feature (level: full | partial | readonly | none)

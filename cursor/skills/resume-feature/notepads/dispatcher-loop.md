@@ -33,6 +33,7 @@ intel-contract: |
      Single capture pass = dual-purpose evidence: regression run-back + doc illustration.
      QA stage verdict MUST include {test_cases_count, passed_count, screenshot_count, playwright_path}.
      Missing any one of 3 → block close-feature (handled in /close-feature gate).
+  6. Intel read tiers (CD-10 Quy tắc 14 — token economy): base-tier agents (dev, fe-dev, qa, reviewer) MUST Read({intel-path}/_snapshot.md) FIRST — compressed view ~5-7K tokens covers 95% of orientation needs. Fall back to canonical JSON ONLY when (a) snapshot missing → STOP "intel-snapshot-missing", (b) snapshot stale (sources_sha256 mismatch in _snapshot.meta.json) → read single canonical file then warn, (c) qa needs test-accounts.json (excluded from snapshot by design), or (d) dev needs specific code-facts.json section. Pro-tier agents (sa, sa-pro, reviewer-pro, ba-pro) bypass snapshot — Read canonical JSON directly because judgment requires full detail.
 ```
 
 **Why this fits cache:** `intel-path` resolves to a constant string at loop init; the `intel-contract` block is fully static text identical across all iterations and stages. FROZEN_HEADER bytes remain identical, preserving prefix-cache hits for Cursor's Task() context.
@@ -78,6 +79,9 @@ Each `/resume-feature` invocation = 1 fresh skill execution = pays cache_write t
 ```
 iter = 0; pm_count = 0; last_hash = null; last_verdict = "none"
 FROZEN_HEADER = build_frozen_header().rstrip("\n")
+# PM_FROZEN = 4-block escalation template defined verbatim in ~/.cursor/agents/pm.md § "Escalation Prompt Template"
+# Order: ## Agent Brief → ## Project Conventions → ## Feature Context → ## Inputs (pm-trigger + pm-context).
+# Build by copying that template, filling placeholders from _state.md; rstrip("\n") for cache stability.
 PM_FROZEN = build_pm_frozen().rstrip("\n")
 
 WHILE iter < 200:                                     # bumped 50→200 (cost-fix 2026-05-01)

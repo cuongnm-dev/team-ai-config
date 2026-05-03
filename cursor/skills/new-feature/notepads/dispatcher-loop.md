@@ -20,22 +20,17 @@ For full feature-id resume cases (status ≠ done), `new-feature` SKILL.md redir
 
 ## Dispatcher loop (with PM escalation)
 
+Cache discipline mirrors `resume-feature/notepads/dispatcher-loop.md` — STATIC `FROZEN_HEADER` computed once, DYNAMIC suffix rebuilt per iter. Kept minimal because new-feature typically runs 1–2 iters before handing off to `/resume-feature`.
+
 ```
+# Computed ONCE before loop — STATIC bytes only; never mutate, never inject iter-specific values.
+FROZEN_HEADER = "## Feature Context\nfeature-id: {feature-id}\ndocs-path: {docs-path}\nrepo-path: {repo-path}\noutput-mode: {output-mode}\nintel-path: {intel-path}".rstrip("\n")
+
 loop:
-  # Cache-aware prompt: same prefix across every iteration of same feature
-  # Static Feature Context section → cache hit across all dispatcher calls in this pipeline
+  DYNAMIC_SUFFIX = "## Inputs\n(dispatcher reads current-stage from _state.md)"
   result = Task(
     subagent_type="dispatcher",
-    prompt="
-## Feature Context
-feature-id: {feature-id}
-docs-path: {docs-path}
-repo-path: {repo-path}
-output-mode: {output-mode}
-
-## Inputs
-(dispatcher reads current-stage from _state.md)
-"
+    prompt = FROZEN_HEADER + "\n\n" + DYNAMIC_SUFFIX
   )
 
   → status=continuing:

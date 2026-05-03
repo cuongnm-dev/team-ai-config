@@ -23,7 +23,7 @@ These rules are auto-attached when Cursor opens code/test files. Purpose: even w
 
 ## Universal coding discipline (all roles)
 
-1. **Intel-first** — Before adding/modifying auth, RBAC, or routes: read `docs/intel/actor-registry.json` + `permission-matrix.json`. Use canonical role slugs. Never invent.
+1. **Intel-first (token-tiered)** — Before adding/modifying auth, RBAC, or routes: base-tier reads `docs/intel/_snapshot.md` first (~5-7K tokens, 95% coverage); fall back to canonical `actor-registry.json` + `permission-matrix.json` only when snapshot stale, missing, or judgment needs full detail (pro-tier). Use canonical role slugs. Never invent.
 2. **Feature-state aware** — When editing inside `docs/features/{id}/` workspace: read `_state.md` first. If `status != done` and current-stage doesn't match the file you're editing → warn user about pipeline state mismatch.
 3. **AC tagging** — Every meaningful function/class change should reference AC-NNN in commit message OR inline comment if non-obvious.
 4. **No silent scope creep** — If user asks for X but the file edit needs Y for correctness, surface Y as a separate question instead of bundling.

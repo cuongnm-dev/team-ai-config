@@ -333,5 +333,5 @@ To free context: /clear then /new-feature or /hotfix
 | Outcome | Next skill |
 |---|---|
 | Closed successfully | Done — no action needed |
-| Rework count > 0 | `/retrospective` for deeper analysis |
-| Hotfix severity Critical | `/postmortem` |
+| Rework count > 0 | `@pm` for deeper retrospective analysis (no dedicated `/retrospective` skill yet — PM agent generates inline via `ref-pm-retrospective.md`) |
+| Hotfix severity Critical | `@pm` postmortem (no `/postmortem` skill yet) |
