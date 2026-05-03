@@ -12,8 +12,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import React, { useEffect, useState } from 'react';
-import { Listr } from 'listr2';
+import React, { useEffect, useReducer, useRef, useState } from 'react';
 import boxen from 'boxen';
 import figlet from 'figlet';
 import { select, input } from '@inquirer/prompts';
@@ -1234,32 +1233,6 @@ const err  = m => console.error(`  ${C.red}✗${C.reset} ${m}`);   // always sho
 const sh = (cmd, args, opts = {}) => execaSync(cmd, args, {stdio: 'inherit', reject: false, ...opts});
 const shQuiet = (cmd, args, opts = {}) => execaSync(cmd, args, {stdio: ['ignore', 'pipe', 'pipe'], reject: false, ...opts});
 
-// streamShIntoTask — Listr-safe child process runner.
-// Uses pipe stdio (NEVER inherit inside a Listr task — child stdio handover
-// corrupts the renderer's cursor state on PowerShell, producing duplicated
-// frames). Streams the last non-empty line of stdout/stderr to `task.output`
-// so the user sees live progress without breaking the frame.
-const streamShIntoTask = async (cmd, args, task, opts = {}) => {
-  const child = execa(cmd, args, {stdio: ['ignore', 'pipe', 'pipe'], reject: false, ...opts});
-  const tail = (stream) => {
-    if (!stream) return;
-    let buf = '';
-    stream.setEncoding('utf8');
-    stream.on('data', (chunk) => {
-      buf += chunk;
-      const lines = buf.split(/\r?\n/);
-      buf = lines.pop() || '';
-      for (const line of lines) {
-        const t = line.trim();
-        if (t) task.output = t.length > 120 ? t.slice(0, 117) + '…' : t;
-      }
-    });
-  };
-  tail(child.stdout);
-  tail(child.stderr);
-  const r = await child;
-  return r;
-};
 
 // ─── Background update-check (non-blocking) ────────────────────────────
 // Reads last cached result (from previous background run) and displays notice.
@@ -1386,40 +1359,219 @@ const waitForDocker = (maxMs = 60000) => {
   return false;
 };
 
+// ─── TaskRunner — Ink-based progress UI (enterprise grade) ─────────────
+// React/Ink replacement for Listr2. Single virtual frame reconciled by Ink,
+// no terminal-state corruption regardless of platform (Windows PowerShell,
+// macOS Terminal, Linux xterm, CI). Matches Gemini CLI / Claude Code UX.
+//
+// Step shape:
+//   {
+//     id:        unique string,
+//     label:     initial display label,
+//     enabled?:  () => bool — skip silently when false,
+//     run:       async (controller) => void — throw to fail
+//   }
+//
+// Controller passed to run():
+//   ctx          shared object across steps (mutable)
+//   output(s)    set the secondary line (truncated to 120 cols)
+//   setLabel(s)  rename the step (final state shows this label)
+//   skip(reason) mark this step skipped instead of done
+//
+// runTasks returns a Promise<ctx>. On any step throw, the runner stops,
+// prints failure inline, and rejects.
+
+const TASK_PENDING = 'pending';
+const TASK_RUNNING = 'running';
+const TASK_DONE    = 'done';
+const TASK_SKIPPED = 'skipped';
+const TASK_FAILED  = 'failed';
+
+const taskReducer = (state, action) => {
+  switch (action.type) {
+    case 'START':
+      return {
+        ...state,
+        steps: state.steps.map((s, i) =>
+          i === action.idx ? {...s, state: TASK_RUNNING} : s
+        ),
+      };
+    case 'OUTPUT':
+      return {
+        ...state,
+        steps: state.steps.map((s, i) =>
+          i === action.idx ? {...s, output: action.text} : s
+        ),
+      };
+    case 'LABEL':
+      return {
+        ...state,
+        steps: state.steps.map((s, i) =>
+          i === action.idx ? {...s, label: action.text} : s
+        ),
+      };
+    case 'FINISH':
+      return {
+        ...state,
+        steps: state.steps.map((s, i) =>
+          i === action.idx
+            ? {...s, state: action.finalState, output: undefined, label: action.label ?? s.label}
+            : s
+        ),
+      };
+    case 'COMPLETE':
+      return {...state, complete: true, error: action.error || null};
+    default:
+      return state;
+  }
+};
+
+const TaskRow = ({step}) => {
+  let icon, color;
+  switch (step.state) {
+    case TASK_RUNNING: icon = h(Spinner, {type: 'dots'}); color = 'cyan'; break;
+    case TASK_DONE:    icon = '✓'; color = 'green'; break;
+    case TASK_SKIPPED: icon = '↓'; color = 'yellow'; break;
+    case TASK_FAILED:  icon = '✗'; color = 'red'; break;
+    default:           icon = '○'; color = 'gray';
+  }
+  return h(Box, {flexDirection: 'column'},
+    h(Box, null,
+      h(Text, {color}, '  ', icon, ' '),
+      h(Text, {color: step.state === TASK_PENDING ? 'gray' : undefined}, step.label),
+    ),
+    step.state === TASK_RUNNING && step.output
+      ? h(Box, {marginLeft: 4},
+          h(Text, {color: 'gray'}, '└─ ', step.output)
+        )
+      : null,
+  );
+};
+
+const TaskRunner = ({steps, onDone}) => {
+  const {exit} = useApp();
+  const [state, dispatch] = useReducer(taskReducer, {
+    steps: steps.map(s => ({...s, state: TASK_PENDING, output: undefined})),
+    complete: false,
+    error: null,
+  });
+  const runOnce = useRef(false);
+  const ctxRef = useRef({});
+
+  useEffect(() => {
+    if (runOnce.current) return;
+    runOnce.current = true;
+
+    (async () => {
+      const ctx = ctxRef.current;
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (step.enabled && !step.enabled()) {
+          dispatch({type: 'FINISH', idx: i, finalState: TASK_SKIPPED});
+          continue;
+        }
+        dispatch({type: 'START', idx: i});
+        let skipped = false;
+        let skipLabel = null;
+        const controller = {
+          ctx,
+          output: (text) => {
+            const t = String(text || '').trim();
+            const cropped = t.length > 120 ? t.slice(0, 117) + '…' : t;
+            dispatch({type: 'OUTPUT', idx: i, text: cropped});
+          },
+          setLabel: (text) => dispatch({type: 'LABEL', idx: i, text}),
+          skip: (reason) => { skipped = true; skipLabel = reason || null; },
+        };
+        try {
+          await step.run(controller);
+          if (skipped) {
+            dispatch({type: 'FINISH', idx: i, finalState: TASK_SKIPPED, label: skipLabel || undefined});
+          } else {
+            dispatch({type: 'FINISH', idx: i, finalState: TASK_DONE});
+          }
+        } catch (err) {
+          dispatch({type: 'FINISH', idx: i, finalState: TASK_FAILED});
+          dispatch({type: 'COMPLETE', error: err});
+          // Brief delay so failed state renders before exit.
+          setTimeout(() => { onDone(err, ctx); exit(); }, 60);
+          return;
+        }
+      }
+      dispatch({type: 'COMPLETE'});
+      setTimeout(() => { onDone(null, ctx); exit(); }, 60);
+    })();
+  }, []);
+
+  return h(Box, {flexDirection: 'column'},
+    state.steps.map(s => h(TaskRow, {key: s.id, step: s})),
+    state.error
+      ? h(Box, {marginTop: 1, marginLeft: 2},
+          h(Text, {color: 'red'}, '✗ ', state.error.message || String(state.error)))
+      : null,
+  );
+};
+
+// streamShIntoStep — pipe-stdio child runner that streams last line into
+// the controller's output() (Ink-friendly counterpart to streamShIntoTask).
+const streamShIntoStep = async (cmd, args, controller, opts = {}) => {
+  const child = execa(cmd, args, {stdio: ['ignore', 'pipe', 'pipe'], reject: false, ...opts});
+  const tail = (stream) => {
+    if (!stream) return;
+    let buf = '';
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => {
+      buf += chunk;
+      const lines = buf.split(/\r?\n/);
+      buf = lines.pop() || '';
+      for (const line of lines) {
+        const t = line.trim();
+        if (t) controller.output(t);
+      }
+    });
+  };
+  tail(child.stdout);
+  tail(child.stderr);
+  return await child;
+};
+
+const runTasks = (steps) => new Promise((resolve, reject) => {
+  const onDone = (err, ctx) => err ? reject(err) : resolve(ctx);
+  const inst = render(h(TaskRunner, {steps, onDone}));
+  inst.waitUntilExit().catch(() => {}); // exit handled inside component
+});
+
 // ─── update ────────────────────────────────────────────────────────────
 const cmdUpdate = async () => {
   ensureRepo();
 
-  // Snapshot vars used across tasks
   let _snapName = '';
 
-  const tasks = new Listr([
+  const steps = [
     {
-      title: 'Kiểm tra thay đổi cục bộ',
-      task: (ctx, task) => {
+      id: 'check-clean',
+      label: 'Kiểm tra thay đổi cục bộ',
+      run: (c) => {
         const {stdout: dirty} = shQuiet('git', ['-C', REPO_DIR, 'status', '--porcelain']);
         if (dirty && dirty.trim()) {
-          ctx.dirty = dirty;
+          c.ctx.dirty = dirty;
           throw new Error('Có thay đổi cục bộ chưa commit — chạy "ai-kit reset" để bỏ, hoặc commit trước.');
         }
-        task.title = 'Repo sạch, không có thay đổi cục bộ';
+        c.setLabel('Repo sạch, không có thay đổi cục bộ');
       },
     },
     {
-      title: 'Pull team-ai-config mới nhất',
-      task: (_, task) => {
-        // shQuiet (pipe-based stdio) — `sh` inherits stdio which corrupts Listr's
-        // renderer state on Windows PowerShell, producing duplicated task lines
-        // (each render tick re-emits prior frame because clear-line ANSI fails
-        // mid-pipe handover with the child git process).
-        const r = shQuiet('git', ['-C', REPO_DIR, 'pull', '--ff-only', '--quiet']);
-        if (r.exitCode !== 0) throw new Error('git pull thất bại');
-        task.title = 'Đã pull team-ai-config';
+      id: 'git-pull',
+      label: 'Pull team-ai-config mới nhất',
+      run: async (c) => {
+        await streamShIntoStep('git', ['-C', REPO_DIR, 'pull', '--ff-only'], c);
+        c.setLabel('Đã pull team-ai-config');
       },
     },
     {
-      title: 'Làm mới ai-kit CLI tại ~/.ai-kit/bin',
-      task: (_, task) => {
+      id: 'refresh-cli',
+      label: 'Làm mới ai-kit CLI tại ~/.ai-kit/bin',
+      run: (c) => {
         fs.mkdirSync(BIN_DIR, {recursive: true});
         for (const f of ['ai-kit', 'ai-kit.cmd', 'ai-kit.ps1', 'ai-kit.mjs', 'ai-kit.legacy', 'ai-kit.legacy.ps1']) {
           const src = path.join(REPO_DIR, 'bin', f);
@@ -1431,7 +1583,6 @@ const cmdUpdate = async () => {
             }
           }
         }
-        // Copy bin/lib/ recursively (modular ESM imports)
         const libSrc = path.join(REPO_DIR, 'bin', 'lib');
         const libDst = path.join(BIN_DIR, 'lib');
         if (exists(libSrc)) {
@@ -1440,40 +1591,38 @@ const cmdUpdate = async () => {
             if (e.isFile()) fs.copyFileSync(path.join(libSrc, e.name), path.join(libDst, e.name));
           }
         }
-        task.title = 'Đã làm mới CLI';
+        c.setLabel('Đã làm mới CLI');
       },
     },
     {
-      title: 'Kiểm tra Node deps',
+      id: 'node-deps',
+      label: 'Kiểm tra Node deps',
       enabled: () => exists(path.join(REPO_DIR, 'package.json')),
-      task: (_, task) => {
+      run: async (c) => {
         const pkgSrc = path.join(REPO_DIR, 'package.json');
         const hashFile = path.join(AI_KIT_HOME, '.deps-hash');
         const newHash = crypto.createHash('sha256').update(fs.readFileSync(pkgSrc)).digest('hex');
         const oldHash = exists(hashFile) ? fs.readFileSync(hashFile, 'utf8').trim() : '';
         const nodeModulesOk = exists(path.join(AI_KIT_HOME, 'node_modules'));
         if (newHash === oldHash && nodeModulesOk) {
-          task.title = 'Node deps đã đồng bộ — bỏ qua npm install';
-          task.skip();
+          c.skip('Node deps đã đồng bộ — bỏ qua npm install');
           return;
         }
-        task.title = 'Cài Node deps (package.json đã thay đổi)';
+        c.setLabel('Cài Node deps (package.json đã thay đổi)');
         fs.copyFileSync(pkgSrc, path.join(AI_KIT_HOME, 'package.json'));
         const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-        const r = sh(npmBin, ['install', '--omit=dev', '--silent'], {cwd: AI_KIT_HOME, stdio: ['ignore', 'ignore', 'pipe']});
+        const r = await streamShIntoStep(npmBin, ['install', '--omit=dev', '--silent'], c, {cwd: AI_KIT_HOME});
         if (r.exitCode !== 0) throw new Error('npm install thất bại');
         fs.writeFileSync(hashFile, newHash);
-        task.title = 'Đã cài Node deps';
+        c.setLabel('Đã cài Node deps');
       },
     },
     {
-      title: 'Đảm bảo `less` (pager cho ai-kit doc)',
-      // less is mandatory for clean doc pagination — Windows `more` mangles UTF-8.
-      // Already-installed → instant skip. Missing → silent install via platform PM.
-      task: (_, task) => {
+      id: 'less',
+      label: 'Đảm bảo `less` (pager cho ai-kit doc)',
+      run: async (c) => {
         if (cmdAvail('less')) {
-          task.title = 'less đã cài';
-          task.skip();
+          c.skip('less đã cài');
           return;
         }
         const plat = process.platform;
@@ -1485,29 +1634,22 @@ const cmdUpdate = async () => {
         } else if (plat === 'darwin' && cmdAvail('brew')) {
           cmd = 'brew'; args = ['install', 'less'];
         } else {
-          // Linux: less almost always preinstalled; if missing, sudo prompt would
-          // block this Listr task → just hint instead.
-          task.title = 'less thiếu — cài thủ công (apt/dnf/pacman install less)';
-          task.skip();
+          c.skip('less thiếu — cài thủ công (apt/dnf/pacman install less)');
           return;
         }
         try {
-          shQuiet(cmd, args);
-          if (cmdAvail('less')) {
-            task.title = 'Đã cài less';
-          } else {
-            task.title = 'Cài less không thành công — chạy thủ công';
-            task.skip();
-          }
+          await streamShIntoStep(cmd, args, c);
+          if (cmdAvail('less')) c.setLabel('Đã cài less');
+          else c.skip('Cài less không thành công — chạy thủ công');
         } catch {
-          task.title = 'Cài less không thành công — chạy thủ công';
-          task.skip();
+          c.skip('Cài less không thành công — chạy thủ công');
         }
       },
     },
     {
-      title: 'Sao lưu cấu hình hiện tại',
-      task: (ctx, task) => {
+      id: 'snapshot',
+      label: 'Sao lưu cấu hình hiện tại',
+      run: (c) => {
         const _snapTs = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         _snapName = `ai-config-backup-${_snapTs}`;
         const _cprSnap = (s, d) => {
@@ -1528,21 +1670,23 @@ const cmdUpdate = async () => {
             if (exists(src)) _cprSnap(src, path.join(base, _snapName, item));
           }
         }
-        task.title = `Đã sao lưu (${_snapName})`;
+        c.setLabel(`Đã sao lưu (${_snapName})`);
       },
     },
     {
-      title: 'Triển khai agents + skills vào ~/.claude và ~/.cursor',
-      task: async (_, task) => {
+      id: 'deploy',
+      label: 'Triển khai agents + skills vào ~/.claude và ~/.cursor',
+      run: async (c) => {
         const deploy = async (subdir, target) => {
           const src = path.join(REPO_DIR, subdir);
           if (!exists(src)) return;
+          c.output(`→ ${target}`);
           const dst = path.join(os.homedir(), target);
           const dstTmp = dst + '.tmp';
           if (exists(dstTmp)) fs.rmSync(dstTmp, {recursive: true, force: true});
           if (cmdAvail('rsync')) {
             fs.mkdirSync(dstTmp, {recursive: true});
-            await streamShIntoTask('rsync', ['-a', '--delete', src + '/', dstTmp + '/'], task);
+            await streamShIntoStep('rsync', ['-a', '--delete', src + '/', dstTmp + '/'], c);
           } else {
             const cpr = (s, d) => {
               if (!exists(s)) return;
@@ -1562,68 +1706,38 @@ const cmdUpdate = async () => {
         await deploy('claude/skills', '.claude/skills');
         await deploy('cursor/agents', '.cursor/agents');
         await deploy('cursor/skills', '.cursor/skills');
-        task.title = 'Đã triển khai agents + skills';
+        c.setLabel('Đã triển khai agents + skills');
       },
     },
     {
-      title: 'Làm mới MCP image (Docker)',
+      id: 'mcp-refresh',
+      label: 'Làm mới MCP image (Docker)',
       enabled: () => exists(composeDir()),
-      task: async (ctx, task) => {
+      run: async (c) => {
         let state = dockerHealth();
         if (state === 'not-running') {
-          task.output = 'Docker daemon không phản hồi — đang thử khởi động tự động…';
-          if (tryStartDocker() && waitForDocker(60000)) {
-            state = 'ok';
-          }
+          c.output('Docker daemon không phản hồi — đang thử khởi động tự động…');
+          if (tryStartDocker() && waitForDocker(60000)) state = 'ok';
         }
         if (state !== 'ok') {
-          ctx.dockerSkipped = state;
-          task.skip(state === 'not-installed'
+          c.ctx.dockerSkipped = state;
+          c.skip(state === 'not-installed'
             ? 'Docker chưa cài — bỏ qua MCP refresh'
             : 'Docker đang dừng — bỏ qua MCP refresh');
           return;
         }
-        task.output = 'Pulling image…';
-        await streamShIntoTask('docker', ['compose', 'pull'], task, {cwd: composeDir()});
-        task.output = 'Recreating container…';
-        await streamShIntoTask('docker', ['compose', 'up', '-d', '--force-recreate'], task, {cwd: composeDir()});
-        task.title = 'Đã làm mới MCP image';
+        c.output('Pulling image…');
+        await streamShIntoStep('docker', ['compose', 'pull'], c, {cwd: composeDir()});
+        c.output('Recreating container…');
+        await streamShIntoStep('docker', ['compose', 'up', '-d', '--force-recreate'], c, {cwd: composeDir()});
+        c.setLabel('Đã làm mới MCP image');
       },
     },
-  ], {
-    // Renderer selection (enterprise-grade output stability):
-    //   default — TTY-rich live updates with spinner (interactive shell)
-    //   simple  — line-by-line append, no cursor magic (CI / dumb terminal / piped)
-    // Force `simple` whenever stdout isn't a real TTY OR a CI marker is set,
-    // so logs to file/CI artifact stay clean (no ANSI cruft, no half-overwritten frames).
-    renderer: (process.stdout.isTTY && !process.env.CI && process.env.TERM !== 'dumb') ? 'default' : 'simple',
-    rendererOptions: {collapseSubtasks: false, showSubtasks: true},
-    fallbackRenderer: 'simple',
-    exitOnError: true,
-  });
+  ];
 
+  let ctx;
   try {
-    const ctx = await tasks.run();
-    // Reset update-check cache so next invocation doesn't show stale "X behind"
-    try {
-      fs.mkdirSync(AI_KIT_HOME, {recursive: true});
-      fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ahead: 0, ts: Date.now()}));
-    } catch {}
-
-    // Auto-write integrity manifest after successful deploy
-    try { writeManifest(); } catch {}
-
-    if (ctx.dockerSkipped) {
-      console.log('');
-      printDockerGuide(ctx.dockerSkipped);
-    } else {
-      console.log('');
-      console.log(boxen(
-        `${C.green}✓ Cập nhật hoàn tất${C.reset}\n${C.gray}Repo + CLI + agents/skills + MCP image đã sẵn sàng${C.reset}`,
-        {padding: 1, margin: {top: 0, bottom: 1, left: 2, right: 2},
-         borderColor: 'green', borderStyle: 'round', title: 'ai-kit', titleAlignment: 'center'}
-      ));
-    }
+    ctx = await runTasks(steps);
   } catch (e) {
     console.log('');
     console.log(boxen(
@@ -1632,6 +1746,24 @@ const cmdUpdate = async () => {
        borderColor: 'red', borderStyle: 'round', title: 'Lỗi', titleAlignment: 'center'}
     ));
     process.exit(1);
+  }
+
+  try {
+    fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+    fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ahead: 0, ts: Date.now()}));
+  } catch {}
+  try { writeManifest(); } catch {}
+
+  if (ctx.dockerSkipped) {
+    console.log('');
+    printDockerGuide(ctx.dockerSkipped);
+  } else {
+    console.log('');
+    console.log(boxen(
+      `${C.green}✓ Cập nhật hoàn tất${C.reset}\n${C.gray}Repo + CLI + agents/skills + MCP image đã sẵn sàng${C.reset}`,
+      {padding: 1, margin: {top: 0, bottom: 1, left: 2, right: 2},
+       borderColor: 'green', borderStyle: 'round', title: 'ai-kit', titleAlignment: 'center'}
+    ));
   }
 };
 
