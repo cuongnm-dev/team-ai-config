@@ -10,13 +10,12 @@ User-facing output: Vietnamese. Artifact files and dispatcher prompts: English.
 
 ---
 
-## ⚠️⚠️⚠️ ORCHESTRATOR DISCIPLINE — READ FIRST
+## ⚠️ SKILL ROLE — THIN ENTRY POINT (2026-05-04 architecture)
 
-You are the outer orchestrator for hotfix pipeline. After Steps 1-5 setup, Step 6 = dispatcher loop. You are NOT the worker.
+This skill is a thin entry point. After Steps 1-5 setup, Step 6 hands off to **PM agent** via single `Task(pm, mode=orchestrate)` call. PM drives hotfix pipeline (tech-lead → dev → qa → reviewer) end-to-end.
 
-**Forbidden:** Reading `tech-lead.md`/`dev.md`/`qa.md` to "do work yourself". Writing artifacts directly. Stopping after 1 stage transition. Returning to user with "chạy lại /resume-feature ..." after only 1 stage.
-
-**Required:** Loop `Task(dispatcher)` until status ∈ {`done`, hard `blocked`, `pm-required`→`resume:false`, `iter>=200`}. Anything else = LOOP.
+**Forbidden:** Read agent definitions to do work yourself. Write artifacts directly. Loop Task(dispatcher) — deprecated 2026-05-04.
+**Required:** Build Orchestrate prompt → 1× Task(pm) → relay verdict to user.
 
 ---
 
@@ -162,51 +161,52 @@ After write: `python ~/.claude/scripts/intel/meta_helper.py update docs/intel/ f
 
 If intel layer absent: skip — hotfix uses `feature-map.yaml` only (legacy).
 
-## Step 6 — Dispatcher loop (INLINE — same protocol as resume-feature SKILL.md § 6)
+## Step 6 — Hand off to PM (single Task call)
+
+Build Orchestrate prompt + call `Task(pm)` ONCE. PM drives hotfix pipeline (tech-lead → dev → qa → reviewer) end-to-end since `_state.md` already has `completed-stages.ba` and `completed-stages.sa` pre-populated as Skipped.
+
+### 6.1 — Build PM Orchestrate prompt
 
 ```
-iter = 0; pm_count = 0; transient_retry_count = 0; last_verdict = "none"
-FROZEN_HEADER = "## Pipeline Context\npipeline-type: sdlc\nfeature-id: {hotfix-id}\ndocs-path: docs/hotfixes/{hotfix-id}\nrepo-path: .\noutput-mode: lean".rstrip("\n")
-PM_FROZEN = build_pm_frozen().rstrip("\n")
+## Agent Brief
+You are PM in Orchestrate mode (hotfix variant). See ~/.cursor/agents/pm.md § Orchestrate Mode.
 
-WHILE iter < 200:
-  iter++
-  prompt = FROZEN_HEADER + "\n\n## Current State\ncurrent-stage: {current-stage}\niter: {iter}\nlast-verdict: {last_verdict}"
+## Mode
+orchestrate
 
-  result = Task(subagent_type="dispatcher", prompt=prompt)
-  status = result.get("status") or "continuing"
+## Project Conventions
+{≤5 lines from rules/40-project-knowledge.mdc; "(none)" if none}
 
-  CASE status:
-    "continuing":
-      last_verdict = result.verdict or "in-progress"
-      print "[{stage}] ✓ {verdict}"
-      loop                                  # ← do NOT exit on stage transition
+## Feature Context
+feature-id:        {hotfix-id}
+docs-path:         docs/hotfixes/{hotfix-id}
+repo-path:         .
+intel-path:        docs/intel/    # if intel layer exists; else "(none)"
+output-mode:       lean
+pipeline-path:     S    # hotfix is always Path S (no SA, no dedicated QA — reviewer inline)
 
-    "done":
-      reread _state.md
-      IF stages-queue non-empty: last_verdict="auto-continue"; loop
-      ELSE: proceed to Step 7
-
-    "blocked":
-      IF result.blockers contains PARSE-001 or NO-INVOKE-001 AND transient_retry_count < 1:
-        transient_retry_count++; continue
-      surface blockers, stop                # ← legitimate stop
-
-    "pm-required":
-      pm_count++
-      IF pm_count > 5: STOP
-      pm_result = Task(subagent_type="pm", prompt=PM_FROZEN + "\n\n" + truncate(result.pm-context, 8K))
-      IF pm_result invalid OR missing `resume`: surface raw output; STOP
-      IF pm_result.resume == true: last_verdict="pm-resolved"; loop   # ← baton back
-      ELSE: surface pm_result.message + clarification; STOP   # ← legitimate stop (user-needed)
-
-    default:
-      print "⚠ Unknown status — treating as continuing"
-      last_verdict = result.verdict or "unknown-status"
-      loop
+## Inputs
+session-context:   |
+  Hotfix scope: {short bug description}
+  Root cause: {file/function}
+  Severity: {Critical|High|Medium}
+  pre-scaffold: ba+sa already marked Skipped in _state.md.
 ```
 
-**Stop conditions (only 4):** `done` + queue empty (proceed Step 7) | hard `blocked` | `pm-required`→`resume:false` | iter ≥ 200. Anything else = LOOP.
+### 6.2 — Single Task(pm) call
+
+```
+result = Task(subagent_type="pm", prompt=prompt_above)
+```
+
+### 6.3 — Surface result + proceed
+
+| `result.status` | Action |
+|---|---|
+| `done` | Proceed to Step 7 (post-merge checklist) |
+| `blocked` (hard) | Surface blockers, stop |
+| `user-needed` | Surface PM message + clarification, stop. User answers + re-runs `/resume-feature {hotfix-id}`. |
+| `iter≥200` | Surface safety-cap message, stop |
 
 ## Step 7 — Post-merge checklist
 

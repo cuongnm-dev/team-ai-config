@@ -12,24 +12,20 @@ User-facing output: Vietnamese. Artifact files and dispatcher prompts: English.
 
 ---
 
-## ⚠️⚠️⚠️ ORCHESTRATOR DISCIPLINE — READ FIRST
+## ⚠️ SKILL ROLE — THIN ENTRY POINT (2026-05-04 architecture)
 
-You are running this skill as the **outer orchestrator**. After Steps 1-4 finish setup (create `_state.md`, intel entries, feature-map), Step 5 = dispatcher loop. You are NOT the worker.
+This skill is a thin entry point. After Steps 1-4 setup (state, intel, feature-map), Step 5 hands off to **PM agent** via single `Task(pm, mode=orchestrate)` call. PM drives pipeline end-to-end.
 
-### Forbidden behaviors:
-
+### Forbidden:
 - ❌ Reading `ba.md`/`sa.md`/`dev.md`/agent definitions and "doing the work yourself"
-- ❌ Writing artifact files (`ba/`, `sa/`, `04-tech-lead-plan.md`, dev outputs, qa report, review report)
-- ❌ Returning to user with "Bước tiếp theo: chạy /resume-feature" after only 1 stage — that defeats the skill
-- ❌ Stopping after dispatcher returns `status=continuing` — you MUST call dispatcher again
+- ❌ Writing artifact files (`ba/`, `sa/`, dev outputs, qa report, review report)
+- ❌ Looping `Task(dispatcher)` per-stage — that pattern is deprecated 2026-05-04
+- ❌ Re-implementing routing/validation/state-update logic — PM owns this
 
-### Required behavior:
-
+### Required:
 - ✅ Steps 1-4 = setup (state, intel, feature-map)
-- ✅ Step 5 dispatcher loop — call `Task(dispatcher)` repeatedly until status ∈ {`done`, hard `blocked`, `pm-required`→`resume:false`, `iter>=200`}
-- ✅ ONLY 4 legitimate stop conditions (see resume-feature/SKILL.md § 6.4 Stop conditions table — same applies here)
-
-**If `notepads/dispatcher-loop.md` fails to load — DO NOT FALLBACK TO DOING WORK YOURSELF.** Use the inlined Step 5 below (mirrors resume-feature SKILL.md § 6).
+- ✅ Step 5 = single `Task(pm)` call. PM does the rest.
+- ✅ Surface PM's final verdict to user.
 
 ---
 
@@ -78,7 +74,41 @@ Read `notepads/new-flow.md` and follow Steps 2 → 4.7 in that file. Covers:
 - Step 4.6: Register placeholder in `sitemap.json` + `permission-matrix.json`
 - Step 4.7: Exit-gate verification
 
-After exit-gate passes → run dispatcher loop (Step 5 below).
+After exit-gate passes → run worktree detection (Step 4.8 below) → dispatcher loop (Step 5).
+
+## Step 4.8 — Worktree detection (Cursor 3+ native)
+
+Detect if skill is running inside a Cursor-managed git worktree. If yes, record worktree context in `_state.md` so PM and downstream tooling know to operate against the worktree (not main checkout).
+
+```
+worktree_path = $ROOT_WORKTREE_PATH    # env var Cursor exposes when running inside a worktree
+
+IF worktree_path is set:
+  branch = `git rev-parse --abbrev-ref HEAD` (run in worktree dir)
+  base   = `git symbolic-ref --short refs/remotes/origin/HEAD | sed s|origin/||` (or `main`/`master`)
+  base_sha = `git merge-base {base} HEAD`
+
+  Append to _state.md frontmatter:
+    worktree-path:   "{worktree_path}"
+    worktree-branch: "{branch}"
+    worktree-base:   "{base}"
+    worktree-base-sha: "{base_sha}"
+
+ELSE (running in main checkout):
+  Ask user (interactive, default skip):
+    "Chạy feature trong worktree để isolate code thay đổi (recommended cho parallel work)? (y/N)"
+    IF y → tell user: "Mở agent dropdown trong Cursor, chọn 'Worktree' location, rồi re-run /new-feature {id}."
+           STOP setup (no _state.md created yet — user re-runs after switching).
+    IF N → continue in main checkout. Skill operates as normal. Skip worktree fields in _state.md.
+```
+
+**Why this matters:**
+- PM passes `repo-path = worktree_path` to specialists so file writes land in the right tree.
+- close-feature reads worktree fields and suggests `/apply-worktree` + `/delete-worktree` slash commands.
+- Multiple concurrent features → each in own worktree → no file-level conflict.
+- Cursor cleanup auto-runs every 6h, keeps newest 20 worktrees (per `.cursor/worktrees.json` defaults).
+
+Reference: https://cursor.com/docs/configuration/worktrees
 
 ---
 
@@ -97,89 +127,51 @@ guardrails: same feature-id (no new ID), agents overwrite artifacts in place, do
 
 ---
 
-## Step 5 — Dispatcher loop (INLINE — same protocol as resume-feature SKILL.md § 6)
+## Step 5 — Hand off to PM (single Task call, PM drives end-to-end)
 
-After NEW or UPDATE setup completes, run the dispatcher loop in-place. Do NOT defer to a separate `/resume-feature` invocation — that defeats the skill.
+Build Orchestrate prompt + call `Task(pm)` ONCE. PM internally loops dispatch+validate+update until done/blocked/user-needed.
 
-### 5.1 — FROZEN_HEADER (compute ONCE)
-
-```
-## Pipeline Context
-pipeline-type: sdlc
-feature-id: {feature-id}
-docs-path: {docs-path}
-repo-path: {repo-path}
-output-mode: {output-mode}
-stages-total: {N}
-intel-path: {repo-path}/docs/intel/
-intel-contract: |
-  Canonical intel artifacts at {intel-path}: actor-registry.json, permission-matrix.json, sitemap.json, feature-catalog.json, test-accounts.json (optional).
-  See resume-feature/SKILL.md § 6.1 for full sub-agent rules (intel reads, RBAC, QA artifacts, tier reads).
-```
-
-### 5.2 — DYNAMIC_SUFFIX (rebuild each iter)
+### 5.1 — Build PM Orchestrate prompt (4-block — cache-aware)
 
 ```
-## Current State
-current-stage: {current-stage}
-iter: {iter}
-last-verdict: {last-verdict}
+## Agent Brief
+You are PM in Orchestrate mode. Mission: drive feature pipeline to completion. See ~/.cursor/agents/pm.md § Orchestrate Mode.
+
+## Mode
+orchestrate
+
+## Project Conventions
+{≤5 lines from rules/40-project-knowledge.mdc; "(none)" if no relevant entries}
+
+## Feature Context
+feature-id:        {feature-id}
+docs-path:         {docs-path}
+repo-path:         {worktree-path if _state.md.worktree-path is set, else repo-path}
+intel-path:        {repo-path}/docs/intel/
+worktree-mode:     {true if worktree-path set, else false}
+worktree-branch:   {worktree-branch if set, else "(none)"}
+output-mode:       {output-mode}
+pipeline-path:     unknown   # PM will set after BA via inline Path Selection Logic
+
+## Inputs
+session-context:   (none)    # new-feature: fresh start; UPDATE flow: pass distilled change request
 ```
 
-### 5.3 — Loop (identical semantics to resume-feature § 6.3)
+### 5.2 — Single Task(pm) call
 
 ```
-iter = 0; pm_count = 0; transient_retry_count = 0; last_verdict = "none"
-FROZEN_HEADER = build_frozen_header().rstrip("\n")
-PM_FROZEN = build_pm_frozen().rstrip("\n")
-
-WHILE iter < 200:
-  iter++
-  prompt = FROZEN_HEADER + "\n\n## Current State\ncurrent-stage: {current-stage}\niter: {iter}\nlast-verdict: {last_verdict}"
-
-  result = Task(subagent_type="dispatcher", prompt=prompt)
-  status = result.get("status") or "continuing"
-
-  CASE status:
-    "continuing":
-      last_verdict = result.verdict or "in-progress"
-      print "[{stage}] ✓ {verdict}"
-      loop                                  # ← do NOT exit on stage transition
-
-    "done":
-      reread _state.md
-      IF stages-queue non-empty: last_verdict="auto-continue"; loop
-      ELSE: report final summary; exit      # ← legitimate stop
-
-    "blocked":
-      IF result.blockers contains PARSE-001 or NO-INVOKE-001 AND transient_retry_count < 1:
-        transient_retry_count++; continue
-      surface blockers, stop                # ← legitimate stop
-
-    "pm-required":
-      pm_count++
-      IF pm_count > 5: STOP
-      pm_result = Task(subagent_type="pm", prompt=PM_FROZEN + "\n\n" + truncate(result.pm-context, 8K))
-      IF pm_result invalid OR missing `resume`: STOP
-      IF pm_result.resume == true: last_verdict="pm-resolved"; loop   # ← baton back
-      ELSE: surface pm_result.message + clarification; STOP   # ← legitimate stop (user-needed)
-
-    default:
-      print "⚠ Unknown status — treating as continuing"
-      last_verdict = result.verdict or "unknown-status"
-      loop
+result = Task(subagent_type="pm", prompt=prompt_above)
+# PM runs Orchestrate Mode internally — see resume-feature/SKILL.md § 6.2 for behavior
 ```
 
-### 5.4 — Stop conditions (the ONLY 4 legitimate exits)
+### 5.3 — Surface result (4 legitimate stops)
 
-| Status | Condition |
+| `result.status` | Surface |
 |---|---|
-| `done` + queue empty | Pipeline complete |
-| `blocked` (hard) | Config error / artifact missing / retry exhausted |
-| `pm-required` → `resume:false` | PM judges user input needed |
-| `iter >= 200` | Safety cap |
-
-Anything else = LOOP.
+| `done` | "✅ Pipeline hoàn tất — {final_verdict}". Suggest `/close-feature {id}`. |
+| `blocked` (hard) | "❌ Pipeline blocked: {blockers[].description}". Suggest fix. |
+| `user-needed` | "⚠ PM cần thông tin: {clarification_notes}". Suggest answer + `/resume-feature {id}`. |
+| `iter≥200` | "⚠ Safety cap. Re-run `/resume-feature {id}`." |
 
 ---
 

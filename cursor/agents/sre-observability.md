@@ -2,7 +2,6 @@
 name: sre-observability
 description: "Resilience gap + SLO/SLI definition + monitoring. Chạy khi feature có integrations hoặc SLO-sensitive paths."
 model: auto
-readonly: true
 is_background: true
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

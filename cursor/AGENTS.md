@@ -14,22 +14,66 @@ This mission takes precedence over individual role optimization. When two agents
      significantly faster with higher success rates. Agents told they share a goal resolve
      conflicts more effectively than agents optimizing only their own domain. -->
 
-## Execution Architecture
+## Execution Architecture (2026-05-04 — PM as orchestrator)
 
 ```
-Skill (entry)  →  Dispatcher (loop)  →  Agent (work)
-                       ↕ (pm-required)
-                   PM (judgment)
+Skill (thin entry)  →  PM (orchestrator + judgment)  →  Agent (specialist work)
+                              ↑
+                       reads dispatcher.md (reference playbook for routing/validation/state)
 ```
 
-- **Skill** = entry point AND outer orchestrator. Creates `_state.md`, runs the dispatcher loop in-place (calls `Task(dispatcher)` repeatedly until legitimate stop).
-- **Dispatcher** = stage executor. **1 invocation = 1 stage** (atomic). Reads `_state.md`, routes to specialist agent via `Task(agent)`, validates artifact, updates `_state.md`, returns verdict. Does NOT loop internally.
-- **PM** = judgment caller. Path selection, extended roles, exception handling. Invoked by skill on `status=pm-required` from dispatcher, or directly by user (`@pm`). PM does NOT call `Task(agent)` — only updates `_state.md` and returns `resume:true|false`.
-- **Agent** = specialist. Does the actual work (ba, sa, dev, qa...). Returns verdict JSON. Never spawns other agents.
+- **Skill** = thin entry point. Parses args, creates/validates `_state.md`, acquires lock, then makes a SINGLE `Task(pm, mode=orchestrate)` call. Surfaces PM's final verdict to user. Skill does NOT loop.
+- **PM** = pipeline orchestrator + judgment caller. Drives feature end-to-end via `Task(specialist)` calls. Reads `_state.md`, dispatches per stage, validates artifact, updates state, applies judgment INLINE (path selection, extended roles, exceptions). Stops only on legitimate exit (done | hard-blocked | user-needed | iter≥200). See `pm.md § Orchestrate Mode`.
+- **dispatcher.md** = reference playbook (deprecated as callable agent). Contains Routing Table, Task Prompt Template, Artifact Validation, State Update Protocol, Escalation Triggers, Token Budget, Tiered Routing, Wave Batching. PM reads sections on-demand. Frontmatter `name: dispatcher` retained as escape hatch only.
+- **Agent** = specialist. Does the actual work (ba, sa, dev, qa, reviewer, tech-lead...). Returns verdict JSON. Never spawns other agents.
 
-**Loop ownership: SKILL.** Dispatcher and PM are stateless per-invocation; skill drives iteration via `Task()` calls. PM is called **into** the loop on `pm-required` — when PM returns `resume:true`, skill loops back to dispatcher.
+**Loop ownership: PM** (in Orchestrate Mode). Skill is one-shot dispatcher of PM. This eliminates main-chat fragility on stage boundaries that plagued the older skill→dispatcher→agent pattern.
 
-> History (2026-05-04): Earlier versions of this doc said "Dispatcher runs the loop". That described design intent but was never deployed — the WHILE loop has always lived in skill (`{skill}/SKILL.md` § 6 inlined; previously `notepads/dispatcher-loop.md` until inlined to fix Cursor relative-path load failures observed in F-007 spike).
+> **Architecture history**:
+> - Original (≤2026-05-03): skill ran outer loop calling `Task(dispatcher)` per stage; dispatcher routed to `Task(agent)`. Failed because composer-2 main-chat couldn't reliably maintain loop state across Task() returns — fell into "do work itself" mode (F-007 spike evidence).
+> - Current (2026-05-04+): skill → `Task(pm, mode=orchestrate)` → PM loops `Task(specialist)`. Empirical pattern from `@pm "làm việc A"` invocations that worked end-to-end.
+
+## Worktree Workflow (Cursor 3+ native — recommended for parallel features)
+
+Default human-team pattern: 1 feature = 1 git branch + 1 worktree. SDLC pipeline runs entirely inside the worktree; merge to main on close-feature via Cursor's built-in `/apply-worktree`.
+
+### Lifecycle
+
+```
+1. User opens Cursor agent location dropdown → selects "Worktree"
+2. Cursor auto-creates branch + worktree at ~/.cursor/worktrees/{repo}/{name}
+3. User runs /new-feature {id} INSIDE the worktree agent
+   ↓
+   Skill detects $ROOT_WORKTREE_PATH → records worktree-path/branch/base in _state.md
+   Skill calls Task(pm, mode=orchestrate, worktree-mode=true, repo-path=$ROOT_WORKTREE_PATH)
+   PM dispatches specialists → all file writes happen in worktree
+   ↓
+4. Pipeline completes (Approved verdict) → user runs /close-feature {id} INSIDE the worktree agent
+   ↓
+   Skill seals _state.md, syncs feature-catalog.json, regen intel snapshot
+   Skill prints: "Run /apply-worktree to merge, /delete-worktree to cleanup"
+   ↓
+5. User runs /apply-worktree → Cursor merges branch to main
+6. User runs /delete-worktree → Cursor removes worktree (or auto-cleanup after 6h)
+7. (If intel-drift was set) user runs /intel-refresh in main checkout
+```
+
+### Detection contract
+
+Skills detect worktree via `$ROOT_WORKTREE_PATH` env var. Cursor sets this automatically when agent runs in worktree mode. If unset → skill operates in main checkout (legacy / solo flow).
+
+### Forbidden in skills
+
+- ❌ Manually running `git worktree add` / `git worktree remove` — Cursor manages
+- ❌ Manually running `git merge` — `/apply-worktree` provides reviewable merge
+- ❌ Forcing apply with uncommitted changes — let user review first
+- ❌ Cleanup interval handling — Cursor's `cursor.worktreeCleanupIntervalHours` (default 6h) does this
+
+### Setup hooks (optional, per project)
+
+`.cursor/worktrees.json` in repo root supports `setup-worktree` array (run on worktree create). Use for: `npm install`, `pip install -r requirements.txt`, `cp .env.local .env`, etc. Skip for our SDLC pipeline — specialists install on-demand.
+
+Reference: https://cursor.com/docs/configuration/worktrees
 
 ## Entry Points — When to Use What
 
@@ -216,17 +260,16 @@ Every agent response must include a clear completion signal. Verdict labels serv
      failure mode. Explicit termination criteria prevent both premature completion (rubber-
      stamping) and infinite refinement loops. -->
 
-## Subagent Technical Notes (Cursor-specific)
+## Subagent Technical Notes (Cursor-specific, 2026-05-04+)
 
 - Each agent runs in **isolated context** — no conversation history is inherited.
-- `dispatcher` (invoked by skill) reads `_state.md` and passes `docs-path`, `feature-id`, and Context Bundle paths (see `agents/ref-pm-dispatch.md`) when invoking specialist agents. Each agent reads its own files — do not inline full artifact content unless the agent requires deep context (sa, tech-lead, reviewer).
-- `Task` tool invocation (Cursor reality post-2026-05):
-  - **Skill (main-chat)** is the primary `Task()` caller. Skill spawns `Task(dispatcher)` per stage iteration, and `Task(pm)` on `pm-required`.
-  - **Dispatcher** invokes specialist agents via `Task(subagent_type="{role}")` per the Routing Table in `dispatcher.md`. This works in deployed Cursor 3.x (forum bug report from nightly/early-access builds about Task tool unavailability does NOT apply to stable channel as of 2026-05).
-  - **PM** does NOT invoke agents — PM is a thin judgment caller that updates `_state.md` and returns `resume:bool` to skill (per `pm.md` line 177).
-  - **Specialist agents** (ba/sa/dev/qa/reviewer/tech-lead) NEVER invoke other agents. Each returns verdict JSON to its caller (dispatcher).
+- `Task` tool invocation pattern:
+  - **Skill (main-chat)** spawns ONE `Task(pm, mode=orchestrate)` per skill invocation. Skill does NOT loop.
+  - **PM** invokes specialist agents via `Task(subagent_type="{role}")` per `dispatcher.md § Routing Table`. PM reads `dispatcher.md` sections on-demand for routing/validation/state-update logic. PM applies judgment (path selection, exceptions, extended roles) INLINE — no PM→PM escalation.
+  - **Specialist agents** (ba/sa/dev/qa/reviewer/tech-lead/...) NEVER invoke other agents. Each returns verdict JSON to PM.
 - `model: auto` is supported and is the **default** for all SDLC agents (post 2026-05-01 cost-fix Phase 2). Cursor IDE auto-routes per user's Settings → Default model. Tiered routing is via DUAL-AGENT FILE pattern (`{role}.md` + `{role}-pro.md`) — different system prompts, NOT call-time `model:` parameter (Task tool's `model:` field accepts only `"fast"` or `"inherit"` per forum-confirmed limitation).
-- Nesting depth: skill → dispatcher → agent (2 levels of `Task()` from main-chat) is the working pattern. Going deeper (agent spawning sub-agent) is not supported and not needed — each specialist is a leaf.
+- Frontmatter `readonly: true` is **forbidden** for any agent that writes artifacts (own_write list non-empty). Setting `readonly: true` on a writer agent causes Cursor to spawn the subagent in Ask mode → cannot create files → ART-001 blocker. (Reviewer/reviewer-pro/sre-observability had this bug; fixed 2026-05-04.)
+- Nesting depth: skill → PM → agent (2 levels of `Task()` from main-chat) is the working pattern. Going deeper (agent spawning sub-agent) is not supported and not needed — each specialist is a leaf. PM reading `dispatcher.md` sections via Read tool does NOT count as nesting (no Task() involved).
 
 ### Prompt Caching (cost optimization)
 

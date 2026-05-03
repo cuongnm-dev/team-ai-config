@@ -322,6 +322,47 @@ If a section truly has no new lesson this iteration, leave a comment line explai
 
 Verdict requires either ≥ 1 new entry OR an explicit "no-lesson" comment per applicable section. Reviewer audits this in next feature's intake.
 
+## Step 6.8 — Worktree handoff (Cursor 3+ native — only if `worktree-path` set in _state.md)
+
+If feature ran inside a Cursor-managed worktree, surface next-steps for the user. **DO NOT** auto-merge or auto-delete — those are user-controlled Cursor slash commands (`/apply-worktree`, `/delete-worktree`).
+
+```
+worktree_path = _state.md.worktree-path
+
+IF worktree_path is set:
+  branch = _state.md.worktree-branch
+  base   = _state.md.worktree-base    # usually "main"
+
+  # Sanity check before suggesting apply
+  uncommitted = `git status --porcelain` (run in worktree dir)
+  ahead_count = `git rev-list --count {base}..HEAD`
+
+  Print:
+    ## Worktree handoff
+    Pipeline ran in worktree: {worktree_path}
+    Branch: {branch} (base: {base}, {ahead_count} commits ahead)
+    Uncommitted: {len(uncommitted) > 0 ? "YES — review/commit before apply" : "clean"}
+
+    Next steps (user runs in Cursor):
+      1. Review diff:        git diff {base}..HEAD
+      2. Commit any leftover changes (if "Uncommitted: YES")
+      3. Merge to {base}:    /apply-worktree
+      4. Cleanup worktree:   /delete-worktree
+      5. (If intel-drift was set) /intel-refresh in main checkout
+
+  Append banner to summary (Step 7) so user doesn't miss the handoff.
+
+ELSE (legacy / main-checkout flow):
+  Skip — no worktree handoff needed.
+```
+
+**Forbidden in this skill:**
+- ❌ Running `git merge` directly — user uses `/apply-worktree` for review-able merge
+- ❌ Running `git worktree remove` — user uses `/delete-worktree` (or Cursor cleanup interval handles it)
+- ❌ Forcing apply when uncommitted changes exist — let user decide
+
+Reference: https://cursor.com/docs/configuration/worktrees
+
 ## Step 7 — Output summary
 
 ```

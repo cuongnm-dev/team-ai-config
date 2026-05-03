@@ -9,27 +9,20 @@ User-facing: Vietnamese. Dispatcher prompts: English.
 
 ---
 
-## ⚠️⚠️⚠️ ORCHESTRATOR DISCIPLINE — READ FIRST
+## ⚠️ SKILL ROLE — THIN ENTRY POINT (2026-05-04 architecture)
 
-You are running this skill as the **outer orchestrator**. Your ONLY job after Step 5 is to drive the dispatcher loop until the pipeline reaches a legitimate stop condition. You are NOT the worker.
+This skill is a **thin entry point**. Its job: parse args, validate `_state.md`, acquire lock, then hand off to **PM agent** via single `Task(pm, mode=orchestrate)` call. PM drives the pipeline end-to-end internally.
 
-### Forbidden behaviors (each is a critical failure):
-
+### Forbidden:
 - ❌ Reading `ba.md`/`sa.md`/`dev.md`/agent definitions and "doing the work yourself"
-- ❌ Writing artifact files: `ba/00-lean-spec.md`, `sa/`, `04-tech-lead-plan.md`, `05-dev-*.md`, `07-qa-report.md`, `08-review-report.md`, `_state.md` directly
-- ❌ Updating `feature-catalog.json` / `permission-matrix.json` / `sitemap.json` content (intel writers do that)
-- ❌ Reading `feature-brief.md` or feature-req body content (dispatcher passes it through to ba)
-- ❌ Returning to user with "Bước tiếp theo: chạy lại /resume-feature" after only 1 stage — that defeats the entire skill
-- ❌ Stopping after dispatcher returns `status=continuing` — you MUST call dispatcher again
+- ❌ Writing artifact files (`ba/`, `sa/`, dev outputs, qa report, review report, `_state.md` content body)
+- ❌ Looping `Task(dispatcher)` per-stage — that pattern is deprecated 2026-05-04 (see ARCH note in pm.md)
+- ❌ Re-implementing routing/validation/state-update logic — PM owns this
 
-### Required behavior:
-
-- ✅ Steps 1-5 = setup (read state, validate, lock)
-- ✅ Step 6 = `Task(dispatcher)` loop. Continue calling dispatcher until status ∈ {`done`, hard `blocked`, `iter>=200`}
-- ✅ Step 6 PM branch = on `pm-required`, call `Task(pm)`. If `resume:true` → loop. If `resume:false` → STOP (legitimate user-needed exit)
-- ✅ ONLY 4 legitimate stop conditions: pipeline `done`, hard blocker, PM `resume:false`, iter cap
-
-**If notepads/dispatcher-loop.md fails to load — DO NOT FALLBACK TO DOING WORK YOURSELF.** Use the inlined Step 6 below instead.
+### Required:
+- ✅ Steps 1-5 = setup (parse args, validate state, intel, lock)
+- ✅ Step 6 = single `Task(pm)` call with Orchestrate prompt. PM does the rest.
+- ✅ Surface PM's final verdict to user.
 
 ---
 
@@ -80,7 +73,42 @@ Resolution (stop on first match):
   - IF mismatch → warn: "feature-brief stale (canonical edited). Regenerate? (yes/use-stale/use-canonical)"
   - IF user picks regenerate → invoke from-doc Step 5f.5 only (re-generate feature-brief from current doc-brief), then proceed
 
-**3.1 Extract:** all frontmatter + `clarification-notes`, `pre-scaffold*`, `Active Blockers`
+**3.1 Extract:** all frontmatter + `clarification-notes`, `pre-scaffold*`, `Active Blockers`, `worktree-path` / `worktree-branch` / `worktree-base` if present.
+
+**3.1a Worktree alignment (Cursor 3+ native — only if `worktree-path` set in _state.md):**
+
+```
+state_wt = _state.md.worktree-path
+env_wt   = $ROOT_WORKTREE_PATH    # Cursor sets when agent runs in worktree
+
+IF state_wt set AND env_wt NOT set:
+  WARN user: "Feature {id} originally ran in worktree {state_wt}.
+              You are currently in main checkout (or detached agent).
+              Options:
+                A) Mở agent ở worktree đó trong Cursor (recommended) — re-run /resume-feature
+                B) Continue in main checkout (changes apply to main, not the feature branch)
+                C) Cancel"
+  IF user picks B → set `_state.md.worktree-mode-override: true` + warn flag in summary
+
+IF state_wt set AND env_wt set AND state_wt != env_wt:
+  ERROR: "Worktree mismatch. State: {state_wt}, Env: {env_wt}.
+          Either re-run from correct worktree, or update _state.md.worktree-path manually."
+  STOP
+
+IF state_wt set AND env_wt set AND match:
+  OK — proceed.
+
+IF state_wt NOT set AND env_wt set:
+  Update _state.md frontmatter:
+    worktree-path:   "{env_wt}"
+    worktree-branch: "{git rev-parse --abbrev-ref HEAD}"
+    worktree-base:   "{detected base}"
+  (Feature was started in main, user moved into worktree mid-pipeline. Backfill state.)
+
+IF neither set: continue in main as before (legacy / solo flow).
+```
+
+Reference: https://cursor.com/docs/configuration/worktrees
 
 **3a. Reconcile with feature-map.yaml (if both exist):**
 Mismatch on `status` or `current-stage` → ask user:
@@ -134,147 +162,68 @@ options:
 
 Silent review for unpersisted decisions (scope changes, spike results, agreed directions). Skip if nothing relevant.
 
-## Step 6 — Build dispatcher prompt + run loop (INLINE — do not skip, do not delegate to user)
+## Step 6 — Hand off to PM (single Task call, PM drives pipeline end-to-end)
 
-This is the entire loop. Execute in-place. Do not stop after 1 stage. Do not surface to user except on legitimate stop conditions (see Orchestrator Discipline above).
+Build the Orchestrate prompt, call `Task(pm)` ONCE. PM internally loops dispatch→validate→state-update until done/blocked/user-needed. Skill just relays PM's final verdict to user.
 
-### 6.1 — Build FROZEN_HEADER (compute ONCE before loop, identical bytes every iteration)
-
-```
-## Pipeline Context
-pipeline-type: {sdlc|doc-generation}
-feature-id: {feature-id}          # sdlc only — OMIT entirely for doc-generation
-docs-path: {docs-path}
-repo-path: {repo-path}             # sdlc only
-output-mode: {output-mode}         # sdlc only
-stages-total: {N}                  # captured once at loop init = len(initial stages-queue) + len(completed-stages)
-intel-path: {intel-path}           # sdlc: {repo-path}/docs/intel/  | doc-generation: {docs-path}/intel/
-intel-contract: |
-  Canonical intel artifacts at {intel-path}: actor-registry.json, permission-matrix.json, sitemap.json, feature-catalog.json, test-accounts.json (optional).
-  Sub-agent rules:
-  1. Read intel BEFORE planning/coding — role slugs, route paths, permission decorators are CANONICAL (use exact strings).
-  2. Required artifact missing OR _meta.artifacts[file].stale=true → STOP with verdict "intel-missing: {file}". Do NOT guess.
-  3. Code change touching auth/role enum/routes/RBAC decorators → set _state.md field `intel-drift: true`.
-  4. Never ground role/permission decisions on prose alone — JSON is source of truth.
-  5. QA stage MUST co-produce 3 artifacts atomically (CD-10 Quy tắc 16):
-     - test-evidence/{feature-id}.json
-     - playwright/{feature-id}.spec.ts
-     - screenshots/{feature-id}-step-NN-{state}.png
-  6. Intel read tiers: base-tier agents Read({intel-path}/_snapshot.md) FIRST. Pro-tier reads canonical JSON.
-```
-
-Cache rule: STATIC bytes only. Never inject stage-specific or iter-specific values into FROZEN_HEADER. Append-only — new fields go at the END.
-
-### 6.2 — DYNAMIC_SUFFIX (rebuild each iteration, minimal)
+### 6.1 — Build PM Orchestrate prompt (4-block — cache-aware)
 
 ```
-## Current State
-current-stage: {current-stage}
-iter: {iter}
-last-verdict: {last-verdict}       # "none" on iter=1; result.verdict on iter>1
+## Agent Brief
+You are PM in Orchestrate mode. Mission: drive feature pipeline to completion. See ~/.cursor/agents/pm.md § Orchestrate Mode for full workflow.
+
+## Mode
+orchestrate
+
+## Project Conventions
+{≤5 lines from rules/40-project-knowledge.mdc relevant to this pipeline; use "(none)" if no relevant entries}
+
+## Feature Context
+feature-id:        {feature-id}
+docs-path:         {docs-path}
+repo-path:         {worktree-path if _state.md.worktree-path is set, else repo-path}
+intel-path:        {intel-path}    # sdlc: {repo-path}/docs/intel/  | doc-generation: {docs-path}/intel/
+worktree-mode:     {true if worktree-path set, else false}
+worktree-branch:   {worktree-branch if set, else "(none)"}
+output-mode:       {output-mode}
+pipeline-path:     {pipeline-path or "unknown"}
+
+## Inputs
+session-context:   {distilled context from Step 5 if non-empty; else "(none)"}
 ```
 
-First iteration only: append `session-context: |` block under `## Current State` if distilled content exists (Step 5). Do NOT include in iter > 1.
+Cache rule: blocks 1-3 are STATIC across the whole pipeline. Block 4 (Inputs) is small and only set at start. PM caches the static prefix internally for its specialist sub-calls.
 
-### 6.3 — Dispatcher loop (the orchestrator core — DO NOT EXIT EARLY)
+### 6.2 — Single Task(pm) call
 
 ```
-iter = 0; pm_count = 0; last_hash = null; last_verdict = "none"; transient_retry_count = 0
-FROZEN_HEADER = build_frozen_header().rstrip("\n")
-PM_FROZEN = build_pm_frozen().rstrip("\n")   # 4-block escalation template per pm.md § Escalation Prompt Template
-
-WHILE iter < 200:
-  iter++
-  DYNAMIC_SUFFIX = "## Current State\ncurrent-stage: {current-stage}\niter: {iter}\nlast-verdict: {last_verdict}"
-  IF iter == 1 AND session_context exists: DYNAMIC_SUFFIX += "\nsession-context: |\n  {session_context}"
-  prompt = FROZEN_HEADER + "\n\n" + DYNAMIC_SUFFIX
-
-  result = Task(subagent_type="dispatcher", prompt=prompt)   # retry 1× on crash, else STOP
-
-  # Intel gate (sdlc, stages that touch code)
-  # Pre-stage: if current-stage starts implementing AND intel-path missing required artifacts → STOP "intel-missing: {file}".
-  # Post-stage: if result.verdict carries `intel-drift: true` → persist to _state.md.intel-drift.
-
-  # Lenient status — default unknown to continuing
-  status = result.get("status") or "continuing"
-
-  CASE status:
-    "continuing":
-      last_verdict = result.verdict or "in-progress"
-      print "[{stage}] ✓ {verdict}"   # dots after iter>10
-      checkpoint_if_wave_boundary()    # see notepads/checkpoints.md
-      loop                             # ← CRITICAL: do NOT exit even if verdict says "wave done", "stage advanced"
-
-    "done":
-      reread _state.md
-      IF stages-queue is non-empty:
-        print "⚠ Dispatcher returned done but stages-queue not empty — treating as continuing"
-        last_verdict = "auto-continue"
-        loop
-      ELSE:
-        report final summary
-        release lock
-        exit                           # ← legitimate stop
-
-    "blocked":
-      IF result.blockers contains any of: PARSE-001, NO-INVOKE-001:
-        IF transient_retry_count < 1:
-          transient_retry_count++
-          continue                     # retry same iter
-      surface blockers, release lock, stop   # ← legitimate stop (hard blocker)
-
-    "pm-required":
-      pm_count++
-      IF pm_count > 5: STOP             # safeguard: too many escalations
-      curr_hash = hash(_state.md)
-      IF curr_hash == last_hash AND pm_count > 1: STOP  # no-op loop
-      pm_ctx = truncate(result.pm-context, 8K)
-      pm_result = Task(subagent_type="pm", prompt=PM_FROZEN + "\n\n" + pm_ctx)   # retry 1× on crash
-
-      IF pm_result invalid JSON or missing `resume`: STOP
-
-      IF pm_result.resume == true:
-        last_hash = curr_hash
-        last_verdict = "pm-resolved"
-        loop                            # ← baton back to dispatcher
-
-      ELSE (pm_result.resume == false):
-        surface pm_result.message + clarification-notes to user
-        STOP                            # ← legitimate stop (user input needed)
-
-    default ("other"):
-      # NEVER silently STOP. Log + treat as continuing.
-      print "⚠ Unknown status '{status}' — treating as continuing"
-      last_verdict = result.verdict or "unknown-status"
-      loop
+result = Task(subagent_type="pm", prompt=prompt_above)
+# PM runs Orchestrate Mode internally:
+#   - Reads _state.md, dispatches Task(specialist) per stage
+#   - Validates artifacts, updates _state.md
+#   - Applies judgment inline (path selection, exceptions, extended roles)
+#   - Loops until done | hard-blocked | user-needed | iter≥200
+#   - Returns final verdict JSON
 ```
 
-### 6.4 — Stop conditions summary (the ONLY 4 legitimate exits)
+### 6.3 — Surface result to user (one of 4 legitimate stops)
 
-| Status | Condition | Surface to user? |
-|---|---|---|
-| `done` + queue empty | Pipeline complete | ✅ "✅ Pipeline hoàn tất" + reviewer verdict |
-| `blocked` (hard) | Config error, missing artifact, PARSE-001/NO-INVOKE-001 retry exhausted | ✅ Surface blockers, suggest fix |
-| `pm-required` → `resume:false` | PM judges user input needed (clarification-notes set) | ✅ Surface PM message + question |
-| `iter >= 200` | Safety cap | ✅ "Hit max iterations, state preserved" |
+| `result.status` | Surface |
+|---|---|
+| `done` | "✅ Pipeline hoàn tất — {final_verdict}". Suggest `/close-feature {id}`. |
+| `blocked` (hard error) | "❌ Pipeline blocked: {blockers[].description}". Suggest fix. |
+| `user-needed` | "⚠ PM cần thông tin từ bạn: {clarification_notes}". Suggest answer + re-run `/resume-feature {id}`. |
+| `iter≥200` (safety cap) | "⚠ Pipeline hit safety cap. State preserved at {final_stage}. Re-run `/resume-feature {id}` if healthy." |
 
-**Anything else = LOOP. Including:** stage transition, wave boundary, PM resolved, "Continue?" prompt, long output, "looks paused".
+Release advisory lock on every exit path.
+
+### 6.4 — Cost rationale
+
+Single `Task(pm)` per `/resume-feature` invocation. PM context grows to ~50-80K accumulating verdicts (well under Cursor 200K auto-compress threshold). Cache_write tax paid once per invocation, not per stage. Compared to legacy skill→dispatcher→agent loop pattern: ~40% cheaper estimated (eliminate Task(dispatcher) overhead per stage).
 
 ### 6.5 — Checkpoint markers
 
-After each iteration: append checkpoint markers per `notepads/checkpoints.md` (on stage advance + wave-boundary snapshot).
-
-### 6.6 — Cost rationale
-
-Each `/resume-feature` invocation = 1 fresh skill execution = pays cache_write tax (~$0.30-0.50). Looping in-place is the WHOLE POINT of this skill. Re-invocation should only happen on legitimate stops above.
-
-### 6.7 — Cache-preservation rules (when adding fields to FROZEN_HEADER)
-
-1. NEVER inject stage-specific, iter-specific, or runtime-resolved values into FROZEN_HEADER
-2. APPEND-ONLY when adding fields. New at END of block. Reordering breaks all existing cache
-3. Field naming: kebab-case, lowercase
-4. Whitespace: `.rstrip("\n") + "\n\n" +` exactly. No `\r\n`, no trailing spaces
-5. No ASCII art / emoji at top — visual changes are cache-killers
+PM emits checkpoint markers internally per `notepads/checkpoints.md` on stage advances. Skill does not need to track per-iteration checkpoints — PM handles.
 
 ---
 

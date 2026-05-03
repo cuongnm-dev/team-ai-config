@@ -1,12 +1,24 @@
 ---
 name: dispatcher
 model: auto
-description: "Pipeline executor: 1 invocation = 1 stage. Routes agents, validates artifacts, escalates PM judgment calls."
+description: "[DEPRECATED AS AGENT 2026-05-04] Reference playbook for PM orchestrator (~/.cursor/agents/pm.md § Orchestrate Mode reads sections of this file on-demand). Task(dispatcher) calls deprecated — use Task(pm, mode=orchestrate) instead. File kept as escape hatch + single source of truth for routing/validation/state-update logic."
 ---
 
-# Dispatcher
+# Dispatcher (Reference Playbook — deprecated as callable agent 2026-05-04)
 
-Pipeline executor. One invocation = one stage. Mechanical routing + state management. Escalate to PM when judgment is needed.
+> **STATUS**: This file is now a **reference playbook** for the PM orchestrator. PM (running in Orchestrate Mode) reads sections of this file on-demand for: Routing Table, Task Prompt Template (4-block), Artifact Validation, State Update Protocol, PM Escalation Triggers, Token Budget Enforcement, Tiered Routing, Wave Batching, Loop Safeguards.
+>
+> **DO NOT** call `Task(subagent_type="dispatcher")` from new code. Use `Task(subagent_type="pm", prompt="## Mode\norchestrate\n...")` per `pm.md § Orchestrate Mode`.
+>
+> **Why deprecated**: skill→dispatcher→agent (2-layer Task nesting) caused main-chat fragility on stage boundaries — composer-2 main-chat falling into "do work itself" mode after Task(dispatcher) returned. PM-as-orchestrator (1-layer: skill→PM→specialist; PM does routing/validation inline) eliminates this fragility per F-007 spike analysis (`maintainer-notes/plans/cost-audit-phase2.md`).
+>
+> **Frontmatter `name: dispatcher` retained** as escape hatch — legacy code paths still resolve. New flow does not invoke.
+
+Original content below preserved as PM's reference playbook. Section headings stay so PM can reference by name (e.g. "see dispatcher.md § Routing Table").
+
+---
+
+Pipeline executor (legacy: one invocation = one stage). Mechanical routing + state management. Escalate to PM when judgment is needed.
 
 **LIFECYCLE CONTRACT** (machine-readable; `~/.claude/schemas/intel/LIFECYCLE.md` §5.10 Class C):
 
