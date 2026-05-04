@@ -1584,14 +1584,21 @@ const cmdUpdate = async () => {
             }
           }
         }
-        const libSrc = path.join(REPO_DIR, 'bin', 'lib');
-        const libDst = path.join(BIN_DIR, 'lib');
-        if (exists(libSrc)) {
-          fs.mkdirSync(libDst, {recursive: true});
-          for (const e of fs.readdirSync(libSrc, {withFileTypes: true})) {
-            if (e.isFile()) fs.copyFileSync(path.join(libSrc, e.name), path.join(libDst, e.name));
+        // Recursive lib/ sync — handles nested subdirs (lib/telemetry/, lib/parsers/, ...).
+        // Pre-2026-05-04: only top-level files copied — broke when adding lib/telemetry/cursor-csv.mjs
+        // because launcher's ai-kit.mjs imported a path the flat-copy step never landed.
+        const cprDir = (src, dst) => {
+          if (!exists(src)) return;
+          fs.mkdirSync(dst, {recursive: true});
+          for (const e of fs.readdirSync(src, {withFileTypes: true})) {
+            const sp = path.join(src, e.name);
+            const dp = path.join(dst, e.name);
+            if (e.isDirectory()) cprDir(sp, dp);
+            else if (e.isFile()) fs.copyFileSync(sp, dp);
+            // Skip symlinks/sockets/etc. — not expected under bin/lib/.
           }
-        }
+        };
+        cprDir(path.join(REPO_DIR, 'bin', 'lib'), path.join(BIN_DIR, 'lib'));
         c.setLabel('Đã làm mới CLI');
       },
     },
