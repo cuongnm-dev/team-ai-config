@@ -291,11 +291,29 @@ linked-spirals: [s1, s2, s3, s4, 4.5]
 
 # Feature Brief: {name}
 
-## Business Goal
-{feature.business_intent}
+## Vision Context (digested from PRFAQ)
 
-## Why This Feature (link to PRFAQ)
-This feature contributes to vision "{prfaq.headline}" by supporting {related_impacts from impact-map}.
+> Self-contained vision excerpt — embedded so stage agents have full context
+> without needing to traverse `_idea/idea-brief.md`. ENRICHMENT v0.27 (option 2).
+
+**Headline:** {prfaq.headline}
+**Target user:** {prfaq.persona.role} — {prfaq.persona.context}, {prfaq.persona.frequency}
+**Win condition:** {prfaq.success_metric.metric-name} = {target} (baseline: {baseline}, confidence: {pct}%)
+**Why now / why this approach:** {1-2 sentences digest from PRFAQ Q1.3.1 + Q1.3.3}
+**Top 3 critical assumptions (project-level):**
+1. {prfaq.assumption.A1}
+2. {prfaq.assumption.A2}
+3. {prfaq.assumption.A3}
+
+## This Feature's Role in Vision
+
+This feature contributes to win condition by: {1-2 sentences how this feature serves the success metric — derived from impact-map deliverable rationale}.
+
+**Linked impact:** {impact-map.I-X.X — actor + behavior change}
+**Linked deliverable:** D-X.X.x ({deliverable name + DEDUP verdict})
+
+## Business Goal (this feature)
+{feature.business_intent}
 
 ## Acceptance Criteria
 {numbered list from feature.acceptance_criteria}
@@ -306,33 +324,41 @@ This feature contributes to vision "{prfaq.headline}" by supporting {related_imp
 ## Flow Summary
 {feature.flow_summary}
 
+## Domain Context (from Event Storming)
+**Aggregate:** {feature.entities[0]} — owns events: {list of events touching this feature}
+**Cross-aggregate dependencies:** {if any, list other aggregates this feature reads/writes}
+
 ## Dialogs (placeholders for sa/UX)
 {list from feature.dialogs[] — string list}
 
 ## Error Cases
 {list from feature.error_cases[]}
 
-## Linked Domain Aggregate(s)
-{list from feature.entities[] — sa elaborates schema}
-
-## Risks (from Phase 4.5)
+## Risks (from Phase 4.5 pre-mortem)
 {list of feature.risks[] — propagated to _state.md Active Blockers if severity=high}
 
-## Critical Assumptions
+| Risk ID | Narrative | Probability | Severity | Mitigation idea |
+|---|---|---|---|---|
+| R-{id}-1 | ... | low/med/high | low/med/high | ... |
+
+## Critical Assumptions (this feature)
 {list of feature.assumptions[]}
 
 ## Story Points
-{S | M | L}
+{S | M | L} ({estimated person-days range})
 
 ## Open Questions for `ba`
 {list of [CẦN BỔ SUNG] markers found in feature, if any}
+{list of decisions where confidence_pct < 50% — these need validation}
 
-## Source Spirals
-- PRFAQ: `_idea/idea-brief.md`
-- Impact Map: `_idea/impact-map.md` § Deliverable D-X.X.x
-- Event Storming: `_idea/event-storming.md` § Aggregate {name}
-- Story Map: `_idea/story-map.md` § Story S-N
-- Pre-mortem: `_idea/pre-mortem.md` § Risk F-i, Pathway S-j
+## Source Spirals (deep-context pointers — read on-demand if ba/sa needs more)
+- PRFAQ:        `_idea/idea-brief.md` § Section 1 (Headline) + 2 (Persona) + 3 (Why)
+- Impact Map:   `_idea/impact-map.md` § Tier 4 Deliverable D-X.X.x
+- Event Storming: `_idea/event-storming.md` § Aggregate "{name}" + cross-aggregate events
+- Story Map:    `_idea/story-map.md` § Story S-N (priority assignment + linked AC)
+- Pre-mortem:   `_idea/pre-mortem.md` § Risk F-i (failure narrative + mitigation) + Pathway S-j (success precondition)
+- Assumptions:  `_idea/assumptions.md` § A-i
+- Dedup:        `_idea/dedup-report.md` § D-X.X.x verdict + rationale
 ```
 
 ## Step 5.7 — Update `feature-map.yaml`

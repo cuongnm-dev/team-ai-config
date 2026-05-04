@@ -146,6 +146,34 @@ When `from-idea` runs first (greenfield) and later `from-code` runs after build:
 - Fields owned by code (routes, implementation_evidence) get filled
 - Fields owned by idea (vision, business_intent, assumptions) are preserved by precedence
 
+## Cursor SDLC consumption contract — `_idea/` vs `feature-brief.md`
+
+`_idea/*.md` (workshop docs at workspace level) are **not in default READ-GATES** for any Cursor stage agent (ba/sa/dev/qa/reviewer). Per CD-21 P3 (No re-discovery) + P9 (Context economy), canonical intel + per-feature `feature-brief.md` are the single-source-of-truth that stages read.
+
+`feature-brief.md` is **enriched (v0.27 — option 2 selective injection)** so it is self-contained for stage-agent context — workshop docs need not be traversed. Sections embedded:
+
+- **Vision Context** — headline + persona + win condition + why-now/why-this digest from PRFAQ (~5-10 lines)
+- **This Feature's Role in Vision** — explicit linkage from feature → impact → win condition
+- **Domain Context** — aggregate ownership + cross-aggregate dependencies from event-storming
+- **Risks** — full table (id, narrative, prob, severity, mitigation) from pre-mortem propagation
+- **Critical Assumptions** — feature-level + project-level (from PRFAQ A1-A3)
+- **Source Spirals** — pointers (read-on-demand) for ba/sa to traverse if they want deep rationale (e.g. dedup verdict, story-mapping priority assignment context)
+
+Stage agents may **lazy-read** `_idea/*.md` if `feature-brief.md` lacks specific context they need (e.g. ba wants full dedup rationale → reads `_idea/dedup-report.md` § entry for this deliverable). This is OPTIONAL traversal, not required.
+
+Default flow:
+1. Cursor `resume-feature` reads `_state.md` → finds `feature-req.file: {docs-path}/feature-brief.md`
+2. Dispatcher routes to `ba` agent → reads feature-brief (self-contained context)
+3. `ba` produces `ba/00-lean-spec.md` without touching `_idea/`
+4. (Same for sa/dev/qa/reviewer)
+
+`_idea/` consumers:
+- User (manual review of brainstorm rationale)
+- `/from-idea` Phase 0.0 Resume (recap_ledger + workshop snapshots)
+- `/from-idea --resurrect <G-NNN>` (revive idea-graveyard entry)
+- Audit trail (compliance, governance)
+- Optional manual reference when stage agents need deep context (explicit traversal via Source Spirals pointers)
+
 ## Anti-patterns (forbidden)
 
 - Writing routes with concrete paths during from-idea (sa stage owns)
