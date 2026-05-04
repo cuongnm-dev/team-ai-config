@@ -1108,10 +1108,10 @@ const interactiveIndex = async ({ allowBack = false } = {}) => {
 
 // On-board hub: pick luồng → drill into chosen on-board doc with section loop.
 // Loops so user can read both luồng A and luồng B in one session.
-// On-board hub — flat menu with 3 SDLC ingestion entry-points (Luồng A/B/C)
-// alongside Tài liệu nhà nước path + SDLC overview. Each pick opens the
-// corresponding workflow doc directly.
-// Returns 'back' (up to caller) or 'exit'.
+// On-board hub — situation-based menu. User picks based on their context
+// (have doc / have code / only idea / writing govt doc). Avoids jargon like
+// "Luồng A/B/C" or "SDLC ingestion path" at the menu level — that lives in
+// destination docs. Returns 'back' (up to caller) or 'exit'.
 const interactiveOnboardMenu = async () => {
   const docsDir = path.join(REPO_DIR, 'docs');
   while (true) {
@@ -1119,15 +1119,15 @@ const interactiveOnboardMenu = async () => {
     let pick;
     try {
       pick = await select({
-        message: 'Hướng dẫn nhập môn — chọn luồng công việc:',
+        message: 'Hướng dẫn nhập môn — tình huống của bạn?',
         choices: [
-          { name: '📄 Luồng A — SDLC từ SRS/BRD docx (có tài liệu yêu cầu)', value: 'doc:workflows/from-doc' },
-          { name: '💻 Luồng B — SDLC từ codebase đã ship (reverse-engineer)', value: 'doc:workflows/from-code' },
-          { name: '💡 Luồng C — SDLC từ ý tưởng (greenfield, brainstorm 4 spirals)', value: 'doc:on-board-idea' },
+          { name: '📄 Tôi có tài liệu yêu cầu (SRS/BRD .docx, wireframe)', value: 'doc:workflows/from-doc' },
+          { name: '💻 Tôi có codebase đã ship hoặc đang dev', value: 'doc:workflows/from-code' },
+          { name: '💡 Tôi chỉ có ý tưởng — cần brainstorm có cấu trúc', value: 'doc:on-board-idea' },
           new Separator('  ──────────────────────────'),
-          { name: '🏛  Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'doc:on-board-tailieu' },
+          { name: '🏛  Tôi soạn tài liệu hành chính nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'doc:on-board-tailieu' },
           new Separator('  ──────────────────────────'),
-          { name: '📖 Đọc on-boarding SDLC tổng quan (3 luồng A/B/C — pipeline đầy đủ)', value: 'doc:on-board-sdlc' },
+          { name: '❓ Chưa rõ — đọc bảng phân biệt 4 tình huống', value: 'doc:on-board' },
           { name: '↩ Quay lại', value: '__back' },
           { name: '✕ Thoát', value: '__exit' },
         ],
