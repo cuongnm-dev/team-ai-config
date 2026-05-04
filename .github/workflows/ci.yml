@@ -67,3 +67,92 @@ jobs:
                   if [ "$CLAUDE_AGENTS" -eq 0 ] && [ "$CURSOR_AGENTS" -eq 0 ]; then
                     echo "::warning::No agents found in this PR — was pack step run?"
                   fi
+
+            - name: Validate agent frontmatter (name matches filename, no duplicates)
+              run: |
+                  echo "Checking agent frontmatter..."
+                  ERRORS=0
+                  declare -A SEEN_NAMES
+
+                  while IFS= read -r file; do
+                    # Skip ref-* files (they are reference docs, not dispatchable agents)
+                    basename=$(basename "$file" .md)
+                    [[ "$basename" == ref-* ]] && continue
+
+                    # Must have --- frontmatter
+                    if ! head -1 "$file" | grep -q '^---'; then
+                      echo "  ✗ Missing frontmatter: $file"
+                      ERRORS=$((ERRORS+1))
+                      continue
+                    fi
+
+                    # Extract name: field
+                    name_val=$(awk '/^---/{p++} p==1 && /^name:/{gsub(/^name:[[:space:]]*/,""); gsub(/["\x27]/,""); print; exit}' "$file")
+                    if [ -z "$name_val" ]; then
+                      echo "  ✗ Missing 'name:' in frontmatter: $file"
+                      ERRORS=$((ERRORS+1))
+                      continue
+                    fi
+
+                    # name must match filename (without .md)
+                    if [ "$name_val" != "$basename" ]; then
+                      echo "  ✗ name mismatch — file: '$basename', frontmatter name: '$name_val' in $file"
+                      ERRORS=$((ERRORS+1))
+                    fi
+
+                    # Check for duplicates across all agent dirs
+                    if [ -n "${SEEN_NAMES[$name_val]}" ]; then
+                      echo "  ✗ Duplicate agent name '$name_val': $file vs ${SEEN_NAMES[$name_val]}"
+                      ERRORS=$((ERRORS+1))
+                    else
+                      SEEN_NAMES[$name_val]="$file"
+                    fi
+                  done < <(find claude/agents cursor/agents -name "*.md" 2>/dev/null | sort)
+
+                  if [ "$ERRORS" -gt 0 ]; then
+                    echo "::error::$ERRORS agent frontmatter error(s) found."
+                    exit 1
+                  fi
+                  echo "✓ All agent frontmatter valid"
+
+            - name: Validate skill directories (SKILL.md present, non-empty)
+              run: |
+                  echo "Checking skill directories..."
+                  ERRORS=0
+                  MIN_LINES=10
+
+                  for skill_dir in claude/skills cursor/skills; do
+                    [ -d "$skill_dir" ] || continue
+                    while IFS= read -r dir; do
+                      skill_md="$dir/SKILL.md"
+                      skill_name=$(basename "$dir")
+
+                      if [ ! -f "$skill_md" ]; then
+                        echo "  ✗ Missing SKILL.md in: $dir"
+                        ERRORS=$((ERRORS+1))
+                        continue
+                      fi
+
+                      line_count=$(wc -l < "$skill_md")
+                      if [ "$line_count" -lt "$MIN_LINES" ]; then
+                        echo "  ✗ SKILL.md too short ($line_count lines, min $MIN_LINES): $skill_md"
+                        ERRORS=$((ERRORS+1))
+                      fi
+
+                      # SKILL.md should have name: frontmatter
+                      name_val=$(awk '/^---/{p++} p==1 && /^name:/{gsub(/^name:[[:space:]]*/,""); gsub(/["\x27]/,""); print; exit}' "$skill_md")
+                      if [ -z "$name_val" ]; then
+                        echo "  ✗ Missing 'name:' in SKILL.md frontmatter: $skill_md"
+                        ERRORS=$((ERRORS+1))
+                      elif [ "$name_val" != "$skill_name" ]; then
+                        echo "  ✗ name mismatch — dir: '$skill_name', frontmatter name: '$name_val' in $skill_md"
+                        ERRORS=$((ERRORS+1))
+                      fi
+                    done < <(find "$skill_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+                  done
+
+                  if [ "$ERRORS" -gt 0 ]; then
+                    echo "::error::$ERRORS skill validation error(s) found."
+                    exit 1
+                  fi
+                  echo "✓ All skills valid"
