@@ -18,7 +18,7 @@ Tài liệu này giúp anh/chị **chọn đúng skill** cho từng tình huốn
 
 `ai-kit` phục vụ **2 luồng độc lập**:
 
-- **🅰 SDLC** — sản xuất phần mềm (code + nghiệm thu)
+- **🅰 SDLC** — sản xuất phần mềm (code + nghiệm thu) với 3 entry-points: A (`/from-doc`), B (`/from-code`), **C (`/from-idea`)**
 - **🅱 Tài liệu nhà nước** — Đề án CĐS, đấu thầu CNTT (1 tài liệu Word)
 
 Phân biệt rõ trước khi chọn skill. Xem README §Hai luồng công việc.
@@ -32,6 +32,7 @@ Phân biệt rõ trước khi chọn skill. Xem README §Hai luồng công việ
 | Có SRS/BRD docx, project chưa có code | `/from-doc` | `/resume-feature` cho từng F-NNN, rồi `/generate-docs` |
 | Có codebase đã ship, cần tài liệu nghiệm thu | `/from-code` | `/intel-fill` (T3 fields) → `/generate-docs` |
 | Đã có cả SRS + code, cần verify alignment | `/from-code` rồi `/from-doc` (verify mode) | Review `drift-report.json` |
+| Greenfield: chỉ có ý tưởng, chưa có doc/code (Luồng C) | `/from-idea` | `/resume-feature` cho từng F-NNN, rồi `/generate-docs` |
 | Thêm 1 feature mới vào project có sẵn | `/new-feature` | `/resume-feature F-NNN` |
 | Pipeline đang dở dang, tiếp tục | `/resume-feature F-NNN` | Lặp đến reviewer Pass |
 | Feature đã reviewer Pass | `/close-feature F-NNN` | (sau đó `/generate-docs` nếu cần Office) |
@@ -169,6 +170,86 @@ Phase 5 Scaffold:
 - Test files có sẵn (Jest/Pytest) → tự extract test seeds vào `test-evidence/`.
 
 Chi tiết workflow →
+
+---
+
+### `/from-idea` — Brainstorm từ ý tưởng thuần túy (Luồng C)
+
+**Một câu**: 4 spirals (PRFAQ → Impact Mapping → Event Storming → Story Mapping) + pre-mortem → kết tinh thành intel layer cho team SDLC consume. Skill đóng vai **thinking partner** chứ không phải voice recorder.
+
+**Khi nào**: Greenfield project — chỉ có ý tưởng, chưa có SRS/BRD, chưa có code.
+
+**Khác `/from-doc`**: from-doc đọc tài liệu có sẵn; from-idea phỏng vấn user qua workshop pattern để tạo tài liệu từ con số 0.
+
+**Input**:
+- Ý tưởng trong đầu user (mandatory)
+- Tùy chọn: 1-3 hình ảnh tham khảo + đoạn mô tả ngắn ≤ 1000 chars (Phase 0.5 visual primer)
+
+**Output**:
+- `docs/intel/{actor-registry, permission-matrix, sitemap, feature-catalog}.json` (4 artifacts, source: `manual-interview`/`from-idea`)
+- `docs/intel/test-evidence/F-NNN.json` (TC seeds per must-have feature, source: `from-idea/synthesized`)
+- `docs/features/F-NNN/_state.md` + `feature-brief.md` (status: in-progress, source-type: `idea-brainstormed`, current-stage: `ba`)
+- `docs/features/_idea/{idea-brief, impact-map, event-storming, story-map, pre-mortem, dedup-report, idea-graveyard, coherence-log, assumptions}.md` (workshop artifacts)
+
+**Ví dụ session** (Claude Code, ~1.5-3h chia nhiều session OK):
+```
+$ /from-idea
+
+Phase 0 Bootstrap: workspace ready, MCP warm-start lookup actor-pattern...
+Phase 0.5: Visual primer? [skip / paste image]
+> skip
+
+Spiral 1 PRFAQ (~30 min):
+  Q1.1.1: Headline 1 câu (Apple/Amazon press release style)?
+  > AI code review cho solo dev — giảm 50% review time
+  Echo: "Tôi nghe headline là... bạn muốn... đúng intent không?" [confirm]
+  ... (5 FAQ + 3 assumptions mandatory) ...
+
+Spiral 2 Impact Mapping (~45 min):
+  VN gov context? [no/yes]
+  > no
+  ... (Goal → 3 actors → 5 impacts → 7 deliverables) ...
+  DEDUP gate: 5 UNIQUE / 1 ADOPT (GitHub API) / 1 EXTEND (existing CI)
+
+Spiral 3 Event Storming (Light mode detected):
+  ... (5 events / 3 aggregates) ...
+
+Spiral 4 Story Map + TC seeds (~45 min):
+  ... (backbone 5 activities → MVP slice 4 must-have) ...
+  TC seeds synthesized: 38 across 4 must-have features
+
+Phase 4.5 Pre-mortem (~20 min):
+  Q: 1 năm sau dự án FAIL — 3 lý do?
+  Q: 1 năm sau dự án THÀNH CÔNG — bằng cách nào?
+  Risk register: 1 high-severity unmitigated → flag
+
+Phase 5 Crystallize:
+  ✓ FK integrity PASS
+  ✓ Semantic audit (5 rules) PASS
+  ✓ 4 intel artifacts written
+  ✓ 4 _state.md + 4 feature-brief.md created
+  ✓ intel-validator: PASS
+  ✓ snapshot regen: [OK]
+
+Phase 6 Handoff:
+  Vision: "AI code review cho solo dev"
+  Features: 6 (4 must-have, 2 should-have)
+  Actors: 2 | TC seeds: 38 | Risks high: 1 unmitigated
+  Bước tiếp: /resume-feature F-001 (trong Cursor)
+```
+
+**Tip — flexibility**:
+- Có thể chia nhiều session — skill resume liền mạch (Phase 0.0 detect state, time-aware recap)
+- Rewind to Spiral X — cascade refresh subsequent spirals (preserve originals trong `_idea/.history/`)
+- Idea graveyard append-only — `/from-idea --resurrect <G-NNN>` revive ý tưởng đã loại
+
+**Pitfall**:
+- Phase 4.5 pre-mortem **mandatory** (chống optimism bias) — không thể skip mà không flag audit
+- DEDUP REJECT > 50% → STOP với recommend rewrite scope
+- Iteration > 2 trên 1 spiral → force-decision menu (Confirm-with-gaps / Cancel / Continue-with-warning)
+- Ý tưởng quá vague (`[CẦN BỔ SUNG]` > 30% fields) → skill recommend offline clarification trước resume
+
+Chi tiết workflow → `from-idea`
 
 ---
 

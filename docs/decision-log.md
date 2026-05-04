@@ -167,6 +167,42 @@ Plan + execution log: `D:\AI-Platform\maintainer-notes\cursor-skills-optimizatio
 
 ---
 
+## ADR-010: Luồng C — `/from-idea` (greenfield ý tưởng)
+
+**Ngày**: 2026-05-04 · **Trạng thái**: ✅ Adopted
+
+**Bối cảnh**: Pipeline SDLC trước đây có 2 entry-points: `/from-doc` (Luồng A — có SRS/BRD) và `/from-code` (Luồng B — có codebase). Trường hợp **greenfield thuần túy** (founder/PM chỉ có ý tưởng trong đầu, chưa có doc, chưa có code) chưa có tooling — user phải tự viết SRS rồi `/from-doc`, hoặc thuê dev viết code rồi `/from-code`. Cả 2 đều bypass giai đoạn brainstorm có cấu trúc, dẫn đến scope creep + assumption gap khi vào SDLC.
+
+**Quyết định**: Thêm skill `/from-idea` (Luồng C) — entry-point thứ 3, đóng vai **thinking partner** (không phải voice recorder) qua 4 mandatory spirals + Phase 4.5 pre-mortem:
+
+1. **Spiral 1 PRFAQ** (Amazon Working Backwards) — vision + win condition + 5 FAQ + 3 critical assumptions
+2. **Spiral 2 Impact Mapping** (Gojko Adzic) — Goal → Actors → Impacts → Deliverables, mandatory DEDUP gate
+3. **Spiral 3 Event Storming** (Brandolini, adaptive depth Light/Heavy)
+4. **Spiral 4 User Story Mapping** (Patton) — backbone → MVP cut + TC seeds (CD-10 #14-15)
+5. **Phase 4.5 Pre-mortem** — failure projection + success pathway + risk register propagation
+
+Output: 4 intel artifacts (`actor-registry`, `permission-matrix`, `sitemap`, `feature-catalog`) + per-feature `_state.md` (CD-20, source-type: `idea-brainstormed`) + `feature-brief.md` + test-evidence seeds. Tag producer: `manual-interview` (existing enum, no schema bump).
+
+**6 Mode B doctrines** áp dụng xuyên suốt: echo+paraphrase, generative alternatives, multi-perspective stress, assumption surfacing, quantitative scaffolding, confidence calibration.
+
+**Cơ chế đặc biệt**: continuity (Phase 0.0 Resume + decisions[] log + cascade refresh), coherence (PRFAQ as north star + inter-spiral 6 rules + Phase 5 semantic audit), clarity (recap header + sanity check + fatigue gate), loss-less ideas (idea-graveyard + resurrect protocol).
+
+**Hệ quả**:
+- ✅ Greenfield user có path từ "ý tưởng" → "intel + SDLC handoff" mà không cần viết SRS thủ công
+- ✅ Brainstorm có cấu trúc → giảm scope creep, lộ assumption sớm, calibrate confidence honest
+- ✅ Resume liền mạch giữa session (decisions[] + recap_ledger[]) — phù hợp brainstorm dài hơi
+- ✅ Output đồng nhất với `/from-doc` + `/from-code` (cùng schema CD-10) — Cursor SDLC nhận bàn giao identical
+- ✅ DEDUP mandatory ngay từ ideation → tránh "xây lại nền tảng dùng chung" (CT 34 Nguyên tắc 6)
+- ❌ Skill yêu cầu user thời gian liên tục 1.5-3 giờ (có thể chia session)
+- ❌ Phase 4.5 pre-mortem mandatory — không thể skip mà không flag audit (intentional, chống optimism bias)
+- ❌ Confidence baseline thấp hơn from-doc (`manual` vs `medium`) — bù lại bằng explicit `[NEEDS-VALIDATION]` flags
+
+**Implementation**: 17 files dưới `~/.claude/skills/from-idea/` (1 SKILL.md, 1 INTEL_INTEGRATION.md, 8 phases/, 7 notepads/). Cập nhật CLAUDE.md root §CD-19 + §CD-20 thêm `from-idea` producer + `idea-brainstormed` source-type enum value.
+
+Sub-agents tham gia: `intel-validator` (mandatory Phase 5), `intel-merger` (conditional Phase 5), `policy-researcher` (optional Spiral 2 cho VN gov context). MCP touchpoints: `intel_cache_lookup` (warm-start), `kb_query` + `dedup_check` + `dedup_register` (Spiral 2 DEDUP), `intel_cache_contribute` (Phase 6 with consent).
+
+---
+
 ## Đề xuất ADR mới
 
 Khi thay đổi kiến trúc lớn:

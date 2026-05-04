@@ -13,7 +13,7 @@ Tài liệu này dành cho **dev/BA/SA/QA team** làm phần mềm bàn giao. N�
 > - Skill nào nằm ở đâu trong pipeline
 > - Khi nào dùng Cursor, khi nào dùng Claude Code
 
-> Đầu vào: SRS/BRD docx HOẶC codebase đã ship.
+> Đầu vào: 1 trong 3 — (A) SRS/BRD docx, (B) codebase đã ship, (C) ý tưởng thuần túy chưa có code/doc.
 > Đầu ra: code chạy được + 5 file Office nghiệm thu (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026.
 
 ---
@@ -29,13 +29,13 @@ Tài liệu này dành cho **dev/BA/SA/QA team** làm phần mềm bàn giao. N�
 │   │                   │    │                   │                    │
 │   │   - from-doc      │    │   - new-feature   │                    │
 │   │   - from-code     │    │   - resume-feature│                    │
-│   │   - generate-docs │    │   - close-feature │                    │
-│   │   - intel-fill    │    │   - feature-status│                    │
-│   │   - intel-refresh │    │                   │                    │
-│   │                   │    │   Stage agents:   │                    │
-│   │   11 skills       │    │   ba/sa/dev/qa/...│                    │
-│   │   22 agents       │    │   31 agents       │                    │
-│   │                   │    │   26 skills       │                    │
+│   │   - from-idea     │    │   - close-feature │                    │
+│   │   - generate-docs │    │   - feature-status│                    │
+│   │   - intel-fill    │    │                   │                    │
+│   │   - intel-refresh │    │   Stage agents:   │                    │
+│   │                   │    │   ba/sa/dev/qa/...│                    │
+│   │   12 skills       │    │   31 agents       │                    │
+│   │   22 agents       │    │   26 skills       │                    │
 │   └─────────┬─────────┘    └─────────┬─────────┘                    │
 │             │                        │                              │
 │             │   Cùng đọc/ghi vào:    │                              │
@@ -85,12 +85,17 @@ Tài liệu này dành cho **dev/BA/SA/QA team** làm phần mềm bàn giao. N�
 │   ──────────────────────                     ──────────────────────      │
 │                                                                          │
 │   ┌──────────┐                                                           │
-│   │ SRS.docx │──► /from-doc ─────┐                                       │
-│   └──────────┘                   │                                       │
-│                                  ▼                                       │
+│   │ SRS.docx │──► /from-doc  (A) ─┐                                      │
+│   └──────────┘                    │                                      │
+│                                   ▼                                      │
 │   ┌──────────┐                                                           │
-│   │ Codebase │──► /from-code ─► docs/intel/ ──┐                          │
-│   └──────────┘                       ▲        │                          │
+│   │ Codebase │──► /from-code (B) ─► docs/intel/ ──┐                      │
+│   └──────────┘                            ▲       │                      │
+│                                           │       │                      │
+│   ┌──────────┐                            │       │                      │
+│   │ Ý tưởng  │──► /from-idea (C) ─────────┘       │                      │
+│   └──────────┘    (4 spirals + pre-mortem,        │                      │
+│                    thinking partner)              │                      │
 │                                      │        ▼                          │
 │                                      │   /new-feature     ──┐            │
 │                                      │   /resume-feature  ──┤            │
@@ -255,6 +260,98 @@ Khi project đã code rồi, cần reverse-engineer + sinh tài liệu:
             ▼
    docs/generated/{slug}/output/*.{docx,xlsx}
 ```
+
+---
+
+## 4b. Pipeline chi tiết — `/from-idea` (greenfield ý tưởng — Luồng C)
+
+Khi anh/chị có ý tưởng nhưng **chưa có doc, chưa có code** — vd founder/PM brainstorm trước khi thuê dev, internal tool ideation, concept exploration:
+
+```
+   Ý tưởng trong đầu user
+            │
+            ▼
+   ┌─────────────────────────────────────────┐
+   │  /from-idea                             │
+   │                                         │
+   │  Phase 0.0: Resume Detection            │
+   │           (4 lựa chọn nếu state đã có)  │
+   │  Phase 0:   Bootstrap + MCP warm-start  │
+   │  Phase 0.5: Visual Primer (optional)    │
+   │           (mockup/sketch ≤3 ảnh)        │
+   │                                         │
+   │  Spiral 1: PRFAQ (Amazon Working Back)  │
+   │           Vision + 5 FAQ + 3 assumption │
+   │  Spiral 2: Impact Mapping (Gojko)       │
+   │           Goal → Actors → Impacts →     │
+   │           Deliverables + DEDUP gate     │
+   │  Spiral 3: Event Storming (Brandolini)  │
+   │           Adaptive depth (Light/Heavy)  │
+   │  Spiral 4: Story Mapping (Patton)       │
+   │           Backbone → MVP cut + TC seeds │
+   │                                         │
+   │  Phase 4.5: Pre-mortem (mandatory)      │
+   │           Failure + Success projection  │
+   │  Phase 5:   Crystallize                 │
+   │           4 intel + per-feature _state  │
+   │  Phase 6:   Handoff                     │
+   └─────────────────────────────────────────┘
+            │
+            ▼
+   docs/intel/                    docs/features/_idea/
+   ├── actor-registry.json        ├── idea-brief.md
+   ├── permission-matrix.json     ├── impact-map.md
+   ├── sitemap.json               ├── event-storming.md
+   ├── feature-catalog.json       ├── story-map.md
+   ├── test-evidence/             ├── pre-mortem.md
+   │   └── F-NNN.json (seeds)     ├── dedup-report.md
+   ├── _meta.json (manual-        ├── idea-graveyard.md
+   │   interview producer)        ├── coherence-log.md
+   ├── _pipeline-state.json       └── assumptions.md
+   └── _snapshot.md
+                                  docs/features/F-NNN/
+                                  ├── _state.md (source-type:
+                                  │   idea-brainstormed, current-
+                                  │   stage: ba, status: in-progress)
+                                  └── feature-brief.md
+
+            │
+            ▼  (per feature, on Cursor side)
+
+   /resume-feature F-001
+            │
+            ▼
+   ba → sa → tech-lead → dev → qa → reviewer → close
+            │
+            ▼   (after all features done)
+
+   /generate-docs
+            │
+            ▼
+   docs/generated/{slug}/output/*.{docx,xlsx}
+```
+
+**Đặc trưng `/from-idea` so với `/from-doc` và `/from-code`:**
+
+| Aspect | from-doc | from-code | **from-idea** |
+|---|---|---|---|
+| Input | Tài liệu .docx/.pdf | Codebase | **Ý tưởng + interview** |
+| Producer tag (`_meta.json`) | `doc-intel` | `code-harvester` | **`manual-interview`** (existing enum) |
+| Source-type (`_state.md`) | `SRS`/`BRD` | `code-reverse-engineered` | **`idea-brainstormed`** |
+| Confidence baseline | medium (doc evidence) | high (code evidence) | **manual** (interview only) |
+| Critical thinking pass | (tùy doc) | (tùy code) | **mandatory pre-mortem Phase 4.5** |
+| Continuity across sessions | _pipeline-state.json | _pipeline-state.json | **+ decisions[] log + recap_ledger[] + idea-graveyard** |
+| Coherence checks | (basic) | (basic) | **PRFAQ north-star + inter-spiral + 5-rule semantic audit** |
+
+**6 Mode B doctrines (thinking partner)** áp dụng xuyên suốt 4 spirals:
+1. Echo + paraphrase — confirm intent
+2. Generative alternatives — không "yes-and"
+3. Multi-perspective stress test — engineer/end-user/CFO
+4. Assumption surfacing — buộc lộ giả định
+5. Quantitative scaffolding — Fermi estimate
+6. Confidence calibration — `< 50%` flag `[NEEDS-VALIDATION]`
+
+Chi tiết: xem `from-idea`.
 
 ---
 

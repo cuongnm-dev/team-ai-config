@@ -42,6 +42,7 @@ Xem `ai-kit doc ai-kit` cho tất cả lệnh.
 
 | Vai trò | Bắt đầu ở đâu | Skills quan trọng nhất |
 |---|---|---|
+| **Founder/PM** (greenfield ý tưởng) | from-idea | `/from-idea` (4 spirals + pre-mortem) |
 | **BA** (nghiệp vụ) | from-doc | `/from-doc`, agent `ba` |
 | **SA** (kiến trúc) | agents reference | agent `sa`, agent `tech-lead` |
 | **Dev** | resume-feature | `/resume-feature`, agent `dev`/`fe-dev` |
@@ -76,8 +77,9 @@ Xem `ai-kit doc ai-kit` cho tất cả lệnh.
 
 **Sinh tài liệu trong Claude Code:**
 
-- from-doc — Phân tích SRS/BRD → seed feature-catalog + sitemap
-- from-code — Reverse-engineer codebase → canonical intel
+- from-doc — Phân tích SRS/BRD → seed feature-catalog + sitemap (Luồng A)
+- from-code — Reverse-engineer codebase → canonical intel (Luồng B)
+- from-idea — Brainstorm ý tưởng thuần túy qua 4 spirals + pre-mortem → intel + SDLC handoff (Luồng C)
 
 ### 📗 Reference — chi tiết tra cứu
 
@@ -113,24 +115,26 @@ Xem `ai-kit doc ai-kit` cho tất cả lệnh.
 **Đối tượng**: dev / BA / QA / SA team. **Input**: tài liệu yêu cầu HOẶC codebase. **Output**: code + Office docs nghiệm thu (TKKT/TKCS/TKCT/HDSD/test-cases) theo NĐ 45/2026.
 
 ```
-  Tài liệu (SRS/BRD)              Codebase
-        │                            │
-        ▼                            ▼
-   /from-doc  (Claude)         /from-code  (Claude)
-        │                            │
-        └──────► docs/intel/ ◄───────┘
-                     │
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-  /new-feature  /resume-feature  /generate-docs
-   (Cursor)      (Cursor SDLC)    (Claude → MCP)
-        │            │            │
-        ▼            ▼            ▼
-   _state.md    Stage agents   Office docs
-                (ba→sa→...)    (TKKT/TKCS/HDSD/test-cases)
+  Tài liệu (SRS/BRD)        Codebase           Ý tưởng thuần túy
+        │                       │                       │
+        ▼                       ▼                       ▼
+   /from-doc (A)          /from-code (B)         /from-idea (C)
+   (Claude)               (Claude)               (Claude — 4 spirals
+        │                       │                + pre-mortem)
+        │                       │                       │
+        └──────────► docs/intel/ ◄──────────────────────┘
+                          │
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+  /new-feature      /resume-feature     /generate-docs
+   (Cursor)          (Cursor SDLC)       (Claude → MCP)
+        │                 │                 │
+        ▼                 ▼                 ▼
+   _state.md         Stage agents       Office docs
+                     (ba→sa→...)        (TKKT/TKCS/HDSD/test-cases)
 ```
 
-Skills luồng A: `from-doc` `from-code` `new-feature` `resume-feature` `close-feature` `feature-status` `generate-docs` `intel-fill` `intel-refresh` `new-workspace` `new-project` `configure-workspace` `plan` `implement` `code-change` `hotfix` `quality` `arch-review` `adr` `spike` `ui-catalog` `release` `incident` `runbook` `cache-lint` `zip-disk`.
+Skills luồng A: `from-doc` `from-code` `from-idea` `new-feature` `resume-feature` `close-feature` `feature-status` `generate-docs` `intel-fill` `intel-refresh` `new-workspace` `new-project` `configure-workspace` `plan` `implement` `code-change` `hotfix` `quality` `arch-review` `adr` `spike` `ui-catalog` `release` `incident` `runbook` `cache-lint` `zip-disk`.
 
 Agents luồng A: stage agents (`ba` `sa` `tech-lead` `dev` `fe-dev` `qa` `reviewer` `pm` `dispatcher`) + tdoc-* (researcher/test-runner/data-writer/exporter/tkkt/tkcs/tkct/testcase/manual writers).
 
