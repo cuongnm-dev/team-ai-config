@@ -1,0 +1,23 @@
+# CODEOWNERS — mọi PR đều require review từ maintainer
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner cho toàn bộ repo
+*                           @cuongnm-dev
+
+# Skills & agents — IP nhạy cảm nhất, luôn require maintainer review
+claude/skills/**            @cuongnm-dev
+claude/agents/**            @cuongnm-dev
+cursor/skills/**            @cuongnm-dev
+cursor/agents/**            @cuongnm-dev
+cursor/skills-cursor/**     @cuongnm-dev
+windsurf/skills/**          @cuongnm-dev
+kilo/agent/**               @cuongnm-dev
+
+# CLI core
+bin/**                      @cuongnm-dev
+
+# Bootstrap / deploy scripts — supply chain risk
+bootstrap.ps1               @cuongnm-dev
+bootstrap.sh                @cuongnm-dev
+deploy.ps1                  @cuongnm-dev
+deploy.sh                   @cuongnm-dev
