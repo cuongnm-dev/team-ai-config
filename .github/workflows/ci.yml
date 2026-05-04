@@ -107,7 +107,7 @@ jobs:
                     else
                       SEEN_NAMES[$name_val]="$file"
                     fi
-                  done < <(find claude/agents cursor/agents -name "*.md" 2>/dev/null | sort)
+                  done < <(find claude/agents cursor/agents -maxdepth 1 -name "*.md" 2>/dev/null | sort)
 
                   if [ "$ERRORS" -gt 0 ]; then
                     echo "::error::$ERRORS agent frontmatter error(s) found."
