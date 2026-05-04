@@ -15,10 +15,13 @@ order: 1
 
 Anh/chị đang **làm phần mềm để bàn giao cho khách hàng**.
 
-- **Input**: tài liệu yêu cầu (SRS/BRD) HOẶC codebase đã ship
-- **Quy trình**: from-doc/from-code → SDLC pipeline (BA→SA→TL→Dev→QA→Reviewer) → generate-docs
+- **Input** (3 entry-points):
+  - 🅐 Có SRS/BRD/wireframe → `/from-doc`
+  - 🅑 Có codebase đã ship → `/from-code`
+  - 🅒 Chỉ có ý tưởng, chưa có doc/code (Luồng C) → `/from-idea` (4 spirals + pre-mortem)
+- **Quy trình**: ingestion → SDLC pipeline (BA→SA→TL→Dev→QA→Reviewer) → generate-docs
 - **Output**: code chạy được + 5 file Office nghiệm thu (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026
-- **Đối tượng**: BA, SA, Dev, FE-Dev, QA, Reviewer, PM
+- **Đối tượng**: BA, SA, Dev, FE-Dev, QA, Reviewer, PM, Founder/PM (Luồng C)
 - **Onboarding**: `ai-kit doc on-board-sdlc`
 
 ---
@@ -39,8 +42,11 @@ Anh/chị đang **soạn tài liệu nộp cơ quan nhà nước** (Bộ/Tỉnh/
 
 | Câu trả lời | Luồng | Onboard | Skill bắt đầu |
 |---|---|---|---|
-| "Tôi đang code phần mềm" | 🅰 SDLC | `on-board-sdlc` | `/from-doc` hoặc `/from-code` hoặc `/new-feature` |
+| "Tôi có SRS/BRD, chưa có code" | 🅰 SDLC (Luồng A) | `on-board-sdlc` | `/from-doc` |
+| "Tôi có codebase đã ship" | 🅰 SDLC (Luồng B) | `on-board-sdlc` | `/from-code` |
+| "Tôi chỉ có ý tưởng, chưa có doc/code" | 🅰 SDLC (Luồng C) | `on-board-sdlc` | `/from-idea` |
 | "Tôi nghiệm thu phần mềm cho khách" | 🅰 SDLC | `on-board-sdlc` | `/from-code` → `/generate-docs` |
+| "Tôi thêm 1 feature vào project có sẵn" | 🅰 SDLC | `on-board-sdlc` | `/new-feature` (Cursor) |
 | "Tôi soạn Đề án Chuyển đổi số" | 🅱 Tài liệu | `on-board-tailieu` | `/new-strategic-document` |
 | "Tôi làm HSMT/HSDT/dự toán/NCKT" | 🅱 Tài liệu | `on-board-tailieu` | `/new-document-workspace` |
 | "Tôi review Đề án trước khi nộp" | 🅱 Tài liệu | `on-board-tailieu` | `/strategic-critique` |
