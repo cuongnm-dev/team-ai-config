@@ -1,6 +1,6 @@
 ---
 name: reviewer
-model: auto
+model: composer-2
 description: "Quality gate cuối: requirement + architecture + code quality + security + test adequacy. Chạy sau QA Pass."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

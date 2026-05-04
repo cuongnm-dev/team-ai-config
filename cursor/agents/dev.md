@@ -1,6 +1,6 @@
 ---
 name: dev
-model: auto
+model: composer-2
 description: "Implement 1 task/wave từ tech-lead plan: code + tests + validation + auth. Output implementation summary."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

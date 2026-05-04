@@ -1,6 +1,6 @@
 # Team AI Config
 
-Shared Cursor + Claude Code configuration (agents, skills, rules, schemas) and `etc-platform` MCP server, distributed across the team via a single git repo + the **`ai-kit`** CLI.
+Shared **Claude Code + Cursor + Windsurf** configuration (agents, skills, rules, schemas, workflows) and `etc-platform` MCP server, distributed across the team via a single git repo + the **`ai-kit`** CLI.
 
 ## TL;DR for team members
 
@@ -30,8 +30,12 @@ team-ai-config/
 │   ├── ai-kit                     ← POSIX CLI (linked to PATH)
 │   ├── ai-kit.ps1                 ← Windows PowerShell CLI
 │   └── ai-kit.cmd                 ← Windows cmd shim
-├── claude/                        ← deployed to ~/.claude
-├── cursor/                        ← deployed to ~/.cursor
+├── claude/                        ← deployed to ~/.claude (agents, skills, schemas, scripts, CLAUDE.md)
+├── cursor/                        ← deployed to ~/.cursor (agents, skills, rules, AGENTS.md, mcp.json)
+├── windsurf/                      ← deployed to ~/.codeium/windsurf/
+│   ├── skills/                    ← → ~/.codeium/windsurf/skills/
+│   ├── memories/                  ← → ~/.codeium/windsurf/memories/
+│   └── workflows/                 ← → ~/.codeium/windsurf/windsurf/workflows/ (nested per Windsurf convention)
 └── mcp/etc-platform/
     ├── docker-compose.yml         ← runs etc-platform MCP server
     └── .env.example               ← (auto-copied to .env)
@@ -65,7 +69,7 @@ Mac comes with bash + rsync. Linux: `apt install rsync` or equivalent. Windows: 
 
 ## What's preserved on every install/update
 
-These files in `~/.claude` and `~/.cursor` are **never overwritten** (your private data):
+These files in `~/.claude`, `~/.cursor`, and `~/.codeium/windsurf` are **never overwritten** (your private data):
 
 | Pattern | Reason |
 |---|---|

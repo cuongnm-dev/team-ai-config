@@ -1,6 +1,6 @@
 ---
 name: sa
-model: auto
+model: composer-2
 description: "Thiết kế kiến trúc 1 feature: routes, entities, integrations, permission concrete. Chạy sau ba duyệt."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.

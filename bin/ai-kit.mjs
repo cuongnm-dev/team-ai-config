@@ -1664,6 +1664,7 @@ const cmdUpdate = async () => {
         for (const [base, items] of [
           [path.join(os.homedir(), '.claude'), ['agents', 'skills']],
           [path.join(os.homedir(), '.cursor'), ['agents', 'skills']],
+          [path.join(os.homedir(), '.codeium', 'windsurf'), ['skills', 'memories', 'windsurf/workflows']],
         ]) {
           for (const item of items) {
             const src = path.join(base, item);
@@ -1706,7 +1707,13 @@ const cmdUpdate = async () => {
         await deploy('claude/skills', '.claude/skills');
         await deploy('cursor/agents', '.cursor/agents');
         await deploy('cursor/skills', '.cursor/skills');
-        c.setLabel('Đã triển khai agents + skills');
+        // Windsurf — added 2026-05-04. Repo flatten: windsurf/{skills,memories,workflows}/
+        // Deploy maps: skills→.codeium/windsurf/skills, memories→.codeium/windsurf/memories,
+        //              workflows→.codeium/windsurf/windsurf/workflows (Windsurf's nested path).
+        await deploy('windsurf/skills',    '.codeium/windsurf/skills');
+        await deploy('windsurf/memories',  '.codeium/windsurf/memories');
+        await deploy('windsurf/workflows', '.codeium/windsurf/windsurf/workflows');
+        c.setLabel('Đã triển khai agents + skills (Claude + Cursor + Windsurf)');
       },
     },
     {

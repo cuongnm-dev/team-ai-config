@@ -1,6 +1,6 @@
 ---
 name: telemetry
-model: auto
+model: composer-2
 description: "Background recorder: token usage, cache hit, stage timing -> JSONL. Read-only _state.md, không block."
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: ba-pro
-model: auto
+model: claude-opus-4-7
 description: [ESCALATION TIER — opus] "Phân tích nghiệp vụ + mô hình domain cho 1 feature. User stories, AC, business rules. Stage đầu SDLC."
 ---
 

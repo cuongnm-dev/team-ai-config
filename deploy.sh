@@ -27,4 +27,8 @@ deploy_dir "claude/agents"  ".claude/agents"
 deploy_dir "claude/skills"  ".claude/skills"
 deploy_dir "cursor/agents"  ".cursor/agents"
 deploy_dir "cursor/skills"  ".cursor/skills"
+# Windsurf (added 2026-05-04). Workflows nested at .codeium/windsurf/windsurf/workflows per Windsurf convention.
+deploy_dir "windsurf/skills"    ".codeium/windsurf/skills"
+deploy_dir "windsurf/memories"  ".codeium/windsurf/memories"
+deploy_dir "windsurf/workflows" ".codeium/windsurf/windsurf/workflows"
 _ok "Deploy complete (run 'ai-kit update' again to use new Node.js CLI)"

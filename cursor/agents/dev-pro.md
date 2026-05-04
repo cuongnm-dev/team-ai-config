@@ -1,6 +1,6 @@
 ---
 name: dev-pro
-model: auto
+model: claude-opus-4-7
 description: [ESCALATION TIER — opus] "Implement 1 task/wave từ tech-lead plan: code + tests + validation + auth. Output implementation summary."
 ---
 

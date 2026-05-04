@@ -1,6 +1,6 @@
 ---
 name: security
-model: auto
+model: composer-2
 description: "Threat model + security findings. Chạy khi feature chạm auth/PII/payment hoặc sa/reviewer flag concern."
 is_background: true
 ---
