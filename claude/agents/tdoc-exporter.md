@@ -23,7 +23,7 @@ Per CD-8 (post 2026-04-28): **MCP-only**. No `python render_docx.py`, no
 # 1. MCP health probe
 HTTP_BASE="http://localhost:8001"
 curl -fsS --max-time 3 "$HTTP_BASE/readyz" >/dev/null \
-  || { echo "BLOCKED: etc-platform MCP offline. Fix: cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d"; exit 1; }
+  || { echo "BLOCKED: etc-platform MCP offline. Fix: cd D:/MCP\\ Server/etc-platform && docker compose up -d"; exit 1; }
 
 # 2. Content-data produced by upstream writer
 DATA="{docs-path}/output/content-data.json"
@@ -109,7 +109,6 @@ done
 ```
 
 Job report (`/jobs/{id}` response body) includes per-target status:
-
 ```json
 {
   "status": "completed",
@@ -172,26 +171,26 @@ warnings. User can convert manually via Word UI.
 
 ## Verdict decision matrix
 
-| Condition                                                        | Verdict                         |
-| ---------------------------------------------------------------- | ------------------------------- |
-| MCP `/jobs` status=completed, all targets ok, no warnings        | `Export complete`               |
+| Condition | Verdict |
+|---|---|
+| MCP `/jobs` status=completed, all targets ok, no warnings | `Export complete` |
 | Status=completed, one or more target with `warnings[]` non-empty | `Export complete with warnings` |
-| Status=completed but ≥1 target failed (status=error)             | `Export partial`                |
-| MCP offline, content-data missing, or job timeout (>300s)        | `Blocked`                       |
+| Status=completed but ≥1 target failed (status=error) | `Export partial` |
+| MCP offline, content-data missing, or job timeout (>300s) | `Blocked` |
 
 ---
 
 ## Error handling
 
-| Situation                                                    | Action                                                                                        |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| MCP `/readyz` returns non-200                                | `Blocked` — instruct `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` |
-| `content-data.json` missing                                  | `Blocked` — upstream writer agent did not complete                                            |
-| Upload fails (4xx/5xx)                                       | Retry once; if still failing → `Blocked`                                                      |
-| Job timeout (status stuck at `running` >300s)                | `Blocked`, capture `/jobs/{id}` body for diagnostic                                           |
-| Job status=`failed`                                          | `Blocked`, copy `error` field verbatim to verdict warnings                                    |
-| Per-target `warnings[]` non-empty (e.g. missing screenshots) | Surface in verdict but do not block                                                           |
-| Word MCP unavailable for PDF                                 | Warning only, not blocking                                                                    |
+| Situation | Action |
+|---|---|
+| MCP `/readyz` returns non-200 | `Blocked` — instruct `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` |
+| `content-data.json` missing | `Blocked` — upstream writer agent did not complete |
+| Upload fails (4xx/5xx) | Retry once; if still failing → `Blocked` |
+| Job timeout (status stuck at `running` >300s) | `Blocked`, capture `/jobs/{id}` body for diagnostic |
+| Job status=`failed` | `Blocked`, copy `error` field verbatim to verdict warnings |
+| Per-target `warnings[]` non-empty (e.g. missing screenshots) | Surface in verdict but do not block |
+| Word MCP unavailable for PDF | Warning only, not blocking |
 
 ---
 

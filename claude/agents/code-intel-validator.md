@@ -168,7 +168,6 @@ Write validation-report.json
 ## Strict mode
 
 When `strict: true`:
-
 - Elevate MEDIUM → HIGH
 - Add additional checks:
   - Every feature must have business_value in interview_context
@@ -181,7 +180,6 @@ Default `strict: false` for first-run UX; orchestrator can escalate in auto-fix 
 ## Fix hint quality
 
 `suggested_fix` must be:
-
 - **Specific**: name the file/entity/feature
 - **Actionable**: tell the agent what operation to perform (regenerate, remove, add, rename)
 - **Scoped**: only for this issue (no omnibus "re-run everything")
@@ -189,7 +187,6 @@ Default `strict: false` for first-run UX; orchestrator can escalate in auto-fix 
 ## Loop cooperation
 
 When orchestrator invokes validator in auto-fix loop:
-
 - Validator outputs identical report format
 - Orchestrator writes `validator-fixes.md` from `suggested_fix` fields
 - Orchestrator re-dispatches `code-intel` agent with `mode=fix, input=validator-fixes.md`
@@ -200,4 +197,4 @@ When orchestrator invokes validator in auto-fix loop:
 - Do NOT modify source artifacts (read-only except for `validation-report.json`)
 - Do NOT attempt fixes itself — only report + suggest
 - Do NOT reason heavily — stick to mechanical + light-severity-judgment
-- Do NOT flag `[CAN_SUPPLEMENT: ...]` placeholders as a HIGH issue (these are intentional gaps in source data)
+- Do NOT flag `[CẦN BỔ SUNG: ...]` as a HIGH issue (these are intentional placeholders)

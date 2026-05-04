@@ -1,6 +1,6 @@
 ---
 name: from-doc
-description: Đọc tài liệu mô tả nghiệp vụ (PDF, Word, ảnh, file test case) để phân tích sâu, dựng cấu trúc dự án và sinh hồ sơ từng tính năng theo chuẩn Cursor SDLC. Dùng khi đã có tài liệu yêu cầu nhưng chưa có code. Output - docs/intel/{doc-brief.md, actor-registry, feature-catalog, sitemap}.json + 1 _state.md mỗi feature (status planned). Trigger - có SRS/BRD/wireframe docx/pdf/png; bắt đầu project mới từ tài liệu khách hàng. Anti-trigger - project đã có code đang chạy thì /from-code; chỉ thêm 1 feature thì /new-feature. Example - "/from-doc /path/to/project/docs/SRS-v1.docx" hoặc nhiều file cùng lúc (skill tự gộp).
+description: Đọc tài liệu mô tả nghiệp vụ (PDF, Word, ảnh, file test case) để phân tích sâu, dựng cấu trúc dự án và sinh hồ sơ từng tính năng theo chuẩn Cursor SDLC. Dùng khi đã có tài liệu yêu cầu nhưng chưa có code. Output - docs/intel/{doc-brief.md, actor-registry, feature-catalog, sitemap}.json + 1 _state.md mỗi feature (status planned). Trigger - có SRS/BRD/wireframe docx/pdf/png; bắt đầu project mới từ tài liệu khách hàng. Anti-trigger - project đã có code đang chạy thì /from-code; chỉ thêm 1 feature thì /new-feature. Example - "/from-doc D:/Projects/portal/docs/SRS-v1.docx" hoặc nhiều file cùng lúc (skill tự gộp).
 ---
 
 # From Document to Code — Contract & Dual-Producer
