@@ -197,4 +197,4 @@ When orchestrator invokes validator in auto-fix loop:
 - Do NOT modify source artifacts (read-only except for `validation-report.json`)
 - Do NOT attempt fixes itself — only report + suggest
 - Do NOT reason heavily — stick to mechanical + light-severity-judgment
-- Do NOT flag `[CAN_SUPPLEMENT: ...]` placeholders (Vietnamese: `[CẦN BỔ SUNG: ...]`) as a HIGH issue (these are intentional placeholders)
+- Do NOT flag `[CAN_SUPPLEMENT: ...]` placeholders as a HIGH issue (these are intentional gaps in source data)
