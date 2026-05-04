@@ -31,4 +31,11 @@ deploy_dir "cursor/skills"  ".cursor/skills"
 deploy_dir "windsurf/skills"    ".codeium/windsurf/skills"
 deploy_dir "windsurf/memories"  ".codeium/windsurf/memories"
 deploy_dir "windsurf/workflows" ".codeium/windsurf/windsurf/workflows"
+# Kilo Code (added 2026-05-04). agent/ + AGENTS.md only — personal kilo.jsonc never touched.
+deploy_dir "kilo/agent" ".config/kilo/agent"
+if [ -f "$REPO_DIR/kilo/AGENTS.md" ]; then
+  mkdir -p "$HOME_DIR/.config/kilo"
+  cp -f "$REPO_DIR/kilo/AGENTS.md" "$HOME_DIR/.config/kilo/AGENTS.md"
+  _ok ".config/kilo/AGENTS.md"
+fi
 _ok "Deploy complete (run 'ai-kit update' again to use new Node.js CLI)"

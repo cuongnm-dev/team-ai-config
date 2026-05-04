@@ -31,4 +31,13 @@ Deploy-Dir "cursor\skills" ".cursor\skills"
 Deploy-Dir "windsurf\skills"    ".codeium\windsurf\skills"
 Deploy-Dir "windsurf\memories"  ".codeium\windsurf\memories"
 Deploy-Dir "windsurf\workflows" ".codeium\windsurf\windsurf\workflows"
+# Kilo Code (added 2026-05-04). agent/ + AGENTS.md only — personal kilo.jsonc never touched.
+Deploy-Dir "kilo\agent" ".config\kilo\agent"
+$kiloAgentsMd = Join-Path $RepoDir 'kilo\AGENTS.md'
+if (Test-Path $kiloAgentsMd) {
+  $kiloDst = Join-Path $env:USERPROFILE '.config\kilo\AGENTS.md'
+  New-Item -ItemType Directory -Path (Split-Path $kiloDst) -Force | Out-Null
+  Copy-Item -Force $kiloAgentsMd $kiloDst
+  Write-Ok ".config\kilo\AGENTS.md"
+}
 Write-Ok "Deploy complete (run 'ai-kit update' again to use new Node.js CLI)"

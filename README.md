@@ -1,6 +1,6 @@
 # Team AI Config
 
-Shared **Claude Code + Cursor + Windsurf** configuration (agents, skills, rules, schemas, workflows) and `etc-platform` MCP server, distributed across the team via a single git repo + the **`ai-kit`** CLI.
+Shared **Claude Code + Cursor + Windsurf + Kilo Code** configuration (agents, skills, rules, schemas, workflows) and `etc-platform` MCP server, distributed across the team via a single git repo + the **`ai-kit`** CLI.
 
 ## TL;DR for team members
 
@@ -36,6 +36,9 @@ team-ai-config/
 │   ├── skills/                    ← → ~/.codeium/windsurf/skills/
 │   ├── memories/                  ← → ~/.codeium/windsurf/memories/
 │   └── workflows/                 ← → ~/.codeium/windsurf/windsurf/workflows/ (nested per Windsurf convention)
+├── kilo/                          ← deployed to ~/.config/kilo/
+│   ├── agent/                     ← → ~/.config/kilo/agent/  (28 primary + 30 subagent + 1 all = 59 .md)
+│   └── AGENTS.md                  ← → ~/.config/kilo/AGENTS.md (project context)
 └── mcp/etc-platform/
     ├── docker-compose.yml         ← runs etc-platform MCP server
     └── .env.example               ← (auto-copied to .env)

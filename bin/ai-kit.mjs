@@ -1665,6 +1665,7 @@ const cmdUpdate = async () => {
           [path.join(os.homedir(), '.claude'), ['agents', 'skills']],
           [path.join(os.homedir(), '.cursor'), ['agents', 'skills']],
           [path.join(os.homedir(), '.codeium', 'windsurf'), ['skills', 'memories', 'windsurf/workflows']],
+          [path.join(os.homedir(), '.config', 'kilo'), ['agent']],
         ]) {
           for (const item of items) {
             const src = path.join(base, item);
@@ -1713,7 +1714,17 @@ const cmdUpdate = async () => {
         await deploy('windsurf/skills',    '.codeium/windsurf/skills');
         await deploy('windsurf/memories',  '.codeium/windsurf/memories');
         await deploy('windsurf/workflows', '.codeium/windsurf/windsurf/workflows');
-        c.setLabel('Đã triển khai agents + skills (Claude + Cursor + Windsurf)');
+        // Kilo Code (added 2026-05-04). Personal kilo.jsonc / providers / package.json never touched.
+        await deploy('kilo/agent', '.config/kilo/agent');
+        // AGENTS.md is single file — deploy via direct copy
+        const kiloAgentsSrc = path.join(REPO_DIR, 'kilo', 'AGENTS.md');
+        const kiloAgentsDst = path.join(os.homedir(), '.config', 'kilo', 'AGENTS.md');
+        if (exists(kiloAgentsSrc)) {
+          fs.mkdirSync(path.dirname(kiloAgentsDst), {recursive: true});
+          fs.copyFileSync(kiloAgentsSrc, kiloAgentsDst);
+          c.output('→ .config/kilo/AGENTS.md');
+        }
+        c.setLabel('Đã triển khai agents + skills (Claude + Cursor + Windsurf + Kilo)');
       },
     },
     {
