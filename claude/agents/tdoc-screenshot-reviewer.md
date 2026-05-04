@@ -45,22 +45,24 @@ READ {docs-path}/intel/test-evidence/*.json    → per-feature evidence files; e
 ### Step 2 — Build verification matrix
 
 For each feature in feature-catalog:
+
 - Load `test-evidence/{feature.id}.json`
 - For each screenshot in `evidence.screenshots[]`:
   - Match `step-no` against `evidence.test_cases[].steps[].no`
   - Expected visual cue per state:
-    - `state: initial`    → Empty form, no validation error, submit button possibly disabled
-    - `state: filled`     → All fields populated, submit button enabled
-    - `state: success`    → Success toast/banner, redirect, or new list item appearing
-    - `state: error`      → Red validation message, error banner, or error toast
-    - `state: loading`    → Spinner, skeleton loader
-    - `state: modal`      → Overlay/dialog visible
-    - `state: list`       → Table with data rows, pagination
-    - `state: detail`     → Detail view with field labels + values
+    - `state: initial` → Empty form, no validation error, submit button possibly disabled
+    - `state: filled` → All fields populated, submit button enabled
+    - `state: success` → Success toast/banner, redirect, or new list item appearing
+    - `state: error` → Red validation message, error banner, or error toast
+    - `state: loading` → Spinner, skeleton loader
+    - `state: modal` → Overlay/dialog visible
+    - `state: list` → Table with data rows, pagination
+    - `state: detail` → Detail view with field labels + values
 
 ### Step 3 — Vision review per screenshot (batch-process)
 
 **Important — batch to avoid context overflow:**
+
 - If total screenshots ≤ 50: review all in 1 pass
 - If 51-200: split into batches of 50
 - If > 200: sample strategy — review 2 images per feature (initial + success), flag full review for user
@@ -83,15 +85,15 @@ Evaluate:
 
 ### Step 4 — Classify each screenshot
 
-| Classification | Meaning | Downstream action |
-|---|---|---|
-| `ok` | Visual matches expected state | Use as-is in docx |
-| `wrong-state` | Different UI state captured (e.g. `initial` instead of `success`) | Flag for retry |
+| Classification  | Meaning                                                                 | Downstream action                       |
+| --------------- | ----------------------------------------------------------------------- | --------------------------------------- |
+| `ok`            | Visual matches expected state                                           | Use as-is in docx                       |
+| `wrong-state`   | Different UI state captured (e.g. `initial` instead of `success`)       | Flag for retry                          |
 | `wrong-feature` | Image shows different feature (e.g. login form when dashboard expected) | Flag for retry — likely navigation fail |
-| `blank` | Blank / white noise / loading not finished | Flag for retry with wait |
-| `broken` | Console error overlay, 404, 500 page | Flag for manual debug |
-| `partial` | UI rendered but missing data / cut-off | Flag — may need viewport resize |
-| `ok-with-note` | Acceptable but has reviewer note (e.g. unexpected watermark) | Use + log note |
+| `blank`         | Blank / white noise / loading not finished                              | Flag for retry with wait                |
+| `broken`        | Console error overlay, 404, 500 page                                    | Flag for manual debug                   |
+| `partial`       | UI rendered but missing data / cut-off                                  | Flag — may need viewport resize         |
+| `ok-with-note`  | Acceptable but has reviewer note (e.g. unexpected watermark)            | Use + log note                          |
 
 ### Step 5 — Write verification-report.json
 
@@ -136,13 +138,14 @@ Evaluate:
     }
   ],
   "batches": [
-    {"range": "1-50", "tokens": 4200, "duration-s": 38},
-    {"range": "51-100", "tokens": 4100, "duration-s": 37}
+    { "range": "1-50", "tokens": 4200, "duration-s": 38 },
+    { "range": "51-100", "tokens": 4100, "duration-s": 37 }
   ]
 }
 ```
 
 **Quality score formula:**
+
 ```
 quality-score = round((ok + ok-with-note * 0.9) / total * 100)
 retry-recommended = (wrong-state + wrong-feature + blank + broken) >= total * 0.10
@@ -154,10 +157,10 @@ retry-recommended = (wrong-state + wrong-feature + blank + broken) >= total * 0.
 
 1. **NEVER guess image content** — always Read file explicitly
 2. **Match by filename convention** `{feature-id}-step-{NN}-{state}.png` — if filename doesn't parse, classify as `broken` + note
-3. **For `wrong-state` classifications:** include **specific visual evidence** in `observation` (vd: "thấy placeholder 'Nhập tên công việc' trong input" → chứng minh empty state)
-4. **NEVER mark `ok` without reading image** — hallucination nguy hiểm nhất ở đây
+3. **For `wrong-state` classifications:** include **specific visual evidence** in `observation` (e.g. "saw placeholder text in input field" → proves empty state)
+4. **NEVER mark `ok` without reading image** — hallucination is the most dangerous error here
 5. **Sampling strategy for >200 screenshots:** document clearly trong output "sampled-mode: true" + strategy used
-6. **Conservative classification:** khi không chắc → classify `ok-with-note` kèm lý do, tránh false-flag retry (expensive)
+6. **Conservative classification:** when uncertain → classify `ok-with-note` with reason, avoid false-flag retry (expensive)
 
 ---
 
@@ -241,7 +244,12 @@ retry-recommended = (wrong-state + wrong-feature + blank + broken) >= total * 0.
   "verdict": "<Ready for doc-gen-phase|Ready with known risks|Need retry|Blocked>",
   "quality-score": 89,
   "retry-recommended": true,
-  "flagged-count": {"wrong-state": 10, "wrong-feature": 3, "blank": 4, "broken": 1},
+  "flagged-count": {
+    "wrong-state": 10,
+    "wrong-feature": 3,
+    "blank": 4,
+    "broken": 1
+  },
   "output-file": "{docs-path}/intel/verification-report.json"
 }
 ```
@@ -281,9 +289,9 @@ retry-recommended = (wrong-state + wrong-feature + blank + broken) >= total * 0.
 
 ### F) Skill Routing
 
-| Condition | Output |
-|---|---|
-| `Ready for doc-gen-phase` | `→ Auto-invoking: doc-gen-phase (5 writers parallel)` |
-| `Ready with known risks` | `→ Proceed with writers, flag verification-report for human review` |
-| `Need retry` (user confirms) | `→ Re-invoke tdoc-test-runner with feature-ids: [list]` |
-| `Blocked` + backend errors | `→ Stop pipeline. Suggest: check `docker logs` for affected service.` |
+| Condition                    | Output                                                                |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `Ready for doc-gen-phase`    | `→ Auto-invoking: doc-gen-phase (5 writers parallel)`                 |
+| `Ready with known risks`     | `→ Proceed with writers, flag verification-report for human review`   |
+| `Need retry` (user confirms) | `→ Re-invoke tdoc-test-runner with feature-ids: [list]`               |
+| `Blocked` + backend errors   | `→ Stop pipeline. Suggest: check `docker logs` for affected service.` |

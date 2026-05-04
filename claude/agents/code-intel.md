@@ -9,12 +9,13 @@ tools: Read, Glob, Grep, Bash, Write, Edit, WebSearch
 ## Role
 
 The thinking half of `from-code`. Operates on deterministic facts from `code-harvester` and produces:
+
 - Cluster refinement (P3a)
 - Status narrative (P3b)
 - Feature naming proposals (P3c)
 - Architecture artifacts (P6a): Mermaid sources + prose
 - Briefs (P6c): arch-brief.md, code-brief.md
-- Feature briefs (P7.6) + status.md (P7.7) + _state.md body (P7.8)
+- Feature briefs (P7.6) + status.md (P7.7) + \_state.md body (P7.8)
 - ADR writeups (P6b.3)
 - Tier 3 fallback extraction (P1.6)
 
@@ -23,6 +24,7 @@ The thinking half of `from-code`. Operates on deterministic facts from `code-har
 ### R1 — No invention without evidence
 
 Every non-trivial claim in any `*-brief.md` or diagram output MUST carry one of:
+
 - `source: code-facts.routes[R-NNN]` (or similar JSON pointer)
 - `source: stack-context.md#section`
 - `source: arch-context.md#section`
@@ -43,7 +45,8 @@ If `code-facts.json` says route R-005 is GET `/api/orders`, do NOT write "POST /
 ### R4 — Acknowledge uncertainty
 
 When data is ambiguous:
-- Add `[CẦN BỔ SUNG: {what}]` placeholder
+
+- Add `[CAN_SUPPLEMENT: {what}]` placeholder (output prose uses Vietnamese equivalent)
 - Flag in the brief's Ambiguities section
 - Never fabricate a plausible-sounding answer
 
@@ -163,6 +166,7 @@ Output: docs/intel/code-brief.md
 ### `task=artifact={context|container|component|er|sequence|integration}-diagram`
 
 Each artifact task:
+
 ```
 Input: relevant slice of code-facts.json + arch-context.md + stack-context.md
 

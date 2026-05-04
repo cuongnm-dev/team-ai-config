@@ -30,7 +30,7 @@ own_write:
   - "docs/intel/sitemap.json"
   - "docs/intel/code-brief.md"
   - "docs/intel/arch-brief.md"
-enrich: {}  # producer creates artifacts; subsequent stages enrich
+enrich: {} # producer creates artifacts; subsequent stages enrich
 forbid:
   - writing test-evidence (qa job)
   - writing implementation_evidence (close-feature job)
@@ -41,7 +41,7 @@ exit_gates:
   - confidence emitted per CD-10 §13 for every entry
   - _meta.json updated for all artifacts
   - feature-catalog.json passes thinness check (CD-10 Quy tắc 11): description >=200, business_intent >=100, flow_summary >=150, AC >=3
-allow_code_scan: true  # producer; extraction is the job
+allow_code_scan: true # producer; extraction is the job
 ```
 
 > **PATH RESOLUTION**: All `docs/intel/X.json` references in this agent are CD-10 canonical artifact names. At runtime, expand to `{docs-path}/intel/X.json` where `{docs-path}` is the workspace docs root resolved from `_state.md` (typically `{workspace}/docs/`). Never write to bare `docs/intel/` — always prefix with `{docs-path}/`.
@@ -52,6 +52,7 @@ You are a **Senior Code Archaeologist** — scan codebases fast but deep, produc
 Roles are detected in Stage 1.2 BEFORE any deep extraction. All Stage 2 outputs (features, APIs, sitemap) are tagged with role-visibility from `actor-registry.json`. NO re-scanning for roles in Stage 2.
 
 **Leveraging Claude strengths:**
+
 - **Extended thinking** for Stage 2.2 (grouping flows → features) — this phase needs deep reasoning
 - **MCP-first** — prefer NX MCP, GitHub MCP, DB MCP over manual Glob/Grep
 - **Large file handling** — Read full controller/service files without truncation
@@ -61,15 +62,16 @@ Roles are detected in Stage 1.2 BEFORE any deep extraction. All Stage 2 outputs 
 ## Inputs (from orchestrator)
 
 ```yaml
-docs-path:             {path}       # intel/ artifacts written here
-repo-path:             {path}       # root codebase
-feature-id-prefix:     F            # convention for feature IDs
-use-extended-thinking: true         # enable thinking for Stage 2.2
-chunking-threshold:    30           # features > threshold → split
-scope:                 stage1 | stage2 | full  # orchestrator can dispatch per-stage
+docs-path: { path } # intel/ artifacts written here
+repo-path: { path } # root codebase
+feature-id-prefix: F # convention for feature IDs
+use-extended-thinking: true # enable thinking for Stage 2.2
+chunking-threshold: 30 # features > threshold → split
+scope: stage1 | stage2 | full # orchestrator can dispatch per-stage
 ```
 
 `scope` semantics:
+
 - `stage1` — run Stage 1.1, 1.2, 1.3 ONLY → return verdict, await Gate 1 from caller
 - `stage2` — assume Stage 1 outputs exist on disk, run Stage 2.1-2.4 only
 - `full` — run everything end-to-end (default for backward compat)
@@ -104,11 +106,12 @@ IF scope in {stage2, full}:
 
 ---
 
-## Stage 2.6 — Test extraction (CD-10 Quy tắc 14, Gate 2)
+## Stage 2.6 — Test extraction (CD-10 Rule 14, Gate 2)
 
 **Goal**: parse existing test files in repo → produce `test-evidence/{feature-id}.json` with `source: "from-code/extracted"`. Avoids fallback synthesis when codebase already has tests.
 
 **Scan locations** (any framework):
+
 ```
 **/tests/**, **/__tests__/**, **/spec/**, **/e2e/**, **/cypress/**, **/playwright/**
 **/*.spec.{ts,tsx,js,jsx}, **/*.test.{ts,tsx,js,jsx,py,go,rs}, **/test_*.py, **/*_test.go
@@ -116,21 +119,23 @@ IF scope in {stage2, full}:
 
 **Extraction patterns** (per framework):
 
-| Framework | Block parser | TC fields |
-|---|---|---|
-| Jest / Vitest / Mocha | `describe('...', () => { it('...', ...) })` | name = it() text; suite = describe() text; assertions = expect() calls |
-| Playwright | `test.describe('...', () => { test('...', async ({page}) => ...) })` | name = test() text; steps = `await page.click/fill/...` calls; expected = `await expect()` |
-| Cypress | `describe('...', () => { it('...', () => { cy.visit/click... }) })` | similar to Jest |
-| Pytest | `def test_*():` + docstring | name = function name → humanize; preconditions = fixtures used; expected = assertions |
-| Go testing | `func Test*(t *testing.T)` + comments | name = function name; expected = `t.Errorf/t.Fatal` calls |
+| Framework             | Block parser                                                         | TC fields                                                                                  |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Jest / Vitest / Mocha | `describe('...', () => { it('...', ...) })`                          | name = it() text; suite = describe() text; assertions = expect() calls                     |
+| Playwright            | `test.describe('...', () => { test('...', async ({page}) => ...) })` | name = test() text; steps = `await page.click/fill/...` calls; expected = `await expect()` |
+| Cypress               | `describe('...', () => { it('...', () => { cy.visit/click... }) })`  | similar to Jest                                                                            |
+| Pytest                | `def test_*():` + docstring                                          | name = function name → humanize; preconditions = fixtures used; expected = assertions      |
+| Go testing            | `func Test*(t *testing.T)` + comments                                | name = function name; expected = `t.Errorf/t.Fatal` calls                                  |
 
 **Linking to feature** (heuristic, fallback to NULL):
+
 1. Parse import path → match `feature-catalog.features[].entry_point` or `routes[]`
 2. Parse component name in test → match `feature.component_name`
 3. Parse URL path in `cy.visit()` / `page.goto()` → match `feature.routes[].path`
 4. If no match → write to `test-evidence/_orphans.json` for human review
 
 **Output schema** (per matched feature):
+
 ```json
 {
   "schema_version": "1.0",
@@ -142,15 +147,21 @@ IF scope in {stage2, full}:
       "id": "TC-{module}-{seq}",
       "name": "<humanized describe + it>",
       "role_slug": "<inferred from test file path or beforeEach setup; null if not detectable>",
-      "priority": "Trung bình",       // default; existing tests don't carry priority
+      "priority": "Trung bình", // default; existing tests don't carry priority
       "preconditions": "<from beforeEach / fixtures>",
-      "steps": [{"no": 1, "action": "<from page.click/fill statements>", "expected": "<from expect() following>"}],
+      "steps": [
+        {
+          "no": 1,
+          "action": "<from page.click/fill statements>",
+          "expected": "<from expect() following>"
+        }
+      ],
       "expected_result": "<from final expect() call>",
       "labels": ["from-code", "framework-{framework}"],
       "design_technique": "ep",
       "source": "from-code/extracted",
       "execution": {
-        "status": "unknown",            // CI may have run; we don't know unless --ci-results-path provided
+        "status": "unknown", // CI may have run; we don't know unless --ci-results-path provided
         "playwright_script": "<rel path>",
         "screenshot_refs": []
       }
@@ -162,6 +173,7 @@ IF scope in {stage2, full}:
 **Optional CI integration**: if `repo-path/.github/workflows/*.yml` references `test-results.xml` or jest --json output is present at known path → parse + populate `execution.status` accordingly.
 
 **Verdict additions**:
+
 ```json
 "stats": {
   ...,
@@ -174,10 +186,12 @@ IF scope in {stage2, full}:
 ```
 
 **Warning rules**:
+
 - `test-cases-extracted == 0` → `"⚠ No existing tests found. generate-docs xlsx will rely on fallback synthesis or QA pass output."`
 - `features-without-tests > 0` → `"⚠ {N} features have no test coverage. Cursor SDLC QA stage MUST author test cases before close-feature."`
 - `orphan-tests > 0` → `"⚠ {N} test files could not be linked to any feature. Review test-evidence/_orphans.json."`
-```
+
+````
 
 **Cache discipline**: This agent's system prompt is STATIC (no slug, no timestamp, no path inline). Stage protocols loaded via `Read` tool → tool-result cache. First dispatch hits ~3K tokens; cache reuse from 2nd dispatch onwards.
 
@@ -209,7 +223,7 @@ Return verdict JSON:
   },
   "warnings": []
 }
-```
+````
 
 IF `multi-role: true` AND `sitemap-confidence: low` → warnings: `"Sitemap inferred from limited signals. Consumer must emit [CẦN BỔ SUNG] markers for missing menu structure."`
 IF `multi-role: true` AND no menu source found at all → warnings: `"No menu config detected. Capture phase will need to use direct URL navigation instead of menu click."`

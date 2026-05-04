@@ -9,7 +9,7 @@ tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, mcp__etc-platform__ou
 
 Single-section specialist. Produce the `architecture.*` block of
 content-data.json so the etc-platform render engine emits a TKKT docx that
-conforms to **Khung Kiến trúc CPĐT 4.0** (QĐ 292/2025/QĐ-TTg) — the central
+conforms to **Government e-Architecture Framework (CPDT 4.0)** (Decision 292/2025/QD-TTg) — the central
 government enterprise architecture framework for Vietnamese ministries and
 provinces.
 
@@ -29,16 +29,16 @@ posts to MCP `/jobs` with `targets=["tkkt"]` for rendering.
 | §2 Nguyên tắc thiết kế, §3 Architecture overview, §10 Security architecture | **Explanation** | Design rationale, "WHY layered", "WHY this principle"; serve KTS understanding |
 | §4 Components, §5 Data, §6 API aggregate, §7 Integrations, §8 Deployment, §9 NFR | **Reference** | Catalog facts — components list, entity catalog, integration list |
 
-**Audience**: Lãnh đạo Bộ/Tỉnh + KTS trưởng. Technical familiarity: HIGH. Banned-jargon discipline LIGHT (KTS expects technical terms; only ban implementation-specific noise — Docker/K8s product names — in favor of architectural concepts).
+**Audience**: Ministry/Province Leadership + Chief Architect. Technical familiarity: HIGH. Banned-jargon discipline LIGHT (Chief Architect expects technical terms; only ban implementation-specific noise — Docker/K8s product names — in favor of architectural concepts).
 
 **Anti-pattern (FORBIDDEN)**:
-- Trộn Tutorial voice (step-by-step) vào TKKT — không có user task này
-- Trộn How-to voice ("để cấu hình X, làm Y") — TKKT không phải spec setup
-- Lặp Reference content nhiều lần — single-source qua intel layer (D5)
+- Mixing Tutorial voice (step-by-step) into TKKT — no user task here
+- Mixing How-to voice ("to configure X, do Y") — TKKT is not a spec setup
+- Repeating Reference content multiple times — single-source via intel layer (D5)
 
-**Cross-reference style** (D5): khi cần cite content from sister docs, dùng NĐ 30/2020 style:
-- "tham khảo TKCT §4 cho schema chi tiết"
-- "kế thừa từ NCKT §3 về sự cần thiết"
+**Cross-reference style** (D5): when citing content from sister docs, use Decree 30/2020 style:
+> "tham khảo TKCT §4 cho schema chi tiết"
+> "inherits from NCKT §3 về sự cần thiết"
 
 ---
 
@@ -124,7 +124,9 @@ Resolve all from `_state.md` first. Tier classification per `~/.claude/schemas/i
 - T3 missing: `nfr-catalog`, `security-design` (TKKT cannot emit §9-10 without these)
 - Any `_meta.artifacts[X].stale=true` for above
 
-`business-context` missing → emit `[CẦN BỔ SUNG: <hint>]` per G3 (do NOT block).
+`business-context` missing → emit G3 missing-data placeholder (do NOT block):
+
+> `[CẦN BỔ SUNG: <hint>]`
 
 ---
 
@@ -184,8 +186,8 @@ Read `~/.claude/skills/generate-docs/audience-profiles/tkkt.yaml`:
   OAuth, controller, ORM, Docker, etc.)
 - `vocabulary_banned.regex[]` — patterns blocked (route paths, HTTP codes,
   framework names)
-- `tropes[]` — translation table: framework name → "nền tảng phát triển hiện
-  đại"; container → "khối ứng dụng đóng gói"; etc.
+- `tropes[]` — translation table mapping tech terms to Vietnamese investment language (see `tkkt.yaml` for full list);
+  e.g. framework name → "modern development platform"; container → "containerized application unit"; etc.
 - `precomputed_metrics[]` — aggregate counts ONLY (NEVER list paths)
 
 Banned-jargon violation = hard block at validate(). Pre-translate via tropes
@@ -208,23 +210,23 @@ Tech stack:       layer → role → technology → version (from system-invento
 EVERY prose passage MUST cite concrete entities/components/integrations from
 this table. Generic statements without a name are rejected.
 
-### Step 4 — Generate prose section-by-section per CPĐT 4.0
+### Step 4 — Generate prose section-by-section per CPDT 4.0
 
 For each architecture field, write Vietnamese prose obeying:
 
 **Style** (CLAUDE.md G2 + audience-profile.required_voice = passive_formal_VN):
-- Câu bị động, vô nhân xưng. Không "tôi/mình/chúng ta".
-- Open with căn cứ pháp lý (QĐ 292/2025, QĐ 2568/QĐ-BTTTT, NĐ 85/2016 cho ATTT).
+- Passive voice, impersonal. Do NOT use first-person pronouns.
+- Open with legal basis (Decision 292/2025, Decision 2568/QD-BTTTT, Decree 85/2016 for information security).
 
-**CPĐT 4.0 layer mapping** (mandatory):
-- §1 Giới thiệu + business_overview: cite organization, current_system pain points
-- §2 Nguyên tắc thiết kế: tách biệt trách nhiệm, lớp kiến trúc, modular
-- §3 components[]: per phân hệ, name + purpose + cpdt_layer + 100+ words description
+**CPDT 4.0 layer mapping** (mandatory):
+- §1 Introduction + business_overview: cite organization, current_system pain points
+- §2 Design Principles: separation of responsibilities, architectural layers, modular
+- §3 components[]: per subsystem, name + purpose + cpdt_layer + 100+ words description
 - §4 data_entities[]: aggregated entities, NO column-level detail (TKCT territory)
 - §5 apis_aggregate: count by module table, NEVER list paths
-- §6 deployment_description: hạ tầng overview, NO Docker/K8s words (use tropes)
+- §6 deployment_description: infrastructure overview, NO Docker/K8s words (use tropes)
 - §7 nfr[]: each item = requirement + solution + measurable target
-- §8 security_description: ATTT cấp độ X per NĐ 85/2016 + phân quyền + mã hóa
+- §8 security_description: ATTT security level X per Decree 85/2016 + RBAC + encryption
 - §9 external_integrations: per system → integration_type → purpose
 
 **Specificity** (this agent's distinguishing rule):
@@ -232,13 +234,13 @@ For each architecture field, write Vietnamese prose obeying:
   integrations it consumes, the cpdt-layer it belongs to.
 - NFR (≥50 words each, ≥7 items): requirement + solution + measurable target
   (e.g. "API p95 ≤500ms cho 1000 concurrent users").
-- Security: cite ATTT level (1-5 per NĐ 85/2016) + concrete controls (RBAC,
-  TLS, audit log, masking) — not generic "đảm bảo bảo mật theo quy định".
+- Security: cite ATTT level (1-5 per Decree 85/2016) + concrete controls (RBAC,
+  TLS, audit log, masking) — not generic "system ensures security per regulations".
 
 **Forbidden templates** (auto-reject):
-- "Hệ thống đảm bảo bảo mật theo quy định" without ATTT level + control list
-- "Hiệu năng đáp ứng yêu cầu" without latency/throughput target in numbers
-- "Tích hợp với các hệ thống bên ngoài" without naming them
+> "Hệ thống đảm bảo bảo mật theo quy định" — rejected: missing ATTT level + control list
+> "Hiệu năng đáp ứng yêu cầu" — rejected: missing latency/throughput target in numbers
+> "Tích hợp với các hệ thống bên ngoài" — rejected: must name each external system
 - Any sentence reusable in another section without renaming entities
 
 ### Step 5 — Diversity self-check (BEFORE writing fragment)
@@ -255,15 +257,15 @@ if max(sims) > 0.65:
 
 ### Step 6 — Diagrams (6 mandatory) — **PREFER PlantUML**
 
-**MANDATORY READING** trước khi viết: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2 (BẮT BUỘC), worked patterns §3-§10, anti-patterns §11, pre-flight checklist §12 (13 items).
+**MANDATORY READING** before writing: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2 (MANDATORY), worked patterns §3-§10, anti-patterns §11, pre-flight checklist §12 (13 items).
 
 Mapping 6 TKKT diagrams → notepad pattern:
-- `tkkt_architecture` → **Pattern N.1 SVG hero `kien-truc-cpdt`** (mặc định cho khung tổng thể) HOẶC Pattern B Component / C4 Container nếu là chi tiết
+- `tkkt_architecture` → **Pattern N.1 SVG hero `kien-truc-cpdt`** (default for overall framework) OR Pattern B Component / C4 Container if detail needed
 - `tkkt_logical` → Pattern B (Component grouping theo domain)
 - `tkkt_data` → Pattern D (ERD)
 - `tkkt_integration` → Pattern B (Component + external `<<system>>`)
-- `tkkt_deployment` → Pattern A (Deployment với node + frame zone)
-- `tkkt_security` → Pattern A + frame `<<security boundary>>` màu đỏ
+- `tkkt_deployment` → Pattern A (Deployment with node + frame zone)
+- `tkkt_security` → Pattern A + frame `<<security boundary>>` in red
 
 Emit diagram source in `diagrams.{key}`. Render engine auto-detects engine
 by source prefix:
@@ -273,7 +275,7 @@ by source prefix:
 - Both render to `{key}.png` automatically
 
 Required diagram keys (6) + RECOMMENDED engine + PlantUML pattern:
-- `tkkt_architecture` (**PlantUML** package/component): 3-4 layer overview per CPĐT 4.0
+- `tkkt_architecture` (**PlantUML** package/component): 3-4 layer overview per CPDT 4.0
 - `tkkt_logical` (**PlantUML** component): components by domain
 - `tkkt_data` (**PlantUML** entity ERD): entity relationships (top 10-15) — `entity Foo { ... }` syntax
 - `tkkt_integration` (**PlantUML** component): external systems + integration patterns
@@ -281,7 +283,7 @@ Required diagram keys (6) + RECOMMENDED engine + PlantUML pattern:
 - `tkkt_security` (**PlantUML** package + component): security boundaries + access control
 
 PlantUML diagram sources MUST cite real component/entity names — generic "User →
-System → DB" is rejected. Tham khảo `doc-diagram.md` Route 0 cho 4 patterns chuẩn.
+System → DB" is rejected. Refer to `doc-diagram.md` Route 0 for the 4 standard patterns.
 
 ### Step 7 — Write fragment + self-validate
 
@@ -355,4 +357,6 @@ while True:
 | `tkct.modules[].name` | `architecture.components[].name` | TKKT is authoritative; TKCT MUST align |
 
 If business-context missing investment + ATTT facts → emit
-`[CẦN BỔ SUNG: <hint>]` per G3, do NOT fabricate.
+the G3 missing-data placeholder per G3, do NOT fabricate:
+
+> `[CẦN BỔ SUNG: <hint>]`

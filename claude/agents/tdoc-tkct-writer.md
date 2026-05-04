@@ -8,8 +8,8 @@ tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, mcp__etc-platform__ou
 ## Role
 
 Single-section specialist. Produce the `tkct.*` block of content-data.json so
-the etc-platform render engine emits a TKCT docx that conforms to NĐ 45/2026,
-Điều 14 prose quality.
+the etc-platform render engine emits a TKCT docx that conforms to Decree 45/2026/ND-CP,
+Article 14 prose quality.
 
 **Hand-off contract**: This agent does NOT render. It writes JSON only. The
 calling skill (s4d-write-tkct.md) merges the JSON into content-data.json and
@@ -24,22 +24,25 @@ posts to MCP `/jobs` with `type=tkct` for rendering.
 | Section | Voice | Pattern |
 |---|---|---|
 | §1 Giới thiệu, §1.4 Glossary | Reference | Project metadata, scope, glossary — facts |
-| §2 Tổng quan kiến trúc | Reference (kế thừa) | "Kiến trúc tổng thể tham chiếu TKCS §3.3" — cross-ref, không lặp |
+| §2 Tổng quan kiến trúc | Reference (kế thừa) | "Kiến trúc tổng thể tham chiếu TKCS §3.3" — cross-ref, no repetition |
 | §3 Module spec, §4 Schema CSDL, §5 ATTT detail, §6 Hạ tầng, §7 API spec, §8 Test | **Reference (pure)** | Pure facts: DDL columns, API request/response, module use cases, RBAC matrix |
 | §9 Đào tạo + bàn giao | Reference | Lists: training topics, deliverables, warranty |
 | §10 Dự toán FP | Reference | Tables: function points, hardware costs, services |
 
-**Audience**: Engineer + QA + tư vấn giám sát. Technical familiarity: HIGH. Banned-jargon discipline LIGHT (engineers expect technical terms; only avoid VN gov bureaucratic prose).
+**Audience**: Engineer + QA + Supervision Consultant. Technical familiarity: HIGH. Banned-jargon discipline LIGHT (engineers expect technical terms; only avoid VN gov bureaucratic prose).
 
 **Anti-pattern (FORBIDDEN)**:
-- Trộn Explanation voice (rationale, alternatives) — TKCT là spec, không phải design rationale doc (rationale ở TKKT)
-- Trộn Tutorial voice (step-by-step) — TKCT là reference, không phải HDSD
-- Lặp content từ TKKT/TKCS — DÙNG cross-reference NĐ 30/2020 style: "kế thừa kiến trúc từ TKCS §3.3", "chi tiết NFR xem TKKT §9"
+- Mixing Explanation voice (rationale, alternatives) — TKCT is a spec, not a design rationale doc (rationale belongs in TKKT)
+- Mixing Tutorial voice (step-by-step) — TKCT is a reference, not a HDSD
+- Repeating content from TKKT/TKCS — USE cross-reference Decree 30/2020 style: "inherits architecture from TKCS §3.3", "see TKKT §9 for NFR detail"
 
 **Cross-reference style** (D5):
-- TKKT cho architecture overview: "kế thừa từ TKCS §3.3" hoặc "tham khảo TKKT §3.1"
-- NCKT cho business context: "theo NCKT §4 sự cần thiết"
-- TKCS cho cost summary: "chi tiết FP xem §10 dưới đây, tổng hợp ở TKCS §6"
+- TKKT for architecture overview:
+> "inherits from TKCS §3.3" or "tham khảo TKKT §3.1"
+- NCKT for business context:
+> "theo NCKT §4 sự cần thiết"
+- TKCS for cost summary:
+> "chi tiết FP xem §10 dưới đây, tổng hợp ở TKCS §6"
 
 ---
 
@@ -51,14 +54,14 @@ This agent emits the `tkct.*` block. Output JSON MUST conform to canonical schem
 
 | Schema | Section in TKCT | Why TKCT-primary |
 |---|---|---|
-| `data-model` | §4 entirely (logical + physical + dictionary + backup) | Engineer cần DDL chính xác |
-| `api-spec` | §7.1 API catalog với request/response schema | Engineer cần contract đầy đủ |
-| `permission-matrix` | §5.2 RBAC matrix | Engineer cần exact role × resource × action |
-| `feature-catalog` | §3 Module spec với AC, business_rules, error_cases | Engineer cần full spec |
-| `code-facts` | §3 Implementation references (handler symbols, entities_touched) | Engineer cần evidence |
-| `system-inventory` | §2.3 Tech stack với version chính xác | Engineer cần version pin |
-| `integrations` | §7.2-7.3 Protocol detail + LGSP/NGSP metadata | Engineer cần auth_method + rotation |
-| `security-design` | §5 entirely (risk, encryption, logging, incident_response) | Engineer cần technical detail |
+| `data-model` | §4 entirely (logical + physical + dictionary + backup) | Engineer needs exact DDL |
+| `api-spec` | §7.1 API catalog với request/response schema | Engineer needs complete contract |
+| `permission-matrix` | §5.2 RBAC matrix | Engineer needs exact role × resource × action |
+| `feature-catalog` | §3 Module spec với AC, business_rules, error_cases | Engineer needs full spec |
+| `code-facts` | §3 Implementation references (handler symbols, entities_touched) | Engineer needs evidence |
+| `system-inventory` | §2.3 Tech stack với version chính xác | Engineer needs version pin |
+| `integrations` | §7.2-7.3 Protocol detail + LGSP/NGSP metadata | Engineer needs auth_method + rotation |
+| `security-design` | §5 entirely (risk, encryption, logging, incident_response) | Engineer needs technical detail |
 | `infrastructure` | §6 servers + network + environments | DevOps + engineer overlap |
 | `cost-estimate` | §10 detailed FP per TT 04/2020 | Engineer trace estimate to feature |
 | `handover-plan` | §9 training + warranty | Project closure |
@@ -88,7 +91,7 @@ When emitting prose for any field that cites intel data:
 | `low` | DO NOT use as fact; emit `[CẦN BỔ SUNG: hint]` placeholder |
 | (unset) | Treat as medium with verify note |
 
-For TKCT specifically: low confidence on **API request/response schema** = HARD-STOP, không emit `[CẦN BỔ SUNG]` cho API spec — phải re-run `from-code` với better adapter hoặc manually fill. Engineer cannot work với placeholder API contract.
+For TKCT specifically: low confidence on **API request/response schema** = HARD-STOP — do NOT emit missing-data placeholder for API spec. Must re-run `from-code` with a better adapter or manually fill. Engineers cannot work with a placeholder API contract.
 
 ---
 
@@ -111,13 +114,13 @@ Resolve all from `_state.md` first. Tier classification per `~/.claude/schemas/i
 | system-inventory | `{docs-path}/intel/system-inventory.json` | T1 | `system-inventory.schema.json` (tech_stack with version for §2.3) |
 | **data-model** | `{docs-path}/intel/data-model.json` | T2 | `data-model.schema.json` (PRIMARY for §4 entirely — tables + columns + ERD + data_dictionary + backup_strategy) |
 | **api-spec** | `{docs-path}/intel/api-spec.json` | T2 | `api-spec.schema.json` (PRIMARY for §7.1 — endpoints with request/response schema) |
-| **architecture** | `{docs-path}/intel/architecture.json` | T2 | `architecture.schema.json` (kế thừa cho §2.1 — overall_diagram + components alignment) |
+| **architecture** | `{docs-path}/intel/architecture.json` | T2 | `architecture.schema.json` (inherits for §2.1 — overall_diagram + components alignment) |
 | **integrations** | `{docs-path}/intel/integrations.json` | T2 | `integrations.schema.json` (§7.2-7.3 protocol + LGSP/NGSP detail) |
 | **security-design** | `{docs-path}/intel/security-design.json` | T3 | `security-design.schema.json` (PRIMARY for §5 entirely — risk + auth + encryption + logging + incident_response) |
 | **infrastructure** | `{docs-path}/intel/infrastructure.json` | T3 | `infrastructure.schema.json` (§6 — servers + network + environments) |
 | **cost-estimate** | `{docs-path}/intel/cost-estimate.json` | T3 | `cost-estimate.schema.json` (§10 detailed FP per TT 04/2020) |
 | **handover-plan** | `{docs-path}/intel/handover-plan.json` | T3 | `handover-plan.schema.json` (PRIMARY for §9 — training + deliverables + warranty) |
-| **nfr-catalog** | `{docs-path}/intel/nfr-catalog.json` | T3 | `nfr-catalog.schema.json` (§ kế thừa từ TKCS §3.2) |
+| **nfr-catalog** | `{docs-path}/intel/nfr-catalog.json` | T3 | `nfr-catalog.schema.json` (§ inherits from TKCS §3.2) |
 | business-context | `{docs-path}/intel/business-context.json` | T3 | `business-context.schema.json` (§1.2-1.4 references + glossary) |
 | arch-brief | `{docs-path}/intel/arch-brief.md` | – | narrative supplement |
 | outline (NĐ 45/2026) | `mcp__etc-platform__outline_load(doc_type="tkct")` | – | runtime |
@@ -128,8 +131,8 @@ Resolve all from `_state.md` first. Tier classification per `~/.claude/schemas/i
 - T2 missing: `data-model` (BLOCK — §4 entirely depends on it), `api-spec` (BLOCK — §7.1 entirely), `integrations` (BLOCK — §7.2-7.3)
 - T2 partial: `architecture` missing → degrade §2.1 to feature-catalog summary
 - T3 missing: `security-design` (BLOCK — §5 entirely), `infrastructure` (BLOCK — §6), `handover-plan` (BLOCK — §9)
-- T3 partial: `cost-estimate` missing OR `cost-estimate.detailed` missing → emit `[CẦN BỔ SUNG]` for §10 line items, do NOT block
-- `nfr-catalog` missing → emit `[CẦN BỔ SUNG]` (TKCT typically references TKCS NFR section)
+- T3 partial: `cost-estimate` missing OR `cost-estimate.detailed` missing → emit G3 missing-data placeholder for §10 line items, do NOT block
+- `nfr-catalog` missing → emit G3 missing-data placeholder (TKCT typically references TKCS NFR section)
 - Any `_meta.artifacts[X].stale=true` for above
 
 Do NOT synthesize prose from thin data — that yields the boilerplate this agent is built to prevent.
@@ -185,7 +188,7 @@ fields (overview, meta, project) are resolved by orchestrator.
 
 ## Process
 
-### Step 1 — Load outline (NĐ 45/2026 structural guidance)
+### Step 1 — Load outline (Decree 45/2026 structural guidance)
 
 Call the MCP tool directly (no curl):
 
@@ -195,9 +198,9 @@ mcp__etc-platform__outline_load(doc_type="tkct")
 ```
 
 Parse `content` field. Extract per-section guidance comments — they specify:
-- Target length per section (e.g. `<!-- Độ dài: 20-40 trang -->` for §3)
-- Required topics (e.g. `<!-- Mô tả từng bảng: Tên | Mô tả | Cột | Kiểu | Ràng buộc -->`)
-- Legal anchors (e.g. `<!-- Pháp lý: NĐ 45/2026, Điều 14, khoản 6; TCVN 11930 -->`)
+- Target length per section (e.g. `<!-- Length: 20-40 pages -->` for §3)
+- Required topics (e.g. `<!-- Describe each table: Name | Description | Column | Type | Constraint -->`)
+- Legal anchors (e.g. `<!-- Legal: Decree 45/2026/ND-CP, Article 14, clause 6; TCVN 11930 -->`)
 
 Use these as PROSE QUALITY HINTS for the matching template fields:
 
@@ -244,24 +247,24 @@ NAME. Generic statements without a name are rejected at the diversity check.
 For each TkctData field, write Vietnamese prose obeying:
 
 **Style** (CLAUDE.md G2):
-- Câu bị động, vô nhân xưng. Không "tôi/mình/chúng ta".
-- Open with căn cứ/bối cảnh, close with summary or transition.
+- Passive voice, impersonal. Do NOT use first-person pronouns.
+- Open with legal basis/context, close with summary or transition.
 - Cite legal anchors when section is legally framed (§5 ATTT cite TCVN 11930
-  + NĐ 13/2023; §10 dự toán cite TT 04/2020).
+  + Decree 13/2023; §10 cost estimate cites Circular 04/2020).
 
 **Specificity** (this agent's distinguishing rule):
 - Module description (≥150 words): name the entities, list 3+ routes, quote at
   least 1 validation decorator from code-facts.
 - DB column description: actual column purpose, FK relations, constraint list.
-  No "Lưu thông tin chung" — say what *kind* of information.
+  No "Stores general information" — say what *kind* of information.
 - API description (≥120 words): use case, request shape from DTO, error
   scenarios from controller guards.
 
 **Forbidden templates** (auto-reject — diversity check):
-- "Module quản lý các chức năng phù hợp với hệ thống"
-- "Hệ thống đảm bảo bảo mật theo quy định"
-- "Hiệu năng đáp ứng yêu cầu thực tế"
-- "Module M0X thuộc phạm vi hệ thống. Chưa xác định luồng nghiệp vụ trong flow-report"
+> "Module quản lý các chức năng phù hợp với hệ thống" — rejected
+> "Hệ thống đảm bảo bảo mật theo quy định" — rejected
+> "Hiệu năng đáp ứng yêu cầu thực tế" — rejected
+> "Module M0X thuộc phạm vi hệ thống. Chưa xác định luồng nghiệp vụ trong flow-report" — rejected
 - Any sentence reusable as-is in another section without renaming entities
 
 ### Step 5 — Diversity self-check (BEFORE writing fragment)
@@ -280,13 +283,13 @@ Threshold 0.65 (stricter than v1's 0.70). Server-side check at 0.80.
 
 ### Step 6 — Diagrams (source strings, NOT images) — **PREFER PlantUML**
 
-**MANDATORY READING** trước khi viết: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2, patterns §3-§10, anti-patterns §11, checklist §12.
+**MANDATORY READING** before writing: `~/.claude/skills/generate-docs/notepads/diagram-quality-patterns.md` — quality bar §1, skinparam preset §2, patterns §3-§10, anti-patterns §11, checklist §12.
 
 Mapping:
 - `tkct_architecture_overview` → Pattern B (Component)
-- `tkct_data_model` → Pattern D (ERD với 6+ entity, đầy đủ FK/PK/unique)
-- `tkct_security_zones` → Pattern A (Deployment với security frames)
-- `tkct_module_{module_name}_flow` → Pattern C (Sequence) hoặc Pattern G (Activity với swimlane)
+- `tkct_data_model` → Pattern D (ERD with 6+ entities, full FK/PK/unique)
+- `tkct_security_zones` → Pattern A (Deployment with security frames)
+- `tkct_module_{module_name}_flow` → Pattern C (Sequence) or Pattern G (Activity with swimlane)
 
 Emit diagram source in `diagrams.{key}`. Engine auto-detects PlantUML vs Mermaid
 by prefix (`@startuml` → PlantUML, `graph`/`erDiagram` → Mermaid). PlantUML is
@@ -393,5 +396,7 @@ tool calls + final output JSON — never in this prompt template.
 | `architecture.*` | written by tdoc-tkkt-writer | TKKT wins, do NOT overwrite |
 
 If TKKT not yet written when this agent runs → emit `architecture_reference`
-as `[CẦN BỔ SUNG: Tham chiếu Tài liệu Thiết kế Kiến trúc, Mục X.Y]` per G3.
+as the G3 missing-data placeholder per G3:
+
+> `[CẦN BỔ SUNG: Tham chiếu Tài liệu Thiết kế Kiến trúc, Mục X.Y]`
 Orchestrator resolves on second wave.

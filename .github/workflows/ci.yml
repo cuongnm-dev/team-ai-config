@@ -188,6 +188,10 @@ jobs:
                       # Blockquote guard (output examples / annotations)
                       printf '%s' "$line" | grep -qP '^\s*>' && continue
 
+                      # Table row guard — section titles in mapping tables are official doc section names
+                      # (e.g. NĐ 45/2026 section titles must stay in Vietnamese as document standard)
+                      printf '%s' "$line" | grep -qP '^\s*\|' && continue
+
                       # Vietnamese character detection
                       if printf '%s' "$line" | grep -qP "$VN_PAT"; then
                         [ $hits -eq 0 ] && echo "  ✗ $file"
@@ -201,24 +205,15 @@ jobs:
 
                   echo "Checking CD-9 (English-only body)..."
 
-                  # Agent files (top-level only, skip ref-*)
+                  # CD-9 scope: ONLY tdoc-* agents (machine-consumed technical doc writers)
+                  # Exempt — Vietnamese is CORRECT and REQUIRED in:
+                  #   - doc-* agents (luồng B: admin document writing in Vietnamese)
+                  #   - SKILL.md files (user-facing skill instructions)
+                  #   - cursor/agents/doc-*.md, new-document-workspace/, resume-document/, etc.
+                  # Scope: claude/agents/tdoc-*.md and cursor/agents/tdoc-*.md ONLY
                   while IFS= read -r f; do
-                    [[ "$(basename "$f" .md)" == ref-* ]] && continue
                     check_file "$f"; ERRORS=$((ERRORS+$?))
-                  done < <(find claude/agents cursor/agents -maxdepth 1 -name "*.md" 2>/dev/null | sort)
-
-                  # Skills (SKILL.md in each skill dir)
-                  while IFS= read -r dir; do
-                    [ -f "$dir/SKILL.md" ] || continue
-                    check_file "$dir/SKILL.md"; ERRORS=$((ERRORS+$?))
-                  done < <(find claude/skills cursor/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
-
-                  # Cursor rules (if present)
-                  if [ -d cursor/rules ]; then
-                    while IFS= read -r f; do
-                      check_file "$f"; ERRORS=$((ERRORS+$?))
-                    done < <(find cursor/rules -name "*.md" 2>/dev/null | sort)
-                  fi
+                  done < <(find claude/agents cursor/agents -maxdepth 1 -name "tdoc-*.md" 2>/dev/null | sort)
 
                   if [ "$ERRORS" -gt 0 ]; then
                     echo "::error::$ERRORS line(s) with Vietnamese text in body outside allowed zones."

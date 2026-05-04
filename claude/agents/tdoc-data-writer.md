@@ -40,16 +40,16 @@ they won't render.
 | Bài N: Hướng dẫn theo task ("Cách tạo tờ khai") | **How-to** | "Để tạo tờ khai mới, hãy:". Task-oriented, competent user. Goal: complete task |
 | Phụ lục: FAQ, troubleshooting | How-to | "Khi gặp lỗi X, kiểm tra Y" |
 
-**Audience**: End users theo role (HQDK, kiểm hóa, lãnh đạo, etc.). Technical familiarity: **VARIED** per role. Banned-jargon STRICT for end-user roles, looser for admin role.
+**Audience**: End users per role (HQDK, inspectors, managers, etc.). Technical familiarity: **VARIED** per role. Banned-jargon STRICT for end-user roles, looser for admin role.
 
 **Anti-pattern (FORBIDDEN)**:
-- Trộn Reference voice (catalog of all features) — HDSD không phải spec
-- Trộn Explanation voice (rationale, alternatives) — end user không cần biết WHY
-- Pad screenshots without context — mỗi screenshot cần caption + step number
+- Mixing Reference voice (catalog of all features) — HDSD is not a spec
+- Mixing Explanation voice (rationale, alternatives) — end users do not need to know WHY
+- Padding screenshots without context — each screenshot needs a caption + step number
 
 **Cross-reference style** (D5):
-- TKCT: "chi tiết kỹ thuật xem TKCT §3.X" — chỉ cite cho admin role HDSD
-- Test cases: "kiểm thử chấp nhận xem xlsx test-case Mã TC-XXX"
+- TKCT: "technical details see TKCT §3.X" — only cite for admin-role HDSD
+- Test cases: "acceptance tests see xlsx test-case Mã TC-XXX"
 
 ### xlsx test-case section: **Reference (pure)**
 
@@ -84,13 +84,13 @@ they won't render.
 | `feature-catalog` | AC mapping → test scenarios | `_summaries/feature-catalog.md` |
 | `permission-matrix` | RBAC test cases | `_summaries/permission-matrix.md` |
 
-### Fallback synthesis (per CD-10 quy tắc 18)
+### Fallback synthesis (per CD-10 Rule 18)
 
 When `test-evidence/{id}.json.test_cases[]` empty:
-- Synthesize TCs từ feature-catalog AC × ISTQB techniques (BVA, EQ, Decision Table, State Transition, Error Guessing)
+- Synthesize TCs from feature-catalog AC × ISTQB techniques (BVA, EQ, Decision Table, State Transition, Error Guessing)
 - Plus VN gov mandatory: audit log assertion, PII masking, concurrent edit, Vietnamese diacritics, SLA timeout
 - Tag synthesized TCs `source: "generate-docs/fallback-synthesized"`, `status: "proposed"`
-- Add warning sheet at top: "⚠ N TCs là PROPOSED, chưa execute — QA team review + execute trước sign-off"
+- Add warning sheet at top: "⚠ N TCs are PROPOSED, not yet executed — QA team review + execute before sign-off"
 
 ---
 
@@ -98,13 +98,15 @@ When `test-evidence/{id}.json.test_cases[]` empty:
 
 For HDSD:
 - `high` field → render verbatim (e.g. screenshot path from test-evidence)
-- `medium` → render với inline note "(màn hình minh họa, có thể khác phiên bản hiện tại)"
-- `low` → emit `[CẦN BỔ SUNG: screenshot pending QA execution]`
+- `medium` → render with inline note "(illustrative screenshot, may differ from current version)"
+- `low` → emit missing-data placeholder per G3:
+
+> `[CẦN BỔ SUNG: screenshot pending QA execution]`
 
 For xlsx:
 - TCs status=passed (high confidence) → main test sheet
-- TCs status=failed → main test sheet với highlighting
-- TCs status=proposed (low confidence) → warning sheet với note "QA execute pending"
+- TCs status=failed → main test sheet with highlighting
+- TCs status=proposed (low confidence) → warning sheet with note "QA execute pending"
 
 ---
 
@@ -268,8 +270,16 @@ Write to `{docs-path}/output/content-data.json` — strict schema:
 ```
 
 **CRITICAL**: `priority` MUST use Vietnamese values with full diacritics.
-The xlsx fill engine maps them: Rất cao→Critical, Cao→Major, Trung bình→Normal,
-Thấp→Minor. Wrong spelling (e.g. "Rat cao") → defaults to "Normal".
+The xlsx fill engine maps priority values:
+
+| Vietnamese priority value | Maps to |
+|---|---|
+| Rất cao | Critical |
+| Cao | Major |
+| Trung bình | Normal |
+| Thấp | Minor |
+
+Wrong spelling (e.g. "Rat cao") → defaults to "Normal".
 
 ---
 
@@ -288,8 +298,10 @@ Do NOT produce sparse data. The fill engines render exactly what you give them.
 | test_cases.ui per feature | 3 | 5-15 |
 | test_cases.api per API endpoint | 2 | 3-8 |
 
-If a field has insufficient source data, emit `"[CẦN BỔ SUNG: <what>]"` as the
-value — the fill engine preserves this string verbatim so human reviewers see it.
+If a field has insufficient source data, emit a missing-data placeholder as the
+value — the fill engine preserves it verbatim so human reviewers see it:
+
+> `[CẦN BỔ SUNG: <what>]`
 
 ---
 
