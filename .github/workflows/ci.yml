@@ -86,8 +86,8 @@ jobs:
                       continue
                     fi
 
-                    # Extract name: field
-                    name_val=$(awk '/^---/{p++} p==1 && /^name:/{gsub(/^name:[[:space:]]*/,""); gsub(/["\x27]/,""); print; exit}' "$file")
+                    # Extract name: field (strip \r for Windows CRLF files)
+                    name_val=$(awk '/^---/{p++} p==1 && /^name:/{gsub(/^name:[[:space:]]*/,""); gsub(/["\x27\r]/,""); print; exit}' "$file")
                     if [ -z "$name_val" ]; then
                       echo "  ✗ Missing 'name:' in frontmatter: $file"
                       ERRORS=$((ERRORS+1))
@@ -139,8 +139,8 @@ jobs:
                         ERRORS=$((ERRORS+1))
                       fi
 
-                      # SKILL.md should have name: frontmatter
-                      name_val=$(awk '/^---/{p++} p==1 && /^name:/{gsub(/^name:[[:space:]]*/,""); gsub(/["\x27]/,""); print; exit}' "$skill_md")
+                      # SKILL.md should have name: frontmatter (strip \r for CRLF files)
+                      name_val=$(awk '/^---/{p++} p==1 && /^name:/{gsub(/^name:[[:space:]]*/,""); gsub(/["\x27\r]/,""); print; exit}' "$skill_md")
                       if [ -z "$name_val" ]; then
                         echo "  ✗ Missing 'name:' in SKILL.md frontmatter: $skill_md"
                         ERRORS=$((ERRORS+1))
