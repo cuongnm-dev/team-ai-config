@@ -3,8 +3,10 @@
 **/.credentials.json
 **/.env
 
-# Runtime data
+# Runtime data — telemetry/ excluded EXCEPT bin/lib/telemetry/ (plugin source code)
 **/telemetry/
+!bin/lib/telemetry/
+!bin/lib/telemetry/**
 **/cache/
 **/file-history/
 **/projects/
