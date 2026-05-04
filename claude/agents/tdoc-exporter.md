@@ -23,7 +23,7 @@ Per CD-8 (post 2026-04-28): **MCP-only**. No `python render_docx.py`, no
 # 1. MCP health probe
 HTTP_BASE="http://localhost:8001"
 curl -fsS --max-time 3 "$HTTP_BASE/readyz" >/dev/null \
-  || { echo "BLOCKED: etc-platform MCP offline. Fix: cd D:/MCP\\ Server/etc-platform && docker compose up -d"; exit 1; }
+  || { echo "BLOCKED: etc-platform MCP offline. Fix: cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d"; exit 1; }
 
 # 2. Content-data produced by upstream writer
 DATA="{docs-path}/output/content-data.json"

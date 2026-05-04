@@ -121,7 +121,7 @@ echo "📂 DOCS_OUT = $DOCS_OUT"
 | `pyproject.toml` name | `name = "etracking"` | Python project |
 | `go.mod` module | `module github.com/user/etracking` → `etracking` | Go project |
 | `Cargo.toml` package.name | `name = "etracking"` | Rust project |
-| Folder basename | `D:/Projects/etracking` → `etracking` | Fallback cuối cùng |
+| Folder basename | `/path/to/etracking` → `etracking` | Fallback cuối cùng |
 
 ---
 

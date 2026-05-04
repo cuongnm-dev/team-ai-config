@@ -39,7 +39,7 @@ Result: 7 new modes — `Discovery Researcher`, `Code Researcher`, `Doc Harveste
 ```bash
 docker ps | grep etc-platform
 # If not running:
-cd D:\Projects\etc-platform && docker compose -f docker-compose.mcp.yaml up -d
+cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d
 ```
 
 `~/.cursor/mcp.json` is pre-configured → restart Cursor → 8 MCP tools available.

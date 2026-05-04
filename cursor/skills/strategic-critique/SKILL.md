@@ -1,6 +1,6 @@
 ---
 name: strategic-critique
-description: Đóng vai cán bộ thẩm định (Bộ/Tỉnh/Sở) phản biện ngược lại Đề án Chuyển đổi số bạn vừa viết — bắt các lỗi thường gặp - câu chữ mơ hồ, thiếu số liệu cụ thể, viện dẫn pháp lý sai, mâu thuẫn nội bộ, bỏ sót dùng chung hệ thống có sẵn (NDXP/LGSP/CSDLQG), đề xuất bất khả thi. Dùng để rà chất lượng trước khi nộp. Trigger - đã có draft Đề án v0.1+, chuẩn bị nộp Bộ/Tỉnh/Sở thẩm định; muốn pre-flight kiểm tra. Anti-trigger - review tài liệu SDLC thì doc-reviewer; review code thì /quality; chưa có draft thì /new-strategic-document. Example - "/strategic-critique D:/docs/De-an-CDS-So-X-v0.3.docx --severity blocker,major".
+description: Đóng vai cán bộ thẩm định (Bộ/Tỉnh/Sở) phản biện ngược lại Đề án Chuyển đổi số bạn vừa viết — bắt các lỗi thường gặp - câu chữ mơ hồ, thiếu số liệu cụ thể, viện dẫn pháp lý sai, mâu thuẫn nội bộ, bỏ sót dùng chung hệ thống có sẵn (NDXP/LGSP/CSDLQG), đề xuất bất khả thi. Dùng để rà chất lượng trước khi nộp. Trigger - đã có draft Đề án v0.1+, chuẩn bị nộp Bộ/Tỉnh/Sở thẩm định; muốn pre-flight kiểm tra. Anti-trigger - review tài liệu SDLC thì doc-reviewer; review code thì /quality; chưa có draft thì /new-strategic-document. Example - "/strategic-critique /path/to/De-an-CDS-So-X-v0.3.docx --severity blocker,major".
 disable-model-invocation: true
 ---
 

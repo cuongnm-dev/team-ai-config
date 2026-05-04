@@ -146,7 +146,7 @@ Per WORKFLOW_DESIGN.md § 0:
 
 ## 9. E2E Test Recommendation
 
-Để verify implementation thực sự work end-to-end, đề xuất test trên `D:/Projects/customs-clearance-system/`:
+Để verify implementation thực sự work end-to-end, đề xuất test trên một dự án thực tế trong workspace:
 
 ```
 1. Chạy extract_schema_summary.py --check → verify 20 summaries fresh
