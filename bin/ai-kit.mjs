@@ -1107,32 +1107,30 @@ const interactiveIndex = async ({ allowBack = false } = {}) => {
 
 // On-board hub: pick luồng → drill into chosen on-board doc with section loop.
 // Loops so user can read both luồng A and luồng B in one session.
-// Sub-menu when user picks SDLC at hub. Shows 3 ingestion entry-points
-// (from-doc/from-code/from-idea) + SDLC pipeline skills + full guide link.
-// Returns 'back' (up to hub) or 'exit'.
-const interactiveOnboardSdlcSubMenu = async () => {
+// On-board hub — flat menu with 3 SDLC ingestion entry-points (Luồng A/B/C)
+// alongside Tài liệu nhà nước path + SDLC overview. Each pick opens the
+// corresponding workflow doc directly.
+// Returns 'back' (up to caller) or 'exit'.
+const interactiveOnboardMenu = async () => {
   const docsDir = path.join(REPO_DIR, 'docs');
   while (true) {
     clearScreen();
     let pick;
     try {
       pick = await select({
-        message: '🅰 SDLC — Sản xuất phần mềm. Bạn cần gì?',
+        message: 'Hướng dẫn nhập môn — chọn luồng công việc:',
         choices: [
-          { name: '📖 Đọc on-boarding SDLC (full guide với 3 ingestion paths)', value: 'doc:on-board-sdlc' },
-          new Separator('  ── Bắt đầu mới (chọn entry-point) ──'),
-          { name: '🅐 /from-doc — Có SRS/BRD .docx', value: 'doc:workflows/from-doc' },
-          { name: '🅑 /from-code — Có codebase đã ship', value: 'doc:workflows/from-code' },
-          { name: '🅒 /from-idea — Chỉ có ý tưởng (Luồng C)', value: 'doc:workflows/from-idea' },
-          { name: '/new-feature — Thêm feature vào project có sẵn', value: 'doc:workflows/new-feature' },
-          new Separator('  ── Đang làm dở ──'),
-          { name: '/resume-feature — Tiếp tục SDLC pipeline', value: 'doc:workflows/resume-feature' },
-          { name: '/close-feature — Đóng feature, sync canonical intel', value: 'doc:workflows/close-feature' },
-          new Separator('  ────────────────────────'),
-          { name: '↩ Quay lại hub', value: '__back' },
+          { name: '📄 Luồng A — SDLC từ SRS/BRD docx (có tài liệu yêu cầu)', value: 'doc:workflows/from-doc' },
+          { name: '💻 Luồng B — SDLC từ codebase đã ship (reverse-engineer)', value: 'doc:workflows/from-code' },
+          { name: '💡 Luồng C — SDLC từ ý tưởng (greenfield, brainstorm 4 spirals)', value: 'doc:workflows/from-idea' },
+          new Separator('  ──────────────────────────'),
+          { name: '🏛  Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'doc:on-board-tailieu' },
+          new Separator('  ──────────────────────────'),
+          { name: '📖 Đọc on-boarding SDLC tổng quan (3 luồng A/B/C — pipeline đầy đủ)', value: 'doc:on-board-sdlc' },
+          { name: '↩ Quay lại', value: '__back' },
           { name: '✕ Thoát', value: '__exit' },
         ],
-        pageSize: 14,
+        pageSize: 12,
         loop: false,
       });
     } catch { return 'exit'; }
@@ -1144,43 +1142,8 @@ const interactiveOnboardSdlcSubMenu = async () => {
       if (!exists(file)) continue;
       const result = await openDocAndPrompt(file);
       if (result === 'exit') return 'exit';
-      // 'back' → loop back to sub-menu
-    }
-  }
-};
-
-// Returns 'back' (up to caller) or 'exit'.
-const interactiveOnboardMenu = async () => {
-  const docsDir = path.join(REPO_DIR, 'docs');
-  while (true) {
-    clearScreen();
-    let pick;
-    try {
-      pick = await select({
-        message: 'Hướng dẫn nhập môn — chọn luồng công việc:',
-        choices: [
-          { name: '🅰 SDLC — Sản xuất phần mềm (BA/SA/Dev/QA, 3 ingestion paths)', value: 'on-board-sdlc' },
-          { name: '🅱 Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'on-board-tailieu' },
-          { name: '↩ Quay lại', value: '__back' },
-          { name: '✕ Thoát', value: '__exit' },
-        ],
-        pageSize: 10,
-        loop: false,
-      });
-    } catch { return 'exit'; }
-    if (pick === '__exit') return 'exit';
-    if (pick === '__back') return 'back';
-    if (pick === 'on-board-sdlc') {
-      const r = await interactiveOnboardSdlcSubMenu();
-      if (r === 'exit') return 'exit';
       // 'back' → loop back to hub menu
-      continue;
     }
-    const file = path.join(docsDir, `${pick}.md`);
-    if (!exists(file)) continue;
-    const result = await openDocAndPrompt(file);
-    if (result === 'exit') return 'exit';
-    // 'back' → loop back to hub menu
   }
 };
 
