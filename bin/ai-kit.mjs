@@ -22,6 +22,7 @@ import {
   classifyError, suggestCommand,
   vlen, padR, padL, sparkline, bar,
 } from './lib/util.mjs';
+import cursorCsv from './lib/telemetry/cursor-csv.mjs';
 
 const _pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const VERSION = _pkg.version;
@@ -2748,6 +2749,31 @@ const cmdStatistics = (args) => {
   const stats = collectStats(sinceMs);
   const cli = collectCliHistory(sinceMs);
 
+  // ─── Multi-IDE telemetry sources (refactor 2026-05-04) ──────────────
+  // Cursor billing CSV — most accurate cost source for Cursor (transcripts don't expose tokens).
+  // Resolution order:
+  //   1. --cursor-csv <path>  → use that file
+  //   2. --cursor-csv (no path) OR default → auto-detect newest in ~/Downloads
+  //   3. --no-cursor-csv → skip Cursor data entirely
+  let cursorEvents = [], cursorAgg = null;
+  const noCursorCsv = args.includes('--no-cursor-csv');
+  if (!noCursorCsv) {
+    let csvPath = null;
+    const csvIdx = args.indexOf('--cursor-csv');
+    if (csvIdx >= 0) {
+      const next = args[csvIdx + 1];
+      csvPath = (next && !next.startsWith('-')) ? next : cursorCsv.autoDetect();
+    } else {
+      // Auto-detect by default (silent if no CSV found)
+      csvPath = cursorCsv.autoDetect();
+    }
+    if (csvPath && fs.existsSync(csvPath)) {
+      cursorEvents = cursorCsv.parse(csvPath, { sinceMs });
+      cursorAgg = cursorCsv.aggregate(cursorEvents);
+      cursorAgg._sourceFile = csvPath;
+    }
+  }
+
   // --html: standalone HTML report (offline-shareable)
   if (args.includes('--html')) {
     const sinceLabel = sinceArg || '30d';
@@ -2972,6 +2998,24 @@ ${tableRows(Object.entries(stats.errorCategories).filter(([,v]) => v > 0).sort((
       byProject: stats.byProject,
       byDay: stats.byDay,
       cli: cli.commands,
+      // Multi-IDE telemetry (Phase 1: Cursor CSV)
+      cursor_csv: cursorAgg ? {
+        source_file: cursorAgg._sourceFile,
+        total_events: cursorAgg.total_events,
+        total_cost_usd: cursorAgg.total_cost,
+        total_tokens: cursorAgg.total_tokens,
+        date_range: cursorAgg.date_range,
+        by_model: cursorAgg.by_model,
+        by_user: cursorAgg.by_user,
+        by_kind: cursorAgg.by_kind,
+        by_day: cursorAgg.by_day,
+      } : null,
+      ide_breakdown: {
+        claude_code: { events: stats.requests, tokens: stats.totalTokens, cost_usd: stats.totalCost },
+        cursor:      cursorAgg ? { events: cursorAgg.total_events, tokens: cursorAgg.total_tokens, cost_usd: cursorAgg.total_cost } : null,
+        windsurf:    null,    // Phase 3: pending protobuf decoder
+        kilo:        null,    // Phase 4: pending Kilo telemetry investigation
+      },
     }, null, 2));
     return;
   }
@@ -3010,6 +3054,50 @@ ${tableRows(Object.entries(stats.errorCategories).filter(([,v]) => v > 0).sort((
     title: `Tổng quan · ${sinceLabel}`, titleAlignment: 'left',
     margin: {top: 0, bottom: 0, left: 2, right: 0},
   }) + '\n');
+
+  // ── IDE breakdown (multi-IDE refactor 2026-05-04) ─────────────────────
+  // Show split when Cursor CSV data is available — surfaces which IDE actually consumed cost.
+  if (cursorAgg && cursorAgg.total_events > 0) {
+    const totalCombinedCost = stats.totalCost + cursorAgg.total_cost;
+    const totalCombinedTokens = stats.totalTokens + cursorAgg.total_tokens;
+    const claudePct = totalCombinedCost > 0 ? (stats.totalCost / totalCombinedCost) * 100 : 0;
+    const cursorPct = totalCombinedCost > 0 ? (cursorAgg.total_cost / totalCombinedCost) * 100 : 0;
+    const ideLines = [
+      `${S.gray}Tổng (Claude + Cursor):${S.reset} ${colorCost(totalCombinedCost)}  ${colorTokens(totalCombinedTokens)}  ${S.dim}${stats.requests + cursorAgg.total_events} events${S.reset}`,
+      `${S.gray}─────────────────────────────${S.reset}`,
+      `${S.cyan}Claude Code  ${S.reset}${colorCost(stats.totalCost).padEnd(18)} ${S.dim}(${claudePct.toFixed(0)}%)${S.reset}  ${colorTokens(stats.totalTokens).padEnd(18)} ${S.dim}${stats.requests} req${S.reset}  ${S.gray}← ~/.claude/projects/${S.reset}`,
+      `${S.cyan}Cursor       ${S.reset}${colorCost(cursorAgg.total_cost).padEnd(18)} ${S.dim}(${cursorPct.toFixed(0)}%)${S.reset}  ${colorTokens(cursorAgg.total_tokens).padEnd(18)} ${S.dim}${cursorAgg.total_events} events${S.reset}  ${S.gray}← ${path.basename(cursorAgg._sourceFile)}${S.reset}`,
+      `${S.dim}Windsurf     ${S.gray}(chưa parse — pending protobuf decoder)${S.reset}`,
+      `${S.dim}Kilo Code    ${S.gray}(chưa parse — pending telemetry source)${S.reset}`,
+    ].join('\n');
+    out.write('\n' + boxen(ideLines, {
+      padding: {top: 0, bottom: 0, left: 1, right: 1},
+      borderStyle: 'round', borderColor: 'magenta',
+      title: 'Theo IDE', titleAlignment: 'left',
+      margin: {top: 0, bottom: 0, left: 2, right: 0},
+    }) + '\n');
+
+    // Cursor model breakdown (top 5)
+    const cursorTopModels = Object.entries(cursorAgg.by_model)
+      .sort((a, b) => b[1].cost - a[1].cost)
+      .slice(0, 5);
+    if (cursorTopModels.length) {
+      printTable('Cursor — top model theo cost', cursorTopModels.map(([m, v]) => [
+        `${S.cyan}${m}${S.reset}`,
+        colorCount(v.events, 100, 20),
+        colorTokens(v.tokens),
+        colorCost(v.cost),
+      ]), [
+        {label: 'Model'}, {label: 'Events', align: 'r'},
+        {label: 'Tokens', align: 'r'}, {label: 'Cost', align: 'r'},
+      ]);
+    }
+  } else if (!noCursorCsv) {
+    // Hint to user that Cursor data could be included
+    out.write(`\n  ${S.dim}💡 Cursor data không tìm thấy. Export team-usage-events CSV từ Cursor billing dashboard${S.reset}\n`);
+    out.write(`  ${S.dim}   → save vào ~/Downloads/ rồi chạy lại; hoặc dùng ${S.reset}${S.cyan}--cursor-csv <path>${S.reset}\n`);
+    out.write(`  ${S.dim}   Skip hint: ${S.reset}${S.cyan}--no-cursor-csv${S.reset}\n`);
+  }
 
   // Alerts (cost/spike/agent/error thresholds)
   const series = dailySeries(stats.byDay, sinceMs);
@@ -3352,7 +3440,7 @@ const COMMAND_HELP = {
   mcp:     { usage: 'ai-kit mcp <verb>',                        desc: 'Control the etc-platform MCP Docker container.',                        flags: { start:'docker compose up -d', stop:'docker compose down', restart:'docker compose restart', logs:'Tail last 200 lines', pull:'Pull latest image', status:'Container state + API URLs (http://localhost:8001)' } },
   pack:    { usage: 'ai-kit pack',                              desc: 'Snapshot ~/.claude+~/.cursor agents/skills → repo working tree.' },
   diff:    { usage: 'ai-kit diff',                              desc: 'Show local repo vs origin diff (git status + diff --stat).' },
-  statistics: { usage: 'ai-kit statistics [--since 30d] [--top 10] [--json|--html|--member-share]', desc: 'Local-only telemetry: top skills/agents/tools/models + token cost. Parses ~/.claude/projects/*.jsonl.', flags: {'--since': 'Time window: 7d, 30d, 3m, 24h (default 30d)', '--top': 'Top-N rows per table (default 10)', '--json': 'Machine-readable JSON', '--html [file]': 'Standalone HTML report (offline-shareable)', '--member-share': 'Anonymized JSON for master to merge', '--merge f1 f2': '(master) Gộp nhiều file member-share'}, notes: ['No data leaves the machine.', 'Cost is estimated using public Anthropic pricing — actual billing may differ.'] },
+  statistics: { usage: 'ai-kit statistics [--since 30d] [--top 10] [--json|--html|--member-share] [--cursor-csv [path]]', desc: 'Local-only multi-IDE telemetry: top skills/agents/tools/models + token cost. Parses Claude Code jsonl + Cursor billing CSV.', flags: {'--since': 'Time window: 7d, 30d, 3m, 24h (default 30d)', '--top': 'Top-N rows per table (default 10)', '--json': 'Machine-readable JSON', '--html [file]': 'Standalone HTML report (offline-shareable)', '--member-share': 'Anonymized JSON for master to merge', '--merge f1 f2': '(master) Gộp nhiều file member-share', '--cursor-csv [path]': 'Cursor billing CSV import (auto-detect newest in ~/Downloads if no path)', '--no-cursor-csv': 'Skip Cursor CSV auto-detection'}, notes: ['No data leaves the machine.', 'Cost is estimated — Cursor CSV is authoritative when available; Claude/Anthropic uses public pricing.', 'Cursor CSV: export from cursor.com billing dashboard → save as team-usage-events-*.csv'] },
   verify:     { usage: 'ai-kit verify [--restore | --update]', desc: 'Kiểm tra toàn vẹn ~/.claude+~/.cursor (manifest SHA256). Phát hiện local drift.', flags: {'--restore | -r': 'Chạy update để khôi phục từ team config', '--update': 'Chấp nhận trạng thái hiện tại — ghi manifest mới'} },
   search:     { usage: 'ai-kit search <term> [--scope all|docs|agents|skills]', desc: 'Tìm full-text xuyên docs + agents + skills. Group theo file, top 30 file.' },
   config:     { usage: 'ai-kit config <list|get|set> [<file>.<key>] [<value>]', desc: 'Quản lý ~/.ai-kit/{billing,alerts}.json. File ∈ billing|alerts.', notes: ['Ví dụ: ai-kit config set billing.monthly_usd 200', 'Ví dụ: ai-kit config get alerts.total_cost_warn'] },
