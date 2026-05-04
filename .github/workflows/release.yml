@@ -1,117 +1,120 @@
 name: Release — Auto-tag on main
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'package.json'
+    push:
+        branches: [ main ]
+        paths:
+            - "package.json"
+    workflow_dispatch:
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  release:
-    name: Create release if version bumped
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2  # need parent commit to detect version change
+    release:
+        name: Create release if version bumped
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2 # need parent commit to detect version change
 
-      - name: Read version
-        id: ver
-        run: |
-          VERSION=$(node -e "console.log(require('./package.json').version)")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION"
+            - name: Read version
+              id: ver
+              run: |
+                  VERSION=$(node -e "console.log(require('./package.json').version)")
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "Version: $VERSION"
 
-      - name: Check if version changed
-        id: changed
-        run: |
-          # Compare package.json version between HEAD and HEAD~1
-          PREV=$(git show HEAD~1:package.json 2>/dev/null | node -e "let d=''; process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).version)}catch{console.log('')}})" || echo "")
-          CURR="${{ steps.ver.outputs.version }}"
-          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
-          if [ "$PREV" != "$CURR" ]; then
-            echo "bumped=true" >> "$GITHUB_OUTPUT"
-            echo "Version bumped: $PREV → $CURR"
-          else
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            echo "Version unchanged ($CURR) — skipping release"
-          fi
+            - name: Check if version changed
+              id: changed
+              run: |
+                  # Compare package.json version between HEAD and HEAD~1
+                  PREV=$(git show HEAD~1:package.json 2>/dev/null | node -e "let d=''; process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).version)}catch{console.log('')}})" || echo "")
+                  CURR="${{ steps.ver.outputs.version }}"
+                  echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+                  if [ "$PREV" != "$CURR" ]; then
+                    echo "bumped=true" >> "$GITHUB_OUTPUT"
+                    echo "Version bumped: $PREV → $CURR"
+                  else
+                    echo "bumped=false" >> "$GITHUB_OUTPUT"
+                    echo "Version unchanged ($CURR) — skipping release"
+                  fi
 
-      - name: Check if tag already exists
-        id: tag_check
-        if: steps.changed.outputs.bumped == 'true'
-        run: |
-          TAG="${{ steps.ver.outputs.tag }}"
-          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Tag $TAG already exists — skipping"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Tag $TAG does not exist — will create"
-          fi
+            - name: Check if tag already exists
+              id: tag_check
+              if: steps.changed.outputs.bumped == 'true'
+              run: |
+                  TAG="${{ steps.ver.outputs.tag }}"
+                  if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+                    echo "exists=true" >> "$GITHUB_OUTPUT"
+                    echo "Tag $TAG already exists — skipping"
+                  else
+                    echo "exists=false" >> "$GITHUB_OUTPUT"
+                    echo "Tag $TAG does not exist — will create"
+                  fi
 
-      - name: Generate release notes
-        id: notes
-        if: steps.changed.outputs.bumped == 'true' && steps.tag_check.outputs.exists == 'false'
-        run: |
-          TAG="${{ steps.ver.outputs.tag }}"
-          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | head -1 || echo "")
-          
-          # Collect commits since last tag
-          if [ -n "$PREV_TAG" ]; then
-            COMMITS=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s" --no-merges 2>/dev/null || echo "")
-          else
-            COMMITS=$(git log --pretty=format:"- %s" --no-merges -20 2>/dev/null || echo "")
-          fi
-          
-          # Count content
-          CLAUDE_AGENTS=$(find claude/agents -name "*.md" 2>/dev/null | wc -l)
-          CLAUDE_SKILLS=$(find claude/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
-          CURSOR_AGENTS=$(find cursor/agents -name "*.md" 2>/dev/null | wc -l)
-          CURSOR_SKILLS=$(find cursor/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
-          
-          # Write notes to file (avoids shell escaping issues)
-          cat > /tmp/release-notes.md << EOF
-          ## ai-kit $TAG
-          
-          **Content**
-          | IDE | Agents | Skills |
-          |-----|--------|--------|
-          | Claude Code | $CLAUDE_AGENTS | $CLAUDE_SKILLS |
-          | Cursor | $CURSOR_AGENTS | $CURSOR_SKILLS |
-          
-          **Changes since $PREV_TAG**
-          $COMMITS
-          
-          ---
-          **Install / Update**
-          \`\`\`
-          # Windows (first time)
-          irm https://raw.githubusercontent.com/${{ github.repository }}/main/bootstrap.ps1 | iex
-          
-          # macOS / Linux (first time)
-          curl -sL https://raw.githubusercontent.com/${{ github.repository }}/main/bootstrap.sh | bash
-          
-          # Already installed
-          ai-kit update
-          \`\`\`
-          EOF
-          echo "notes_file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
+            - name: Generate release notes
+              id: notes
+              if: steps.changed.outputs.bumped == 'true' && steps.tag_check.outputs.exists ==
+                  'false'
+              run: |
+                  TAG="${{ steps.ver.outputs.tag }}"
+                  PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | head -1 || echo "")
 
-      - name: Create tag and release
-        if: steps.changed.outputs.bumped == 'true' && steps.tag_check.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ steps.ver.outputs.tag }}"
-          NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
-          gh release create "$TAG" \
-            --title "ai-kit $TAG" \
-            --notes-file "$NOTES_FILE" \
-            --target main
-          echo "✓ Release $TAG created"
+                  # Collect commits since last tag
+                  if [ -n "$PREV_TAG" ]; then
+                    COMMITS=$(git log "$PREV_TAG..HEAD" --pretty=format:"- %s" --no-merges 2>/dev/null || echo "")
+                  else
+                    COMMITS=$(git log --pretty=format:"- %s" --no-merges -20 2>/dev/null || echo "")
+                  fi
+
+                  # Count content
+                  CLAUDE_AGENTS=$(find claude/agents -name "*.md" 2>/dev/null | wc -l)
+                  CLAUDE_SKILLS=$(find claude/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+                  CURSOR_AGENTS=$(find cursor/agents -name "*.md" 2>/dev/null | wc -l)
+                  CURSOR_SKILLS=$(find cursor/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+
+                  # Write notes to file (avoids shell escaping issues)
+                  cat > /tmp/release-notes.md << EOF
+                  ## ai-kit $TAG
+
+                  **Content**
+                  | IDE | Agents | Skills |
+                  |-----|--------|--------|
+                  | Claude Code | $CLAUDE_AGENTS | $CLAUDE_SKILLS |
+                  | Cursor | $CURSOR_AGENTS | $CURSOR_SKILLS |
+
+                  **Changes since $PREV_TAG**
+                  $COMMITS
+
+                  ---
+                  **Install / Update**
+                  \`\`\`
+                  # Windows (first time)
+                  irm https://raw.githubusercontent.com/${{ github.repository }}/main/bootstrap.ps1 | iex
+
+                  # macOS / Linux (first time)
+                  curl -sL https://raw.githubusercontent.com/${{ github.repository }}/main/bootstrap.sh | bash
+
+                  # Already installed
+                  ai-kit update
+                  \`\`\`
+                  EOF
+                  echo "notes_file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
+
+            - name: Create tag and release
+              if: steps.changed.outputs.bumped == 'true' && steps.tag_check.outputs.exists ==
+                  'false'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  TAG="${{ steps.ver.outputs.tag }}"
+                  NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
+                  gh release create "$TAG" \
+                    --title "ai-kit $TAG" \
+                    --notes-file "$NOTES_FILE" \
+                    --target main
+                  echo "✓ Release $TAG created"

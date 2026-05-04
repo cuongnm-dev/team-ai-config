@@ -1,68 +1,69 @@
 name: CI — PR Validation
 
 on:
-  pull_request:
-    branches: [main]
+    pull_request:
+        branches: [ main ]
+    workflow_dispatch:
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  validate:
-    name: Validate PR
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    validate:
+        name: Validate PR
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-      - name: Validate package.json
-        run: |
-          node -e "const p = JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('version:', p.version); if (!p.version) process.exit(1);"
+            - name: Validate package.json
+              run: |
+                  node -e "const p = JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('version:', p.version); if (!p.version) process.exit(1);"
 
-      - name: Check for machine-specific paths
-        run: |
-          echo "Scanning for hardcoded Windows/macOS user paths..."
-          FOUND=0
-          while IFS= read -r -d '' file; do
-            if grep -qP 'C:[/\\\\]Users[/\\\\]\w+|D:[/\\\\](?!AI-Platform)\w+|/Users/\w+/\.claude|/home/\w+/\.claude' "$file" 2>/dev/null; then
-              echo "  ⚠ $file"
-              FOUND=$((FOUND+1))
-            fi
-          done < <(find claude/ cursor/ windsurf/ kilo/ -type f \( -name "*.md" -o -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.ps1" -o -name "*.sh" \) -print0 2>/dev/null)
-          if [ "$FOUND" -gt 0 ]; then
-            echo "::error::$FOUND file(s) contain hardcoded machine-specific paths. Review before merging."
-            exit 1
-          fi
-          echo "✓ No machine-specific paths found"
+            - name: Check for machine-specific paths
+              run: |
+                  echo "Scanning for hardcoded Windows/macOS user paths..."
+                  FOUND=0
+                  while IFS= read -r -d '' file; do
+                    if grep -qP 'C:[/\\\\]Users[/\\\\]\w+|D:[/\\\\](?!AI-Platform)\w+|/Users/\w+/\.claude|/home/\w+/\.claude' "$file" 2>/dev/null; then
+                      echo "  ⚠ $file"
+                      FOUND=$((FOUND+1))
+                    fi
+                  done < <(find claude/ cursor/ windsurf/ kilo/ -type f \( -name "*.md" -o -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.ps1" -o -name "*.sh" \) -print0 2>/dev/null)
+                  if [ "$FOUND" -gt 0 ]; then
+                    echo "::error::$FOUND file(s) contain hardcoded machine-specific paths. Review before merging."
+                    exit 1
+                  fi
+                  echo "✓ No machine-specific paths found"
 
-      - name: Check for leaked secrets (basic)
-        run: |
-          echo "Scanning for common secret patterns..."
-          # Look for obvious patterns: API keys, tokens, passwords in agent/skill files
-          FOUND=0
-          while IFS= read -r -d '' file; do
-            if grep -qiP '(?:api[_-]?key|secret[_-]?key|access[_-]?token|password)\s*[:=]\s*["\x27][A-Za-z0-9+/]{20,}' "$file" 2>/dev/null; then
-              echo "  ⚠ Possible secret in: $file"
-              FOUND=$((FOUND+1))
-            fi
-          done < <(find claude/ cursor/ windsurf/ kilo/ -type f -print0 2>/dev/null)
-          if [ "$FOUND" -gt 0 ]; then
-            echo "::error::$FOUND file(s) may contain leaked secrets. Review before merging."
-            exit 1
-          fi
-          echo "✓ No obvious secrets found"
+            - name: Check for leaked secrets (basic)
+              run: |
+                  echo "Scanning for common secret patterns..."
+                  # Look for obvious patterns: API keys, tokens, passwords in agent/skill files
+                  FOUND=0
+                  while IFS= read -r -d '' file; do
+                    if grep -qiP '(?:api[_-]?key|secret[_-]?key|access[_-]?token|password)\s*[:=]\s*["\x27][A-Za-z0-9+/]{20,}' "$file" 2>/dev/null; then
+                      echo "  ⚠ Possible secret in: $file"
+                      FOUND=$((FOUND+1))
+                    fi
+                  done < <(find claude/ cursor/ windsurf/ kilo/ -type f -print0 2>/dev/null)
+                  if [ "$FOUND" -gt 0 ]; then
+                    echo "::error::$FOUND file(s) may contain leaked secrets. Review before merging."
+                    exit 1
+                  fi
+                  echo "✓ No obvious secrets found"
 
-      - name: Count agents and skills
-        run: |
-          echo "=== Content Summary ==="
-          CLAUDE_AGENTS=$(find claude/agents -name "*.md" 2>/dev/null | wc -l)
-          CLAUDE_SKILLS=$(find claude/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
-          CURSOR_AGENTS=$(find cursor/agents -name "*.md" 2>/dev/null | wc -l)
-          CURSOR_SKILLS=$(find cursor/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
-          echo "  Claude agents : $CLAUDE_AGENTS"
-          echo "  Claude skills : $CLAUDE_SKILLS"
-          echo "  Cursor agents : $CURSOR_AGENTS"
-          echo "  Cursor skills : $CURSOR_SKILLS"
-          if [ "$CLAUDE_AGENTS" -eq 0 ] && [ "$CURSOR_AGENTS" -eq 0 ]; then
-            echo "::warning::No agents found in this PR — was pack step run?"
-          fi
+            - name: Count agents and skills
+              run: |
+                  echo "=== Content Summary ==="
+                  CLAUDE_AGENTS=$(find claude/agents -name "*.md" 2>/dev/null | wc -l)
+                  CLAUDE_SKILLS=$(find claude/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+                  CURSOR_AGENTS=$(find cursor/agents -name "*.md" 2>/dev/null | wc -l)
+                  CURSOR_SKILLS=$(find cursor/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+                  echo "  Claude agents : $CLAUDE_AGENTS"
+                  echo "  Claude skills : $CLAUDE_SKILLS"
+                  echo "  Cursor agents : $CURSOR_AGENTS"
+                  echo "  Cursor skills : $CURSOR_SKILLS"
+                  if [ "$CLAUDE_AGENTS" -eq 0 ] && [ "$CURSOR_AGENTS" -eq 0 ]; then
+                    echo "::warning::No agents found in this PR — was pack step run?"
+                  fi
