@@ -16,13 +16,15 @@ order: 1
 Anh/chị đang **làm phần mềm để bàn giao cho khách hàng**.
 
 - **Input** (3 entry-points):
-  - 🅐 Có SRS/BRD/wireframe → `/from-doc`
-  - 🅑 Có codebase đã ship → `/from-code`
-  - 🅒 Chỉ có ý tưởng, chưa có doc/code (Luồng C) → `/from-idea` (4 spirals + pre-mortem)
+  - 🅐 Có SRS/BRD/wireframe → `/from-doc` (onboarding chung: `on-board-sdlc`)
+  - 🅑 Có codebase đã ship → `/from-code` (onboarding chung: `on-board-sdlc`)
+  - 🅒 Chỉ có ý tưởng, chưa có doc/code (Luồng C) → `/from-idea` (onboarding riêng: `on-board-idea`)
 - **Quy trình**: ingestion → SDLC pipeline (BA→SA→TL→Dev→QA→Reviewer) → generate-docs
 - **Output**: code chạy được + 5 file Office nghiệm thu (TKKT, TKCS, TKCT, HDSD, test-cases) theo NĐ 45/2026
 - **Đối tượng**: BA, SA, Dev, FE-Dev, QA, Reviewer, PM, Founder/PM (Luồng C)
-- **Onboarding**: `ai-kit doc on-board-sdlc`
+- **Onboarding**:
+  - SDLC chung (Luồng A + B): `ai-kit doc on-board-sdlc`
+  - Luồng C (greenfield brainstorm): `ai-kit doc on-board-idea`
 
 ---
 

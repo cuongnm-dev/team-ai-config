@@ -792,6 +792,7 @@ const docSessionLoop = async (file) => {
 const HIDDEN_FROM_INDEX = new Set([
   'on-board-sdlc',     // pick from on-board hub
   'on-board-tailieu',  // pick from on-board hub
+  'on-board-idea',     // pick from on-board hub (Luồng C)
   'maintainer',        // maintainer workflow
   'contributing',      // contributor guide
   'decision-log',      // architectural ADRs
@@ -1122,7 +1123,7 @@ const interactiveOnboardMenu = async () => {
         choices: [
           { name: '📄 Luồng A — SDLC từ SRS/BRD docx (có tài liệu yêu cầu)', value: 'doc:workflows/from-doc' },
           { name: '💻 Luồng B — SDLC từ codebase đã ship (reverse-engineer)', value: 'doc:workflows/from-code' },
-          { name: '💡 Luồng C — SDLC từ ý tưởng (greenfield, brainstorm 4 spirals)', value: 'doc:workflows/from-idea' },
+          { name: '💡 Luồng C — SDLC từ ý tưởng (greenfield, brainstorm 4 spirals)', value: 'doc:on-board-idea' },
           new Separator('  ──────────────────────────'),
           { name: '🏛  Tài liệu nhà nước (Đề án CĐS, HSMT/HSDT, NCKT, dự toán)', value: 'doc:on-board-tailieu' },
           new Separator('  ──────────────────────────'),
