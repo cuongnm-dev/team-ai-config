@@ -156,3 +156,74 @@ jobs:
                     exit 1
                   fi
                   echo "✓ All skills valid"
+
+            - name: Check English-only body in agents and skills (CD-9)
+              run: |
+                  # Rule CD-9: agent/skill/rules body must be English (machine-readable).
+                  # Vietnamese ONLY allowed in:
+                  #   1. Frontmatter block (--- ... ---)  → e.g. description: field
+                  #   2. Fenced code blocks (``` or ~~~)  → output examples, templates
+                  #   3. Lines starting with > (blockquotes) → output/sample annotations
+                  # Vietnamese detected via: U+1EA0-U+1EF9 (tonal marks) + đĐ + ơƠưƯ
+                  export LC_ALL=C.UTF-8
+                  VN_PAT='[\x{1EA0}-\x{1EF9}\x{0111}\x{0110}\x{01A0}\x{01A1}\x{01AF}\x{01B0}]'
+                  ERRORS=0
+
+                  check_file() {
+                    local file="$1" in_fm=0 in_code=0 lineno=0 hits=0
+                    while IFS= read -r line; do
+                      lineno=$((lineno+1))
+                      line="${line%$'\r'}"
+
+                      # Frontmatter guard
+                      if [ $lineno -eq 1 ] && [ "$line" = "---" ]; then in_fm=1; continue; fi
+                      if [ $in_fm -eq 1 ]; then [ "$line" = "---" ] && in_fm=0; continue; fi
+
+                      # Fenced code block guard (``` or ~~~)
+                      if printf '%s' "$line" | grep -qP '^\s*(`{3,}|~{3,})'; then
+                        in_code=$(( 1 - in_code )); continue
+                      fi
+                      [ $in_code -eq 1 ] && continue
+
+                      # Blockquote guard (output examples / annotations)
+                      printf '%s' "$line" | grep -qP '^\s*>' && continue
+
+                      # Vietnamese character detection
+                      if printf '%s' "$line" | grep -qP "$VN_PAT"; then
+                        [ $hits -eq 0 ] && echo "  ✗ $file"
+                        echo "    L${lineno}: ${line:0:120}"
+                        hits=$((hits+1))
+                        [ $hits -ge 5 ] && echo "    ... (more violations omitted)" && break
+                      fi
+                    done < "$file"
+                    return $hits
+                  }
+
+                  echo "Checking CD-9 (English-only body)..."
+
+                  # Agent files (top-level only, skip ref-*)
+                  while IFS= read -r f; do
+                    [[ "$(basename "$f" .md)" == ref-* ]] && continue
+                    check_file "$f"; ERRORS=$((ERRORS+$?))
+                  done < <(find claude/agents cursor/agents -maxdepth 1 -name "*.md" 2>/dev/null | sort)
+
+                  # Skills (SKILL.md in each skill dir)
+                  while IFS= read -r dir; do
+                    [ -f "$dir/SKILL.md" ] || continue
+                    check_file "$dir/SKILL.md"; ERRORS=$((ERRORS+$?))
+                  done < <(find claude/skills cursor/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+
+                  # Cursor rules (if present)
+                  if [ -d cursor/rules ]; then
+                    while IFS= read -r f; do
+                      check_file "$f"; ERRORS=$((ERRORS+$?))
+                    done < <(find cursor/rules -name "*.md" 2>/dev/null | sort)
+                  fi
+
+                  if [ "$ERRORS" -gt 0 ]; then
+                    echo "::error::$ERRORS line(s) with Vietnamese text in body outside allowed zones."
+                    echo "::error::Allowed zones: frontmatter block, fenced code blocks, blockquote lines (>)."
+                    echo "::error::See rule CD-9 in CLAUDE.md."
+                    exit 1
+                  fi
+                  echo "✓ All agent/skill/rules files pass CD-9 (English-only body)"
