@@ -32,11 +32,13 @@ if errorlevel 1 (
 popd
 
 :run
-REM Self-heal: sync bin\lib from repo if missing (post-modular-refactor)
-if not exist "%DIR%lib\util.mjs" (
-  if exist "%REPO_DIR%\bin\lib" (
-    xcopy /E /I /Y /Q "%REPO_DIR%\bin\lib" "%DIR%lib\" >nul
-  )
+REM Always sync bin\lib + ai-kit.mjs from repo (idempotent — ensures new modules land in launcher copy).
+REM Pre-2026-05-04: only synced when util.mjs missing → broke when adding new lib files like lib\telemetry\*.
+if exist "%REPO_DIR%\bin\lib" (
+  xcopy /E /I /Y /Q "%REPO_DIR%\bin\lib" "%DIR%lib\" >nul
+)
+if exist "%REPO_DIR%\bin\ai-kit.mjs" (
+  copy /Y "%REPO_DIR%\bin\ai-kit.mjs" "%DIR%ai-kit.mjs" >nul
 )
 node "%DIR%ai-kit.mjs" %*
 exit /b %ERRORLEVEL%

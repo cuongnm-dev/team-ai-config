@@ -41,9 +41,16 @@ if [ ! -d "$AI_KIT_HOME/node_modules" ]; then
   }
 fi
 
-# Self-heal: sync bin/lib/ from repo if missing (post-modular-refactor)
-if [ ! -d "$SCRIPT_DIR/lib" ] && [ -d "$REPO_DIR/bin/lib" ]; then
-  cp -R "$REPO_DIR/bin/lib" "$SCRIPT_DIR/lib"
+# Always sync bin/lib/ + ai-kit.mjs from repo (idempotent — ensures new modules land in launcher copy).
+# Pre-2026-05-04: only synced when lib/ missing → broke when adding new files like lib/telemetry/*.
+# Skip when SCRIPT_DIR already IS repo/bin (POSIX symlink case — running from repo directly).
+if [ "$SCRIPT_DIR" != "$REPO_DIR/bin" ]; then
+  if [ -d "$REPO_DIR/bin/lib" ]; then
+    cp -R "$REPO_DIR/bin/lib/." "$SCRIPT_DIR/lib/" 2>/dev/null || cp -R "$REPO_DIR/bin/lib" "$SCRIPT_DIR/lib"
+  fi
+  if [ -f "$REPO_DIR/bin/ai-kit.mjs" ]; then
+    cp -f "$REPO_DIR/bin/ai-kit.mjs" "$SCRIPT_DIR/ai-kit.mjs"
+  fi
 fi
 
 exec node "$SCRIPT_DIR/ai-kit.mjs" "$@"

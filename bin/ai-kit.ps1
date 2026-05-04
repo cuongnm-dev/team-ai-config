@@ -36,12 +36,18 @@ if (-not (Test-Path (Join-Path $AiHome 'node_modules'))) {
   } finally { Pop-Location }
 }
 
-# Self-heal: sync bin\lib from repo if missing (post-modular-refactor)
-$LibDir   = Join-Path $Dir 'lib'
-$RepoLib  = Join-Path $RepoDir 'bin\lib'
-if (-not (Test-Path (Join-Path $LibDir 'util.mjs')) -and (Test-Path $RepoLib)) {
+# Always sync bin\lib + ai-kit.mjs from repo (idempotent — ensures new modules land in launcher copy).
+# Pre-2026-05-04: only synced when util.mjs missing → broke when adding new lib files like lib\telemetry\*.
+$LibDir    = Join-Path $Dir 'lib'
+$RepoLib   = Join-Path $RepoDir 'bin\lib'
+$RepoMjs   = Join-Path $RepoDir 'bin\ai-kit.mjs'
+$LauncherMjs = Join-Path $Dir 'ai-kit.mjs'
+if (Test-Path $RepoLib) {
   Copy-Item -Recurse -Force $RepoLib $LibDir
 }
+if (Test-Path $RepoMjs) {
+  Copy-Item -Force $RepoMjs $LauncherMjs
+}
 
-& node (Join-Path $Dir 'ai-kit.mjs') @args
+& node $LauncherMjs @args
 exit $LASTEXITCODE
