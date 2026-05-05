@@ -1570,6 +1570,11 @@ const cmdUpdate = async () => {
           c.ctx.dirty = dirty;
           throw new Error('Có thay đổi cục bộ chưa commit — chạy "ai-kit reset" để bỏ, hoặc commit trước.');
         }
+        // Capture pre-pull HEAD for changelog computation in completion box.
+        try {
+          const {stdout: oldSha} = shQuiet('git', ['-C', REPO_DIR, 'rev-parse', 'HEAD']);
+          c.ctx.oldSha = oldSha.trim();
+        } catch {}
         c.setLabel('Repo sạch, không có thay đổi cục bộ');
       },
     },
@@ -1578,6 +1583,11 @@ const cmdUpdate = async () => {
       label: 'Pull team-ai-config mới nhất',
       run: async (c) => {
         await streamShIntoStep('git', ['-C', REPO_DIR, 'pull', '--ff-only'], c);
+        // Capture post-pull HEAD for changelog computation.
+        try {
+          const {stdout: newSha} = shQuiet('git', ['-C', REPO_DIR, 'rev-parse', 'HEAD']);
+          c.ctx.newSha = newSha.trim();
+        } catch {}
         c.setLabel('Đã pull team-ai-config');
       },
     },
@@ -1798,11 +1808,84 @@ const cmdUpdate = async () => {
   } else {
     console.log('');
     console.log(boxen(
-      `${C.green}✓ Cập nhật hoàn tất${C.reset}\n${C.gray}Repo + CLI + agents/skills + MCP image đã sẵn sàng${C.reset}`,
+      buildUpdateCompletionMessage(ctx),
       {padding: 1, margin: {top: 0, bottom: 1, left: 2, right: 2},
        borderColor: 'green', borderStyle: 'round', title: 'ai-kit', titleAlignment: 'center'}
     ));
   }
+};
+
+// Build the completion message rendered inside the green ai-kit box at end of
+// `ai-kit update`. Includes current version + categorized changelog (feat/fix/
+// docs/chore/other) for commits pulled in this update. Falls back gracefully
+// when version or git log cannot be read.
+const buildUpdateCompletionMessage = (ctx) => {
+  const lines = [];
+  lines.push(`${C.green}✓ Cập nhật hoàn tất${C.reset}`);
+
+  // Read version from repo's package.json (may be missing in dev branches).
+  let version = null;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(REPO_DIR, 'package.json'), 'utf-8'));
+    if (pkg && pkg.version) version = pkg.version;
+  } catch {}
+  if (version) {
+    lines.push(`${C.gray}Phiên bản: ${C.reset}${C.cyan}v${version}${C.reset}`);
+  }
+
+  // Compute changelog if we captured both SHAs around the pull. Skip if no
+  // change, or if SHAs missing (capture failed earlier in pipeline).
+  if (ctx && ctx.oldSha && ctx.newSha && ctx.oldSha !== ctx.newSha) {
+    let log = '';
+    try {
+      const r = shQuiet('git', ['-C', REPO_DIR, 'log', '--pretty=%h|%s',
+        `${ctx.oldSha}..${ctx.newSha}`]);
+      log = r.stdout || '';
+    } catch {}
+    const commits = log.trim().split('\n').filter(Boolean).map((line) => {
+      const idx = line.indexOf('|');
+      return {sha: line.slice(0, idx), subject: line.slice(idx + 1)};
+    });
+    if (commits.length > 0) {
+      // Group by conventional-commit type. Subject pattern: `type(scope): msg`
+      // or `type: msg`. Anything not matching → 'other'.
+      const groups = {feat: [], fix: [], docs: [], chore: [], other: []};
+      const re = /^(feat|fix|docs|chore|refactor|perf|test|build|ci|style)(\([^)]+\))?!?:\s*(.+)$/i;
+      for (const c of commits) {
+        const m = re.exec(c.subject);
+        if (m) {
+          const type = m[1].toLowerCase();
+          const bucket = (type === 'feat' || type === 'fix' || type === 'docs') ? type : 'chore';
+          groups[bucket].push({sha: c.sha, msg: c.subject});
+        } else {
+          groups.other.push({sha: c.sha, msg: c.subject});
+        }
+      }
+      const counts = [];
+      if (groups.feat.length)  counts.push(`${groups.feat.length} feat`);
+      if (groups.fix.length)   counts.push(`${groups.fix.length} fix`);
+      if (groups.docs.length)  counts.push(`${groups.docs.length} docs`);
+      if (groups.chore.length) counts.push(`${groups.chore.length} chore`);
+      if (groups.other.length) counts.push(`${groups.other.length} other`);
+      lines.push(`${C.gray}${commits.length} commit mới${counts.length ? ` (${counts.join(', ')})` : ''}:${C.reset}`);
+
+      // Render up to 8 commits, prioritized by impact (feat > fix > docs > chore > other).
+      const ordered = [...groups.feat, ...groups.fix, ...groups.docs, ...groups.chore, ...groups.other];
+      const SHOW = 8;
+      const truncate = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+      for (const c of ordered.slice(0, SHOW)) {
+        lines.push(`  ${C.gray}•${C.reset} ${truncate(c.msg, 72)}`);
+      }
+      if (ordered.length > SHOW) {
+        lines.push(`  ${C.gray}… và ${ordered.length - SHOW} commit khác (xem ${C.reset}ai-kit doc decision-log${C.gray})${C.reset}`);
+      }
+    }
+  } else if (ctx && ctx.oldSha && ctx.newSha && ctx.oldSha === ctx.newSha) {
+    lines.push(`${C.gray}Đã ở phiên bản mới nhất — không có commit nào thêm.${C.reset}`);
+  }
+
+  lines.push(`${C.gray}Repo + CLI + agents/skills + MCP image đã sẵn sàng${C.reset}`);
+  return lines.join('\n');
 };
 
 // ─── mcp <verb> ────────────────────────────────────────────────────────
