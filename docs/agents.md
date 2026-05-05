@@ -22,6 +22,8 @@ Trang này giúp anh/chị biết **agent nào làm gì, khi nào được dispa
 - **8 strategic + doc-line agents** (Luồng B — Tài liệu nhà nước) — Đề án CĐS, NCKT, HSMT/HSDT
 - **25 agents phụ trợ** (Class A/B/C/D) — orchestrator, validator, merger, snapshot…
 
+> **`/from-idea` (Luồng C — greenfield brainstorm)** không tạo agent mới — reuse `intel-validator` (mandatory Phase 5), `intel-merger` (conditional), `policy-researcher` (optional VN gov DEDUP). Chi tiết: section 3.3.
+
 ---
 
 ## 2. Bốn nguyên tắc cốt lõi (đọc 1 lần, áp dụng mãi)
@@ -75,7 +77,29 @@ Chi tiết từng agent (Vai trò · Trigger · OWN · FORBID · ví dụ output
 | `tdoc-testcase-writer` | `/generate-docs` | Block `test_cases.*` (xlsx) |
 | `tdoc-manual-writer` | `/generate-docs` | Block `services[].features[]` (HDSD) |
 
-### 3.3 Class A/B/C/D — Phụ trợ
+### 3.3 Agents cho `/from-idea` (Luồng C — greenfield brainstorm)
+
+`/from-idea` là Class C orchestrator chạy 4 spirals + Phase 4.5 + crystallize chủ yếu trong main thread (Claude). Skill **không tạo agent mới** — reuse existing agents:
+
+| Agent | Phase trong /from-idea | Vai trò | Bắt buộc? |
+|---|---|---|---|
+| Main thread (Claude) | 0–6 | Driver: dẫn 4 spirals, phỏng vấn, synthesize artifacts, write files | ✅ luôn |
+| `intel-validator` | Phase 5 (crystallize) | Schema validation + cross-FK integrity (role ↔ permission ↔ sitemap ↔ feature-catalog) | ✅ mandatory |
+| `intel-merger` | Phase 5 (conditional) | Khi target artifact đã có producer khác (vd `from-doc` chạy trước) → merge thay vì overwrite | ⚠️ conditional |
+| `policy-researcher` | Spiral 2 DEDUP gate | Tra cứu nền tảng quốc gia VN (NDXP/LGSP/CSDLQG/VNeID) — chỉ khi user opt-in (project nhà nước) | 🟡 optional |
+
+MCP touchpoints (etc-platform):
+- `intel_cache_lookup` (Phase 0 warm-start — actor-pattern + feature-archetype seeds)
+- `kb_query` + `dedup_check` + `dedup_register` (Spiral 2 DEDUP)
+- `intel_cache_contribute` (Phase 6 with consent + PII pre-redact)
+
+Bash scripts:
+- `meta_helper.py update` (Phase 5 — sau mỗi artifact write, mandatory)
+- `intel-snapshot/generate.py` (Phase 5 — Cursor Rule 24)
+
+So với `/from-code` (dispatch nhiều `tdoc-*` agents song song): `/from-idea` lightweight hơn — chỉ 1 mandatory sub-agent + 2 conditional. Lý do: idea-side ít data hơn code-side, main thread interview là path tối ưu nhất.
+
+### 3.4 Class A/B/C/D — Phụ trợ
 
 `orchestrator`, `validator`, `merger`, `snapshot`, … — chạy ngầm cho intel pipeline. Member không trực tiếp gọi.
 

@@ -175,6 +175,90 @@ ai-kit clean --keep 1   # giữ 1 backup gần nhất + docker prune
 
 ---
 
+## Workflow errors — `/from-idea` (Luồng C — greenfield brainstorm)
+
+### "Phase 4.5 pre-mortem mandatory, không cho skip"
+**Nguyên nhân**: Pre-mortem là mandatory by design (chống optimism bias).
+
+**Fix**:
+- Trả lời 3 failure modes + 3 success pathways (mỗi cái 1-2 câu là đủ)
+- Nếu thực sự muốn skip: chạy với flag `--skip-premortem` — sẽ logged + audit + flag mọi feature `[CẦN BỔ SUNG: pre-mortem skipped]` trong `feature-catalog.features[].risks[]`
+- Default behavior: KHÔNG skip — đó là cheapest critical-thinking pass break optimism bias
+
+### "DEDUP REJECT verdict trên >50% deliverables"
+**Nguyên nhân**: Spiral 2 Impact Mapping phát hiện phần lớn deliverables trùng với nền tảng dùng chung quốc gia (NDXP/LGSP/CSDLQG/VNeID hoặc industry SaaS).
+
+**Fix**:
+- Skill auto-STOP với recommend "scope quá overlap với shared platforms"
+- 2 lựa chọn: (a) Rewrite scope — focus vào unique value-add; (b) Restart với scope hẹp hơn
+- Tham khảo `_idea/dedup-report.md` để xem deliverables nào REJECT + ecosystem_ref nào trùng
+
+### "Pre-mortem: > 50% failure modes unmitigated severity ≥ medium"
+**Nguyên nhân**: Phase 4.5 pre-mortem cho thấy phần lớn failure modes không có mitigation đủ mạnh — kế hoạch quá optimistic.
+
+**Fix**:
+- Skill warn → user chọn: (a) Rewind to Spiral 4 (giảm scope MVP, exposure ít hơn); (b) Rewind to Spiral 2 (rethink deliverables); (c) Accept high-risk profile (logged trong `feature-catalog._meta.warnings`)
+- Recommend (a) nếu MVP có nhiều must-have rủi ro
+- Recommend (c) chỉ khi user thật sự đã chấp nhận risk + có plan mitigation post-MVP
+
+### "[CẦN BỔ SUNG] > 30% fields"
+**Nguyên nhân**: User chưa có đủ thông tin nền (chưa nói chuyện với stakeholder, chưa research market, chưa biết tech constraints).
+
+**Fix**:
+- Skill recommend offline clarification: pause `/from-idea`, gather data (user research, competitive analysis, stakeholder interview), resume sau
+- State đã save trong `_pipeline-state.json` — Phase 0.0 Resume Detection sẽ tự detect lần sau
+- KHÔNG nên cố push qua placeholders — output sẽ kém chất lượng
+
+### "Iteration > 2 trong 1 spiral — stuck hoặc decision fatigue"
+**Nguyên nhân**: User đã refine spiral N lần thứ 3 mà chưa converge.
+
+**Fix**:
+- Skill auto-trigger force-decision menu: (a) Confirm-with-gaps (accept current state với `[CẦN BỔ SUNG]` markers); (b) Cancel session (save state, resume sau khi nghĩ thêm); (c) Continue-with-warning (vòng N+1 nhưng cảnh báo kéo dài thường = câu hỏi sai / thiếu evidence / decision fatigue)
+- Recommend (b) nếu cảm thấy mệt — brainstorm dài hơi cần break
+- Recommend (a) nếu đã đủ chốt cho bước tiếp
+
+### "Scope creep ratio > 3 (must_have / win_conditions)"
+**Nguyên nhân**: PRFAQ định nghĩa N win conditions, story map có > 3N must-have features → MVP quá rộng.
+
+**Fix**:
+- Tại Gate G4 Spiral 4, skill cảnh báo: "MVP có vẻ rộng — confirm chứ?"
+- 2 lựa chọn: (a) Demote bớt features từ must-have xuống should-have; (b) Accept với explicit rationale logged trong `_idea/coherence-log.md`
+- Recommend (a) — MVP càng nhỏ càng dễ ship + validate vision
+
+### "Coherence flag — feature/story conflicts với prior decision"
+**Nguyên nhân**: Inter-spiral semantic compare (G3, G4) hoặc Phase 5 audit phát hiện mâu thuẫn (vd Spiral 4 feature contradicts Spiral 1 PRFAQ assumption A2).
+
+**Fix**:
+- Reconciliation menu 3 paths: (a) Edit Source A — rewind to prior spiral để fix; (b) Edit Source B — fix current spiral để align; (c) Accept conflict với explicit caveat trong `_idea/coherence-log.md`
+- Caveat propagate vào `feature-catalog.features[].coherence_notes[]` cho traceability
+- KHÔNG để conflict pass silently
+
+### "Cursor SDLC ba/sa thiếu context dù đã đọc feature-brief.md"
+**Nguyên nhân**: Feature-brief đã enrich (v0.27) nhưng có thể vẫn thiếu deep rationale cho 1 số case (vd dedup verdict đầy đủ, story-mapping priority history).
+
+**Fix**:
+- Stage agent có thể **lazy-read** `_idea/*.md` qua "Source Spirals" pointers trong feature-brief.md
+- Vd ba muốn xem dedup verdict đầy đủ → đọc `_idea/dedup-report.md` § entry cho deliverable này
+- Đó là explicit traversal (không default), tránh bloat token
+
+### "Idea graveyard — muốn revive ý tưởng đã loại"
+**Nguyên nhân**: Sau brainstorm context đổi, ý tưởng từng REJECTed có thể relevant lại.
+
+**Fix**:
+- Manual: `/from-idea --resurrect G-NNN`
+- Auto-detect: nếu user mention idea name match graveyard entry, skill prompt confirm
+- Lưu ý: nếu original verdict là DEDUP-REJECT → re-run DEDUP (verdict có thể đã đổi do KB updates)
+
+### "Resume sau >7 ngày — không nhớ vision"
+**Nguyên nhân**: Brainstorm dài hơi, user quay lại sau 1+ tuần thường mất context.
+
+**Fix**:
+- Phase 0.0 Resume Detection auto-trigger "vision-check" mode khi gap > 7 days
+- Skill render full PRFAQ + decisions[].active + idea-graveyard count → ask "Bạn còn solid với vision không?"
+- 3 lựa chọn: (a) Vẫn solid → Resume từ Spiral N; (b) Có điều chỉnh nhỏ → Rewind to Spiral 1 sửa PRFAQ; (c) Đổi ý hoàn toàn → Restart fresh (backup .bak/)
+
+---
+
 ## Dọn dẹp hoàn toàn
 
 ```bash
