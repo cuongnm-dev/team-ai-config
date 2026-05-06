@@ -217,6 +217,318 @@ IF no flag → continue to Step 1 (normal Resume Protocol)
 
 ---
 
+## Step 0.5 — Refinement modes (incremental post-completion improvements)
+
+**Purpose**: After initial `/from-doc` completes, real-world workflow needs continued refinement: deeper extraction, supplemental inputs, targeted re-extraction, decomposition rework, full rollback. These modes apply ONLY when `state.current_step == "complete"` OR explicit override.
+
+**Recognized refinement flags** (mutually exclusive — pick one per invocation):
+
+| Flag | Mode | Effect |
+|---|---|---|
+| `--deepen [--focus {area}]` | DEEPEN | Re-run Step 3 with enriched system prompt for depth + gap detection. Preserves locked_fields. |
+| `--add-input <file>` | ADD-INPUT | Incremental ingest single new file. Diff-merge to existing intel with conflict resolution. |
+| `--reextract <file>` | REEXTRACT-FILE | Invalidate intel derived from `<file>` (lineage), re-extract from updated content. |
+| `--reextract --module M-NNN` | REEXTRACT-MODULE | Targeted re-extraction of features under M-NNN only. |
+| `--redecompose` | REDECOMPOSE | Re-run Step 5d (module decomposition) from existing doc-brief. Show diff before mutate. |
+| `--rollback [--to {ISO}]` | ROLLBACK | Restore intel + modules + state from backup (default: most recent). |
+
+**Backup retention**: rotate to keep most-recent N=5 timestamped backups (`_pipeline-state.json.bak.{ISO}` + `docs/intel/.bak/{ISO}/`). Older backups pruned automatically. All-time history preserved via git (recommend commit before refinement runs).
+
+**Locked fields enforcement** (CD-10 #3): every refinement mode MUST honor `_meta.json.artifacts[file].locked_fields[]` — manual user edits in feature-catalog/business-context/etc. NEVER overwritten. If conflict, surface to user [k]eep-locked / [u]nlock-and-update.
+
+**Lineage tracking**: `_meta.json.artifacts[file].source_lineage` records `{source_file, extracted_at, extracted_by}` — used by REEXTRACT to compute invalidation scope.
+
+---
+
+### MODE: DEEPEN (`--deepen [--focus {area}]`)
+
+```
+IF --deepen present:
+  IF state.steps.3.status != "done":
+    STOP "Cannot deepen — Step 3 not yet completed. Run /from-doc first."
+    EXIT
+
+  # Backup with rotation
+  rotate_backups N=5
+  cp -r docs/intel/ docs/intel/.bak/{ISO}/
+  cp _pipeline-state.json _pipeline-state.json.bak.{ISO}
+
+  # Read current intel + locked fields
+  current_doc_brief = Read docs/intel/doc-brief.md
+  locked_fields = read _meta.json.artifacts.doc-brief.locked_fields[]
+
+  # Re-run Step 3 (full re-extract) with DEEPEN system prompt
+  focus_clause = --focus value (PII | security | integration | NFR | ...) OR ""
+  Spawn doc-intel agent with system prompt:
+    "DEEPEN MODE — you have produced doc-brief.md previously. Re-read all inputs in {input_files}.
+     Goals (in priority order):
+       1. Find missing edge cases, exception flows, error states not in current doc-brief
+       2. Add depth to existing entries: more business rules, more acceptance criteria, more entity relationships
+       3. {IF focus} Pay special attention to {focus} dimension — surface every detail
+       4. Identify gaps: contradictions between source files, ambiguities, undefined terms
+     PRESERVE: do NOT remove existing entries. Append/enrich only.
+     LOCKED: these fields MUST NOT be modified: {locked_fields list}
+     Output: new doc-brief.md (full content, including preserved + new)."
+
+  # Validate output
+  IF new doc-brief covers strictly less features than current → reject as regression, restore backup
+  IF locked field modified → reject, surface diff, ask user [k]eep-old-locked / [u]pdate
+
+  # Apply
+  Write docs/intel/doc-brief.md
+  Update _meta.json.artifacts.doc-brief.deepen_iterations += 1
+  Reset state.steps.5.status = "pending" (downstream needs re-run with deeper data)
+  state.steps.5h.status = "pending"
+  state.steps.5i.status = "pending"
+  state.steps.6.status = "pending"
+  state.current_step = "5"
+
+  Print: "✅ DEEPEN complete. doc-brief.md enriched (iter {N}, {M} new entries / {K} enriched).
+          Re-run /from-doc to populate downstream artifacts (Step 5 → 6)."
+  EXIT
+```
+
+---
+
+### MODE: ADD-INPUT (`--add-input <file>`)
+
+```
+IF --add-input <file> present:
+  # Validate
+  IF NOT exists(file): STOP "File not found: {file}"
+  IF file IN state.config.input_files: STOP "Already ingested. Use --reextract instead."
+  IF state.steps.3.status != "done": STOP "Run /from-doc first before --add-input"
+
+  # Backup
+  rotate_backups N=5
+  cp -r docs/intel/ docs/intel/.bak/{ISO}/
+
+  # Add file to config
+  state.config.input_files.append(file)
+
+  # Extract fragment from new file ONLY
+  Spawn doc-intel agent with system prompt:
+    "EXTRACT-FRAGMENT MODE — extract feature/module/rule/actor entries from {file} ONLY.
+     Output: doc-brief-fragment.md (same schema as full doc-brief).
+     Do NOT read other inputs. Goal: isolate what {file} adds."
+  Write docs/intel/.tmp/doc-brief-fragment.md
+
+  # Diff fragment vs existing doc-brief.md
+  Compute classification per fragment entry:
+    - NEW: entry not in existing doc-brief → safe to append
+    - COMPATIBLE: entry refines existing without contradiction → propose merge
+    - CONFLICT: entry contradicts existing (different AC, different actor, different rule) → require user
+
+  Print summary:
+    "Fragment from {file}: {N_new} new / {N_compat} compatible / {N_conflict} conflicts"
+
+  # Per-conflict interactive resolution (Q2 = interactive)
+  FOR each conflict:
+    Display side-by-side: existing entry vs fragment entry, highlighted diff
+    Ask user:
+      [k] Keep existing (discard fragment)
+      [n] Keep new (override existing — note: respect locked_fields)
+      [m] Manual merge (open editor — user composes resolution)
+      [s] Skip (defer — surface in report)
+    Apply choice
+    Append decision to _meta.json.artifacts.doc-brief.conflict_log[]
+
+  # Apply NEW + COMPATIBLE + resolved CONFLICTs
+  Merge fragment into doc-brief.md (preserve locked_fields)
+  Update _meta.json.artifacts.doc-brief.source_lineage += {file, ISO, doc-intel}
+  Reset state.steps.5h.status = "pending" (gate revalidate downstream)
+
+  Print: "✅ ADD-INPUT done. {N} entries merged from {file}.
+          {N_skip} conflicts deferred to conflict_log[].
+          Re-run /from-doc to revalidate Step 5h gate."
+  EXIT
+```
+
+---
+
+### MODE: REEXTRACT (`--reextract <file>` OR `--reextract --module M-NNN`)
+
+```
+IF --reextract <file> present (no --module):
+  IF NOT exists(file): STOP
+  IF file NOT IN state.config.input_files: STOP "File not in lineage. Use --add-input."
+
+  # Backup
+  rotate_backups N=5
+  cp -r docs/intel/ docs/intel/.bak/{ISO}/
+
+  # Compute invalidation scope from lineage
+  invalidated = entries in doc-brief.md / feature-catalog.json / etc.
+                where _meta.source_lineage matches file
+  Print: "Re-extract {file} will invalidate {N} entries (preserving locked_fields)"
+  AskUserQuestion: "[c]ontinue / [a]bort"
+
+  # Re-extract from updated file
+  Spawn doc-intel agent with system prompt:
+    "REEXTRACT MODE — file {file} has been updated. Re-extract entries from THIS FILE ONLY.
+     Existing entries derived from {file} will be replaced (except locked_fields).
+     Output: doc-brief-fragment.md restricted to {file}."
+
+  # Replace invalidated entries with new fragment, preserving locked_fields
+  Update doc-brief.md
+  Update _meta.json: lineage entry updated, sha256 of file refreshed
+  Reset state.steps.5.status = "pending"
+
+  Print: "✅ REEXTRACT {file} done. {N} entries replaced. Re-run /from-doc Step 5."
+  EXIT
+
+ELIF --reextract --module M-NNN:
+  IF NOT exists module-catalog entry M-NNN: STOP
+
+  rotate_backups N=5
+  cp -r docs/intel/ docs/intel/.bak/{ISO}/
+
+  # Identify input sections relevant to M-NNN
+  module_entry = read module-catalog.json[M-NNN]
+  source_sections = sections in inputs that mention M-NNN modules/keywords (heuristic)
+
+  # Re-extract focused on M-NNN
+  Spawn doc-intel with prompt:
+    "TARGETED REEXTRACT — focus on module {M-NNN}: {module.name} ({module.business_goal}).
+     Read inputs but extract ONLY features/rules/entities relevant to this module's scope.
+     Append depth to existing M-NNN entries (preserve locked_fields)."
+
+  # Replace M-NNN-related entries in doc-brief + feature-catalog
+  Update artifacts (locked-aware)
+  Reset state.steps.5g.status = "pending" (re-scaffold features for this module)
+
+  Print: "✅ REEXTRACT module {M-NNN} done. {N} features enriched. Re-run /from-doc to re-scaffold."
+  EXIT
+```
+
+---
+
+### MODE: REDECOMPOSE (`--redecompose`)
+
+```
+IF --redecompose present:
+  IF state.steps.5.status != "done": STOP "No existing decomposition to compare against."
+
+  rotate_backups N=5
+  cp -r docs/intel/ docs/intel/.bak/{ISO}/
+  cp -r docs/modules/ docs/modules/.bak/{ISO}/
+
+  # Read current modules
+  current_modules = module-catalog.json.modules[]
+
+  # Re-run Step 5d ONLY with current doc-brief
+  Spawn from-doc Step 5d procedure (decompose modules into pipelines)
+  → produces proposed_modules[]
+
+  # Show diff
+  Print:
+    "MODULE DECOMPOSITION DIFF:
+     Current ({N} modules): {ids list}
+     Proposed ({M} modules): {ids list}
+
+     Added:    {new_ids}
+     Removed:  {removed_ids}
+     Renamed:  {old_id → new_id pairs}
+     Merged:   {old_ids → new_id}
+     Split:    {old_id → new_ids[]}
+    "
+  AskUserQuestion: "[a]pply / [c]ancel / [s]elective (per-change confirm)"
+
+  IF apply:
+    Wipe docs/modules/ (already backed up)
+    Reset module-catalog.json + module-map.yaml to empty
+    Re-run Step 5d → 5g (scaffold modules + features)
+    Reset state.steps.5h+ = "pending"
+
+  IF selective:
+    FOR each diff item: ask [y]/[n], apply incrementally
+
+  Print: "✅ REDECOMPOSE done. {N} modules now in catalog. Re-run /from-doc Step 5h."
+  EXIT
+```
+
+---
+
+### MODE: ROLLBACK (`--rollback [--to {ISO}]`)
+
+```
+IF --rollback present:
+  # List backups
+  backups = sorted glob `_pipeline-state.json.bak.*` desc
+  intel_backups = sorted glob `docs/intel/.bak/*/` desc
+  module_backups = sorted glob `docs/modules/.bak/*/` desc
+
+  IF empty backups: STOP "No backups available."
+
+  IF --to {ISO} specified:
+    target_iso = {ISO}
+    Verify all 3 backup types exist for target_iso → else STOP "Incomplete backup at {ISO}"
+  ELSE:
+    target_iso = backups[0]    # most recent
+    Print available backups (top 5):
+      "Available backups (most recent first):
+         1. {ISO_1} — current_step at backup: {step}, modules: {N}, features: {M}
+         2. {ISO_2} — ...
+         ...
+       Default: rollback to {ISO_1} ({backup_age})"
+    AskUserQuestion: "[1-5] pick / [a]bort"
+
+  # Show what will be restored
+  Print:
+    "ROLLBACK to {target_iso} will restore:
+       - docs/intel/_pipeline-state.json
+       - docs/intel/*.json + *.md (entire intel layer)
+       - docs/modules/ (entire scaffold tree)
+       - module-catalog.json + module-map.yaml + feature-catalog.json + feature-map.yaml
+     CURRENT state will be moved to docs/intel/.bak/{NEW_ISO}/ before restore (so rollback is itself reversible).
+     User-edited input files in docs/inputs/ are NOT touched."
+
+  # Confirmation phrase
+  Print: "Type 'CONFIRM ROLLBACK' to proceed: ▌"
+  IF user types exactly:
+    # Snapshot current state (so rollback is reversible)
+    rotate_backups N=5
+    cp -r docs/intel/ docs/intel/.bak/{NEW_ISO}-pre-rollback/
+    cp -r docs/modules/ docs/modules/.bak/{NEW_ISO}-pre-rollback/
+
+    # Restore atomically
+    rm -rf docs/intel/* (except .bak/)
+    cp -r docs/intel/.bak/{target_iso}/* docs/intel/
+    rm -rf docs/modules/*
+    cp -r docs/modules/.bak/{target_iso}/* docs/modules/
+    cp _pipeline-state.json.bak.{target_iso} _pipeline-state.json
+
+    Print: "✅ Rolled back to {target_iso}. Pre-rollback state preserved at .bak/{NEW_ISO}-pre-rollback/."
+  ELSE:
+    Print: "Cancelled."
+  EXIT
+```
+
+---
+
+### Backup rotation helper (used by all modes)
+
+```
+function rotate_backups(N=5):
+  # State backups
+  state_baks = sorted glob `_pipeline-state.json.bak.*` desc
+  IF len > N: rm state_baks[N:]   # keep N most recent
+
+  # Intel backups
+  intel_baks = sorted glob `docs/intel/.bak/*/` desc
+  IF len > N: rm -rf intel_baks[N:]
+
+  # Module backups
+  mod_baks = sorted glob `docs/modules/.bak/*/` desc
+  IF len > N: rm -rf mod_baks[N:]
+
+  Print: "Backup rotation: keeping {N} most recent (oldest pruned: {pruned_count})"
+```
+
+Recommend user `git commit` before refinement runs — git provides all-time history beyond rotation window.
+
+---
+
 ## Step 1 — Preflight + Inputs
 
 **Pre**: nothing
