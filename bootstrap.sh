@@ -159,14 +159,93 @@ if [ "${#MISSING[@]}" -gt 0 ]; then
   fi
 fi
 
+# ─── resolve clone URL with access token (private repo support) ───────
+# Repo team-ai-config is private. Anonymous clone fails — probe first, then
+# prompt for member-issued PAT and embed into URL. Token saved to
+# $AI_KIT_HOME/.access-token (chmod 600) so subsequent `ai-kit update`
+# reuses without re-prompting.
+ACCESS_TOKEN_FILE="$AI_KIT_HOME/.access-token"
+
+save_access_token() {
+  mkdir -p "$AI_KIT_HOME"
+  printf '%s' "$1" > "$ACCESS_TOKEN_FILE"
+  chmod 600 "$ACCESS_TOKEN_FILE"
+}
+
+resolve_clone_url() {
+  local base_url="$1"
+
+  # Probe anonymous access first (skip prompt if repo is public).
+  if git ls-remote --exit-code "$base_url" HEAD >/dev/null 2>&1; then
+    echo "$base_url"
+    return 0
+  fi
+
+  # Reuse saved token if available.
+  local existing=''
+  if [ -f "$ACCESS_TOKEN_FILE" ]; then
+    existing="$(tr -d '[:space:]' < "$ACCESS_TOKEN_FILE")"
+  fi
+  if [ -n "$existing" ]; then
+    local clean_url token_url
+    clean_url="$(echo "$base_url" | sed -E 's#https://[^@]+@#https://#')"
+    token_url="${clean_url/https:\/\//https://${existing}@}"
+    if git ls-remote --exit-code "$token_url" HEAD >/dev/null 2>&1; then
+      echo "$token_url"
+      return 0
+    fi
+    warn 'Saved access key không hợp lệ nữa (revoked/expired) — sẽ hỏi key mới.'
+    rm -f "$ACCESS_TOKEN_FILE"
+  fi
+
+  # Prompt for new token.
+  echo "" >&2
+  echo "┌─ 🔑 Xác thực ─────────────────────────────────────────────────" >&2
+  echo "│" >&2
+  echo "│  Bộ ai-kit là kho riêng tư." >&2
+  echo "│  Liên hệ maintainer để nhận access key của bạn." >&2
+  echo "│" >&2
+  echo "└──────────────────────────────────────────────────────────────" >&2
+  echo "" >&2
+  printf 'Xin hãy điền access key: ' >&2
+  read -r token
+  token="$(echo "$token" | tr -d '[:space:]')"
+  if [ -z "$token" ]; then
+    err 'Không có access key — huỷ.'
+    exit 1
+  fi
+
+  local clean_url test_url
+  clean_url="$(echo "$base_url" | sed -E 's#https://[^@]+@#https://#')"
+  test_url="${clean_url/https:\/\//https://${token}@}"
+  if ! git ls-remote --exit-code "$test_url" HEAD >/dev/null 2>&1; then
+    err 'Access key không hợp lệ hoặc không có quyền truy cập. Kiểm tra lại với maintainer.'
+    exit 1
+  fi
+
+  save_access_token "$token"
+  ok "Access key hợp lệ — đã lưu tại $ACCESS_TOKEN_FILE" >&2
+  echo "$test_url"
+}
+
 # ─── clone / refresh repo ──────────────────────────────────────────────
 mkdir -p "$AI_KIT_HOME"
 if [ -d "$REPO_DIR/.git" ]; then
   info "Existing repo at $REPO_DIR — pulling latest"
+  # Refresh remote URL with token if needed (handles public→private transition).
+  EXISTING_REMOTE="$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null || echo '')"
+  if [ -n "$EXISTING_REMOTE" ] && [[ "$EXISTING_REMOTE" != *"@github.com"* ]] && [ -f "$ACCESS_TOKEN_FILE" ]; then
+    SAVED_TOKEN="$(tr -d '[:space:]' < "$ACCESS_TOKEN_FILE")"
+    if [ -n "$SAVED_TOKEN" ]; then
+      NEW_REMOTE="${EXISTING_REMOTE/https:\/\//https://${SAVED_TOKEN}@}"
+      git -C "$REPO_DIR" remote set-url origin "$NEW_REMOTE" >/dev/null 2>&1 || true
+    fi
+  fi
   git -C "$REPO_DIR" pull --ff-only --quiet
 else
-  info "Cloning team-ai-config to $REPO_DIR"
-  git clone --quiet "$REPO_URL" "$REPO_DIR"
+  EFFECTIVE_URL="$(resolve_clone_url "$REPO_URL")"
+  info "Cloning ai-kit to $REPO_DIR"
+  git clone --quiet "$EFFECTIVE_URL" "$REPO_DIR"
 fi
 ok "Repo at $(git -C "$REPO_DIR" rev-parse --short HEAD)"
 

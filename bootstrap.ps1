@@ -122,15 +122,100 @@ if ($missing.Count -gt 0) {
   }
 }
 
+# ─── Resolve clone URL with access token (private repo support) ────────
+# Repo team-ai-config is private. Anonymous clone fails — probe first, then
+# prompt for member-issued PAT and embed into URL. Token saved to
+# $AiKitHome/.access-token (mode 0600 equivalent on Windows ACL) so subsequent
+# `ai-kit update` reuses without re-prompting.
+$AccessTokenFile = Join-Path $AiKitHome '.access-token'
+
+function Save-AccessToken($token) {
+  New-Item -ItemType Directory -Path $AiKitHome -Force | Out-Null
+  Set-Content -Path $AccessTokenFile -Value $token.Trim() -Encoding ASCII -NoNewline
+  # Restrict ACL to current user only (Windows equivalent of chmod 600).
+  try {
+    $acl = Get-Acl $AccessTokenFile
+    $acl.SetAccessRuleProtection($true, $false)
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+      $env:USERNAME, 'FullControl', 'Allow'
+    )
+    $acl.SetAccessRule($rule)
+    Set-Acl -Path $AccessTokenFile -AclObject $acl
+  } catch {
+    Write-Host "  ! Không set được ACL trên $AccessTokenFile — file vẫn hoạt động." -ForegroundColor Yellow
+  }
+}
+
+function Resolve-CloneUrl {
+  param([string] $BaseUrl)
+
+  # Probe anonymous access first (skip prompt if repo is public).
+  & git ls-remote --exit-code $BaseUrl HEAD *> $null
+  if ($LASTEXITCODE -eq 0) { return $BaseUrl }
+
+  # Reuse saved token if available.
+  $existing = $null
+  if (Test-Path $AccessTokenFile) {
+    $existing = (Get-Content -Raw $AccessTokenFile).Trim()
+  }
+
+  if ($existing) {
+    $cleanUrl = $BaseUrl -replace 'https://[^@]+@', 'https://'
+    $tokenUrl = $cleanUrl -replace 'https://', "https://$existing@"
+    & git ls-remote --exit-code $tokenUrl HEAD *> $null
+    if ($LASTEXITCODE -eq 0) { return $tokenUrl }
+    Write-Host "  ! Saved access key không hợp lệ nữa (revoked/expired) — sẽ hỏi key mới." -ForegroundColor Yellow
+    Remove-Item -Force $AccessTokenFile -ErrorAction SilentlyContinue
+  }
+
+  # Prompt for new token.
+  Write-Host ''
+  Write-Host '┌─ 🔑 Xác thực ─────────────────────────────────────────────────' -ForegroundColor Yellow
+  Write-Host '│' -ForegroundColor Yellow
+  Write-Host '│  Bộ ai-kit là kho riêng tư.' -ForegroundColor Yellow
+  Write-Host '│  Liên hệ maintainer để nhận access key của bạn.' -ForegroundColor DarkGray
+  Write-Host '│' -ForegroundColor Yellow
+  Write-Host '└──────────────────────────────────────────────────────────────' -ForegroundColor Yellow
+  Write-Host ''
+
+  $token = (Read-Host 'Xin hãy điền access key').Trim()
+  if (-not $token) {
+    Write-Err 'Không có access key — huỷ.'
+    exit 1
+  }
+
+  $cleanUrl = $BaseUrl -replace 'https://[^@]+@', 'https://'
+  $testUrl  = $cleanUrl -replace 'https://', "https://$token@"
+  & git ls-remote --exit-code $testUrl HEAD *> $null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Err 'Access key không hợp lệ hoặc không có quyền truy cập. Kiểm tra lại với maintainer.'
+    exit 1
+  }
+
+  Save-AccessToken $token
+  Write-Ok "Access key hợp lệ — đã lưu tại $AccessTokenFile"
+  return $testUrl
+}
+
 # Clone or update
 New-Item -ItemType Directory -Path $AiKitHome -Force | Out-Null
 if (Test-Path (Join-Path $RepoDir '.git')) {
   Write-Info "Existing repo at $RepoDir — pulling latest"
   Resolve-DirtyRepo -Path $RepoDir
-  Invoke-GitChecked -Args @('-C', $RepoDir, 'pull', '--ff-only', '--quiet') -ErrorMessage "Failed to pull latest team-ai-config"
+  # Refresh remote URL with token if needed (handles public→private transition).
+  $existingRemote = (& git -C $RepoDir remote get-url origin).Trim()
+  if ($existingRemote -notmatch 'https://[^@]+@' -and (Test-Path $AccessTokenFile)) {
+    $tok = (Get-Content -Raw $AccessTokenFile).Trim()
+    if ($tok) {
+      $newRemote = $existingRemote -replace 'https://', "https://$tok@"
+      & git -C $RepoDir remote set-url origin $newRemote *> $null
+    }
+  }
+  Invoke-GitChecked -Args @('-C', $RepoDir, 'pull', '--ff-only', '--quiet') -ErrorMessage "Failed to pull latest ai-kit"
 } else {
-  Write-Info "Cloning team-ai-config to $RepoDir"
-  Invoke-GitChecked -Args @('clone', '--quiet', $RepoUrl, $RepoDir) -ErrorMessage "Failed to clone team-ai-config"
+  $effectiveUrl = Resolve-CloneUrl -BaseUrl $RepoUrl
+  Write-Info "Cloning ai-kit to $RepoDir"
+  Invoke-GitChecked -Args @('clone', '--quiet', $effectiveUrl, $RepoDir) -ErrorMessage "Failed to clone ai-kit"
 }
 $sha = (& git -C $RepoDir rev-parse --short HEAD).Trim()
 if ($LASTEXITCODE -ne 0) {

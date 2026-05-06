@@ -18,19 +18,19 @@ import path from 'node:path';
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import cursorCsv from './lib/telemetry/cursor-csv.mjs';
 import {
-    bar,
-    classifyError,
-    costOf,
-    fmtInt,
-    fmtN,
-    fmtPct,
-    fmtUsd,
-    padL,
-    padR,
-    parseSince,
-    sparkline,
-    suggestCommand,
-    vlen
+  bar,
+  classifyError,
+  costOf,
+  fmtInt,
+  fmtN,
+  fmtPct,
+  fmtUsd,
+  padL,
+  padR,
+  parseSince,
+  sparkline,
+  suggestCommand,
+  vlen
 } from './lib/util.mjs';
 
 const _pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -41,7 +41,10 @@ const AI_KIT_HOME = process.env.AI_KIT_HOME || path.join(os.homedir(), '.ai-kit'
 // hide from menu/help unless AI_KIT_MAINTAINER=1 or ~/.ai-kit/.maintainer touched.
 const IS_MAINTAINER = process.env.AI_KIT_MAINTAINER === '1' ||
   fs.existsSync(path.join(AI_KIT_HOME, '.maintainer'));
-const MAINTAINER_COMMANDS = new Set(['pack', 'publish', 'diff', 'edit', 'reset']);
+// Maintainer-only commands — also includes rollback/list-backups/clean: member's
+// machine is strict-overwrite (no snapshot, no rollback path) so these commands
+// are gated to maintainer too.
+const MAINTAINER_COMMANDS = new Set(['pack', 'publish', 'diff', 'edit', 'reset', 'issue-token', 'rollback', 'list-backups', 'clean']);
 const REPO_DIR = path.join(AI_KIT_HOME, 'team-ai-config');
 const BIN_DIR = path.join(AI_KIT_HOME, 'bin');
 const UPDATE_CACHE = path.join(AI_KIT_HOME, '.update-check');
@@ -156,7 +159,7 @@ if (USE_COLOR) marked.use({
 const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
 const ensureRepo = () => {
   if (!exists(path.join(REPO_DIR, '.git'))) {
-    console.error(`${_a('\x1b[31m')}  ✗ team-ai-config not found at ${REPO_DIR}${_a('\x1b[0m')}`);
+    console.error(`${_a('\x1b[31m')}  ✗ ai-kit chưa cài đặt (không tìm thấy ${REPO_DIR})${_a('\x1b[0m')}`);
     console.error(`${_a('\x1b[31m')}  ✗ Run bootstrap: irm .../bootstrap.ps1 | iex (Windows) or curl ... | bash (Mac/Linux)${_a('\x1b[0m')}`);
     process.exit(1);
   }
@@ -174,6 +177,18 @@ const saveAccessToken = (token) => {
 };
 const clearAccessToken = () => {
   try { fs.unlinkSync(ACCESS_TOKEN_FILE); } catch {}
+  // Also strip embedded credentials from remote URL — otherwise ensureGitAuth
+  // sees `https://<stale-token>@github.com/...` next run and skips the prompt
+  // because line 190 treats "URL has @" as "already authenticated", causing an
+  // infinite 401 loop after the token is revoked.
+  try {
+    const {stdout: raw} = shQuiet('git', ['-C', REPO_DIR, 'remote', 'get-url', 'origin']);
+    const url = (raw || '').trim();
+    if (/https:\/\/[^@]+@/.test(url)) {
+      const clean = url.replace(/https:\/\/[^@]+@/, 'https://');
+      shQuiet('git', ['-C', REPO_DIR, 'remote', 'set-url', 'origin', clean]);
+    }
+  } catch {}
 };
 // Rewrite remote URL to embed token: https://<token>@github.com/...
 const applyTokenToRemote = (token) => {
@@ -192,7 +207,7 @@ const ensureGitAuth = async () => {
   if (!token) {
     console.log('');
     console.log(boxen(
-      `${C.yellow}Repo team-ai-config yêu cầu xác thực (đã chuyển sang private).${C.reset}\n` +
+      `${C.yellow}AI Kit yêu cầu xác thực (đã chuyển sang private).${C.reset}\n` +
       `${C.gray}Liên hệ maintainer để nhận access key của bạn.${C.reset}`,
       {padding: 1, margin: {top: 0, bottom: 0, left: 2, right: 2},
        borderColor: 'yellow', borderStyle: 'round', title: '🔑 Xác thực', titleAlignment: 'left'}
@@ -284,17 +299,18 @@ const Help = () => h(Box, {flexDirection: 'column', padding: 1},
   h(Section, {title: 'MCP control'},
     h(Row, {label: 'mcp <verb>', value: 'start | stop | restart | logs | pull | status'})
   ),
-  h(Section, {title: 'Backups'},
+  IS_MAINTAINER ? h(Section, {title: 'Backups'},
     h(Row, {label: 'list-backups', value: 'List ai-config-backup-* (created on every update)'}),
     h(Row, {label: 'rollback [N]', value: 'Restore from backup (default newest); auto-snapshots before'}),
     h(Row, {label: 'clean [--keep N] --yes', value: 'Delete old backups + scoped docker image prune'})
-  ),
+  ) : null,
   IS_MAINTAINER ? h(Section, {title: 'Maintainer (owner only)'},
     h(Row, {label: 'pack', value: 'Snapshot ~/ → repo'}),
     h(Row, {label: 'publish "<msg>"', value: 'pack + git commit + push'}),
     h(Row, {label: 'diff', value: 'Show local vs repo deltas'}),
     h(Row, {label: 'edit', value: 'Open repo in $EDITOR'}),
-    h(Row, {label: 'reset [--yes]', value: 'Discard local repo edits + pull'})
+    h(Row, {label: 'reset [--yes]', value: 'Discard local repo edits + pull'}),
+    h(Row, {label: 'issue-token <member>', value: 'Cấp Fine-grained PAT cho member (private repo)'})
   ) : null,
   h(Section, {title: 'Misc'},
     h(Row, {label: 'upgrade | upg', value: 'npm update Node.js deps in ~/.ai-kit'}),
@@ -456,7 +472,7 @@ const Doctor = ({checks, dockerDaemon, repoOk, pathOk, allRequiredOk}) =>
         c.ok ? h(Ok, null, c.name) : h(Err, null, `${c.name} — MISSING`)
       ),
       dockerDaemon ? h(Ok, null, 'docker daemon running') : h(Err, null, 'docker daemon NOT running'),
-      repoOk ? h(Ok, null, 'team-ai-config cloned') : h(Err, null, 'team-ai-config NOT cloned')
+      repoOk ? h(Ok, null, 'ai-kit đã cài') : h(Err, null, 'ai-kit CHƯA cài')
     ),
     h(Section, {title: 'Optional checks'},
       ...checks.filter(c => !c.required).map(c => {
@@ -1642,7 +1658,7 @@ const cmdUpdate = async () => {
     },
     {
       id: 'git-pull',
-      label: 'Pull team-ai-config mới nhất',
+      label: 'Pull ai-kit mới nhất',
       run: async (c) => {
         const result = await streamShIntoStep('git', ['-C', REPO_DIR, 'pull', '--ff-only'], c);
         if (result.exitCode !== 0) {
@@ -1661,7 +1677,7 @@ const cmdUpdate = async () => {
           const {stdout: newSha} = shQuiet('git', ['-C', REPO_DIR, 'rev-parse', 'HEAD']);
           c.ctx.newSha = newSha.trim();
         } catch {}
-        c.setLabel('Đã pull team-ai-config');
+        c.setLabel('Đã pull ai-kit');
       },
     },
     {
@@ -1752,6 +1768,9 @@ const cmdUpdate = async () => {
     {
       id: 'snapshot',
       label: 'Sao lưu cấu hình hiện tại',
+      // Member machine = strict-overwrite mode (no rollback path). Skip snapshot
+      // to keep ~/.claude / ~/.cursor folders clean. Maintainer keeps backup.
+      enabled: () => IS_MAINTAINER,
       run: (c) => {
         const _snapTs = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         _snapName = `ai-config-backup-${_snapTs}`;
@@ -2199,6 +2218,54 @@ const cmdEdit = () => {
   sh(editor, [REPO_DIR]);
 };
 
+// ─── issue-token (maintainer) ──────────────────────────────────────────
+// Cấp Fine-grained PAT cho 1 member để truy cập team-ai-config (private repo).
+// Delegate work cho PowerShell script vì cần Set-Clipboard + Start-Process URL.
+//
+// Script ĐẶT NGOÀI repo team-ai-config — chỉ máy maintainer có:
+//   default: D:\AI-Platform\maintainer-notes\issue-token.ps1
+//   override: $env:AI_KIT_MAINTAINER_TOOLS\issue-token.ps1
+// Member machine không có file này (nằm ngoài deploy chain).
+const cmdIssueToken = (args) => {
+  // Parse args: ai-kit issue-token <member> [--days N]
+  const member = args.find(a => !a.startsWith('-'));
+  const daysIdx = args.indexOf('--days');
+  const days = daysIdx !== -1 ? parseInt(args[daysIdx + 1], 10) : 30;
+
+  if (!member) {
+    err('Thiếu tên member. Ví dụ: ai-kit issue-token nguyen-van-a [--days 30]');
+    process.exit(1);
+  }
+  if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(member)) {
+    err(`Tên member không hợp lệ: "${member}". Phải là kebab-case (vd: nguyen-van-a).`);
+    process.exit(1);
+  }
+  if (!Number.isFinite(days) || days < 1 || days > 366) {
+    err(`--days không hợp lệ: ${args[daysIdx + 1]}. Phải là 1..366.`);
+    process.exit(1);
+  }
+
+  const toolsDir = process.env.AI_KIT_MAINTAINER_TOOLS || 'D:\\AI-Platform\\maintainer-notes';
+  const scriptPath = path.join(toolsDir, 'issue-token.ps1');
+  if (!exists(scriptPath)) {
+    err(`Không tìm thấy ${scriptPath}.`);
+    err('Script này CHỈ tồn tại trên máy maintainer (cố ý — không deploy ra member).');
+    err('Set $env:AI_KIT_MAINTAINER_TOOLS hoặc đặt script vào D:\\AI-Platform\\maintainer-notes\\');
+    process.exit(1);
+  }
+
+  // Choose pwsh > powershell (pwsh có Set-Clipboard ổn hơn). Windows fallback OK.
+  const psBin = cmdAvail('pwsh') ? 'pwsh' : (process.platform === 'win32' ? 'powershell' : null);
+  if (!psBin) {
+    err('Cần PowerShell (pwsh). Cài: https://learn.microsoft.com/powershell/scripting/install/installing-powershell');
+    process.exit(1);
+  }
+
+  const psArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-Member', member, '-Days', String(days)];
+  const r = sh(psBin, psArgs);
+  process.exit(r.exitCode || 0);
+};
+
 // ─── uninstall ─────────────────────────────────────────────────────────
 const cmdUninstall = (args) => {
   const yes = args.includes('--yes') || args.includes('-y');
@@ -2365,7 +2432,7 @@ const cmdVerify = (args) => {
   }
 
   if (restore) {
-    out.write(`\n  ${S.gray}Đang restore từ team-ai-config...${S.reset}\n`);
+    out.write(`\n  ${S.gray}Đang restore từ ai-kit...${S.reset}\n`);
     cmdUpdate();
     return;
   }
@@ -3620,13 +3687,13 @@ ${tableRows(Object.entries(stats.errorCategories).filter(([,v]) => v > 0).sort((
 
 // ─── help <command> ────────────────────────────────────────────────────
 const COMMAND_HELP = {
-  update:  { usage: 'ai-kit update [--quiet]',                  desc: 'Pull latest team-ai-config, redeploy configs, refresh MCP image.',     notes: ['Fails fast if local uncommitted changes exist.', 'Auto-snapshots configs before overwriting — use `ai-kit rollback` to undo.', 'Deploy is atomic: writes to .tmp then renames into place.'] },
+  update:  { usage: 'ai-kit update [--quiet]',                  desc: 'Pull latest ai-kit, redeploy configs, refresh MCP image.',              notes: ['Fails fast if local uncommitted changes exist.', 'Auto-snapshots configs before overwriting — use `ai-kit rollback` to undo.', 'Deploy is atomic: writes to .tmp then renames into place.'] },
   upgrade: { usage: 'ai-kit upgrade',                           desc: 'Update Node.js deps in ~/.ai-kit (npm update). Run after major dep bumps.' },
   status:  { usage: 'ai-kit status [--json]',                   desc: 'Show team-config version, deployed counts, MCP health.',               flags: {'--json': 'Machine-readable JSON output (CI/scripts)'} },
   doctor:  { usage: 'ai-kit doctor [--json]',                   desc: 'Verify git, docker, node ≥18, repo path, PATH.',                      notes: ['Exit code 1 when any required check fails.'],              flags: {'--json': 'Machine-readable JSON output'} },
   rollback:{ usage: 'ai-kit rollback [N]',                      desc: 'Restore both ~/.claude and ~/.cursor from snapshot N (default: newest).', notes: ['Use `ai-kit list-backups` to see indexes.', 'Auto-creates pre-rollback safety backup first.'] },
   clean:   { usage: 'ai-kit clean [--keep N] --yes',            desc: 'Delete old backup snapshots + prune dangling Docker images.',           flags: {'--keep N': 'Keep N most recent (default 3)', '--yes | -y': 'Required to confirm'} },
-  reset:   { usage: 'ai-kit reset [--yes]',                     desc: 'Discard all local edits to team-ai-config + pull from origin.',         flags: {'--yes | -y': 'Required when repo is dirty'} },
+  reset:   { usage: 'ai-kit reset [--yes]',                     desc: 'Discard all local edits to ai-kit + pull from origin.',                 flags: {'--yes | -y': 'Required when repo is dirty'} },
   publish: { usage: 'ai-kit publish "<msg>"',                   desc: 'Pack live ~/.claude+~/.cursor → repo, commit + push.',                  notes: ['Fast-fails with git ls-remote check before making any changes.'] },
   mcp:     { usage: 'ai-kit mcp <verb>',                        desc: 'Control the etc-platform MCP Docker container.',                        flags: { start:'docker compose up -d', stop:'docker compose down', restart:'docker compose restart', logs:'Tail last 200 lines', pull:'Pull latest image', status:'Container state + API URLs (http://localhost:8001)' } },
   pack:    { usage: 'ai-kit pack',                              desc: 'Snapshot ~/.claude+~/.cursor agents/skills → repo working tree.' },
@@ -3636,6 +3703,7 @@ const COMMAND_HELP = {
   search:     { usage: 'ai-kit search <term> [--scope all|docs|agents|skills]', desc: 'Tìm full-text xuyên docs + agents + skills. Group theo file, top 30 file.' },
   config:     { usage: 'ai-kit config <list|get|set> [<file>.<key>] [<value>]', desc: 'Quản lý ~/.ai-kit/{billing,alerts}.json. File ∈ billing|alerts.', notes: ['Ví dụ: ai-kit config set billing.monthly_usd 200', 'Ví dụ: ai-kit config get alerts.total_cost_warn'] },
   schedule:   { usage: 'ai-kit schedule <show | update [--daily|--weekly|--monthly] | remove>', desc: 'Đặt lịch tự động ai-kit update qua Task Scheduler (Windows) hoặc crontab (Unix).', notes: ['Default: weekly Monday 09:00', 'Lệnh chạy: ai-kit update --quiet'] },
+  'issue-token': { usage: 'ai-kit issue-token <member> [--days N]', desc: '(Maintainer) Cấp Fine-grained PAT cho 1 member để truy cập team-ai-config private. Mở browser tới page tạo PAT, validate token paste vào, log + sinh delivery message vào clipboard.', flags: {'<member>': 'Tên member (kebab-case, vd: nguyen-van-a)', '--days N': 'Số ngày hiệu lực (1..366, default 30)'}, notes: ['Token mỗi member 1 cái, scope chỉ team-ai-config + Contents:Read.', 'Log lưu tại D:/AI-Platform/maintainer-notes/tokens.csv (member, expires_at, last4).', 'Revoke: GitHub Settings → PAT → tên token → Revoke.'] },
 };
 const cmdHelp = (topic) => {
   const resolved = ({up:'update',st:'status',dr:'doctor',upg:'upgrade'})[topic] || topic;
@@ -3733,7 +3801,7 @@ const KNOWN_COMMANDS = [
   'update', 'upgrade', 'status', 'doctor', 'doc', 'docs', 'logs', 'mcp',
   'reset', 'rollback', 'list-backups', 'clean', 'pack', 'publish', 'diff',
   'edit', 'uninstall', 'install', 'help', 'version', 'history', 'statistics',
-  'verify', 'search', 'config', 'schedule',
+  'verify', 'search', 'config', 'schedule', 'issue-token',
 ];
 
 // suggestCommand moved to ./lib/util.mjs — wrapper using local KNOWN_COMMANDS list
@@ -3977,6 +4045,7 @@ switch (resolved) {
   case 'publish':      cmdPublish(args); break;
   case 'diff':         cmdDiff(); break;
   case 'edit':         cmdEdit(); break;
+  case 'issue-token':  cmdIssueToken(args); break;
   case 'uninstall':    cmdUninstall(args); break;
   case 'install':      cmdInstall(); break;
   case 'sdlc': {
