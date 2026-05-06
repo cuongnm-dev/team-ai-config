@@ -1510,7 +1510,24 @@ FOR each pipeline in pipelines[]:
       --acceptance-criteria '{ac_json}' \
       --consumed-by '{consumed_by_csv}' \
       --priority {feature.priority || 'medium'}")
-    parse stdout JSON → if !ok: STOP with feature.id + error
+
+    # Idempotent error handling — partial-run resume must not fail on existing entries
+    parse stdout JSON
+    IF !ok:
+      IF error.code == 'MCP_E_ID_COLLISION' (Feature ID already exists):
+        # Likely from partial run before — treat as already scaffolded, skip
+        Print "⏭ Feature {feature.id} already scaffolded — skip"
+        increment skip_count; continue to next feature
+      ELIF error.code == 'MCP_E_NOT_FOUND' (Parent module not found):
+        # Module wasn't scaffolded by Step 5d for this feature — bug
+        STOP "Parent module {parent_module_id} missing for {feature.id}. Re-run Step 5d first."
+      ELSE:
+        STOP "Feature {feature.id} scaffold failed: {error.message}. Inspect via 'ai-kit sdlc scaffold feature --help' for valid args."
+
+    # Verify CLI flag list correct anytime by running:
+    #   ai-kit sdlc scaffold feature --help
+    # Currently accepts: workspace, module, id, name, slug, description, business-intent,
+    # flow-summary, acceptance-criteria, consumed-by, priority, expected-version.
 
     # Post-scaffold: populate fields not supported by scaffold CLI (per CLI --help note)
     # role_visibility / expected_pipeline_path / depends_on / references go here
