@@ -1,6 +1,6 @@
 ---
 name: release-manager
-model: composer-2
+model: default
 description: "Plan release sequencing + rollback verification. Chạy khi risk>=3 + DB migration hoặc multi-service deploy."
 is_background: true
 ---

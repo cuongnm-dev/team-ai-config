@@ -1,6 +1,6 @@
 ---
 name: data-governance
-model: composer-2
+model: default
 description: "Phân tích data ownership, PII, GDPR/PDPA compliance. Parallel với ba/sa khi feature có data sharing."
 is_background: true
 ---

@@ -60,8 +60,10 @@ parse stdout JSON for { ok, data: { path, exists, resolved_via_alias, metadata }
 | Result | Action |
 |---|---|
 | `ok=true, exists=true` | Continue Step 3 with `result.data.path` |
-| `error.code = MCP_E_NOT_FOUND` | Compute Levenshtein distance to all module IDs in catalog; suggest top 3 ≤ 3 distance. Else: "Module {id} not found. Use `/new-module` to create." |
 | `result.data.resolved_via_alias = true` | Display alias info: legacy F-NNN → canonical M-NNN per `id-aliases.json` |
+| `error.code = MCP_E_NOT_FOUND` AND input matches `^F-\d+$` | Fallback: `Bash("ai-kit sdlc resolve --kind feature --id {input} --include-metadata")`. If found nested under M-NNN (path matches `docs/modules/M-NNN-*/features/`) → read `_feature.md` `module-id` → suggest `/resume-module {parent_M}` (do NOT auto-redirect — print and exit). If found legacy (`docs/features/F-NNN-*/`) → suggest `/resume-feature {input}`. Else fall through. |
+| `error.code = MCP_E_NOT_FOUND` AND input matches `^H-\d+$` | Fallback: input is a hotfix ID — suggest `/resume-feature {input}` (resume-module does not handle hotfix). Exit. |
+| `error.code = MCP_E_NOT_FOUND` (default) | Compute Levenshtein distance to all module IDs in catalog; suggest top 3 ≤ 3 distance. Else: "Module {id} not found. Use `/new-module` to create." |
 
 **Advisory lock**: Check `{module_path}/.resume-lock`:
 - Exists, < 10min old → ask user: wait or force-takeover
@@ -91,13 +93,88 @@ Same logic as `/resume-feature` §3.1a:
 - `_state.md.worktree-path` set vs `$ROOT_WORKTREE_PATH` env var
 - Backfill or warn on mismatch
 
-### 3c. Dependency check (`depends_on`)
+### 3c.1 — Module-level dependency check (`module-catalog.depends_on`)
 
-Read module-catalog. For each `depends_on` M-NNN:
+Read `module-catalog.json`. For each `depends_on` M-NNN of `{module_id}`:
+
 ```
 resolve_path(kind='module', id=dep) + read its _state.md.status
 ```
-If any dep `status != done` → ask user: wait, override (set sync-warning), or cancel.
+
+**Cycle detection (DFS)** — build directed graph from `module-catalog[*].depends_on`. Run DFS starting at `{module_id}`. If cycle found:
+
+```
+STOP blocker MOD-CYCLE-001:
+  "Cyclic module dependency: {cycle_path}.
+   Edit module-catalog.json depends_on to break cycle."
+next-action: edit docs/intel/module-catalog.json
+EXIT (no lock created — config error)
+```
+
+**Blocked deps**:
+
+| dep status | Action |
+|---|---|
+| `done` | OK, continue |
+| `in-progress` / `blocked` | Ask user: A) wait (`/resume-module {dep}` first), B) override (set `sync-warning: true`), C) cancel |
+| `proposed` | Ask user: A) `/new-module {dep}` then resume, B) override, C) cancel |
+| dep missing in catalog | STOP `MOD-DEP-MISSING-001` — config error, list missing IDs, `next-action: edit docs/intel/module-catalog.json` |
+
+### 3c.2 — Cross-cutting feature dependency check (CD-24 reverse-lookup)
+
+Per CD-24 in `~/.claude/CLAUDE.md`, features owned by other modules but consumed by `{module_id}` must be implemented BEFORE `{module_id}` enters dev waves. Catalog reverse-lookup:
+
+```
+read feature-catalog.json
+consumed_features_pending = []
+
+FOR each feature in feature-catalog.features:
+  IF {module_id} IN feature.consumed_by_modules[]
+     AND feature.status != "implemented":
+    consumed_features_pending.append({
+      feature_id:    feature.id,
+      feature_name:  feature.name,
+      owner_module:  feature.module_id,
+      current_status: feature.status,
+      readiness:     feature.readiness    # CD-13 — may be missing on legacy entries
+    })
+```
+
+**Stage-aware enforcement** — only block on stages that produce code touching consumed features. Map current-stage to action:
+
+| current-stage | Pending consumed-feature action |
+|---|---|
+| `ba` / `sa` / `designer` | WARN — print pending list, allow continue (analysis stages can document the dependency) |
+| `tech-lead` | ASK — tech-lead plan must reference how `{module_id}` calls into pending features. Default: wait. |
+| `dev-wave-*` / `qa-wave-*` / `security-design` / `security-review` | BLOCK — these stages assume consumed features are implemented |
+| `reviewer` | BLOCK — reviewer cannot Approve when consumed deps are non-`implemented` |
+
+**On BLOCK or ASK**:
+
+```
+Print Vietnamese to user:
+  "⚠ Module {module_id} đang ở stage {current-stage} (cần consumed feature implemented).
+   {N} cross-cutting features chưa sẵn sàng (CD-24):
+     - {feature_id} ({feature_name}): owner {owner_module}, status {current_status}
+     ...
+   Options:
+     A) Wait — chạy /resume-module {owner_module} cho từng owner trước
+     B) Override — set sync-warning: true, tiếp tục (rủi ro integration drift, sẽ bị reviewer block sau)
+     C) Cancel"
+next-action (default): /resume-module {first owner_module by topological order}
+```
+
+If user picks Override, write to `_state.md` frontmatter:
+```yaml
+sync-warnings:
+  - type: cross-cutting-feature-pending
+    features: [F-NNN, F-NNN, ...]
+    overridden-at: <ISO timestamp>
+```
+
+Reviewer stage MUST read `sync-warnings[]` and refuse Approved verdict if any cross-cutting deps still non-`implemented` at that point.
+
+**Topological hint** — when suggesting `next-action`, order pending owner modules by their own `depends_on` chain so user resumes in valid order.
 
 ## Step 4 — Display status
 
@@ -185,8 +262,14 @@ Release advisory lock on every exit path.
 | `_state.md` not found | Map-fuzzy suggest if catalog has similar IDs; else "use `/new-module`" |
 | `status: done` | Refuse — module sealed; display feature_ids for `/close-feature` if needed |
 | `status: proposed` | Suggest `/new-module {id}` to start fresh OR set status to `in-progress` manually |
-| `depends_on` deps not done | Display deps + status, ask wait/override |
-| Legacy F-NNN ID provided | Auto-resolve via id-aliases.json → M-NNN, inform user |
+| `depends_on` deps not done (3c.1) | Display deps + status, ask wait/override/cancel |
+| Cyclic `depends_on` chain (3c.1 DFS) | Blocker `MOD-CYCLE-001` → `next-action: edit docs/intel/module-catalog.json` |
+| `depends_on` references unknown M-NNN | Blocker `MOD-DEP-MISSING-001` — config error |
+| Cross-cutting feature pending (3c.2 CD-24) | Stage-aware: BA/SA/Designer warn-only, Tech-lead ask, Dev/QA/Security/Reviewer block. Default `next-action: /resume-module {owner_M topological-first}` |
+| User overrides cross-cutting block | Write `sync-warnings[]` entry to `_state.md`. Reviewer reads + refuses Approved if still non-implemented at review time |
+| Legacy F-NNN ID with alias entry | Auto-resolve via id-aliases.json → M-NNN, inform user |
+| F-NNN ID without alias (post-ADR-003 nested) | Step 2 fallback resolves as feature → suggests `/resume-module {parent_M}` (read `_feature.md.module-id`) |
+| H-NNN ID provided | Step 2 fallback suggests `/resume-feature {H-NNN}` (resume-module does not own hotfix flow) |
 | MCP server down | BLOCK — `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` |
 
 ---

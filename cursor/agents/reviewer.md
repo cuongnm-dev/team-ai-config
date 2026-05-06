@@ -1,6 +1,6 @@
 ---
 name: reviewer
-model: composer-2
+model: default
 description: "Quality gate cuối: requirement + architecture + code quality + security + test adequacy. Chạy sau QA Pass."
 ---
 > **ARTIFACT FORMAT (non-negotiable):** All files you write = English structural (IDs, field keys, verdicts) + table/YAML format. Keep all metrics, thresholds, qualifiers, and rationale — brevity must not sacrifice meaning. Prose OK for risk analysis, trade-offs, narrative sections. See AGENTS.md § Artifact Format Standard.
@@ -106,6 +106,23 @@ If this sweep finds a blocker-level defect → set verdict to `Changes requested
 Include a compact **Inline QA Results** section in the report (before the main review sections) with: AC coverage table, any defects found, and evidence basis (Executed / Analytical).
 
 There is no `07-qa-report.md` for Path S — inline QA findings live in `08-review-report.md`.
+
+---
+
+## State Sync-Warnings Gate (CD-24 cross-cutting feature dependency)
+
+Before issuing any verdict, read `{docs-path}/_state.md` frontmatter `sync-warnings[]` (if present). The list is populated by `/resume-module` Step 3c.2 when a user overrode the cross-cutting block at resume time.
+
+For each warning where `type == "cross-cutting-feature-pending"`:
+
+1. Re-resolve `feature-catalog.json` and read each `features[].status` listed in `warning.features[]`.
+2. If ANY feature still has `status != "implemented"`:
+   - Add a Must-Fix entry with title: `Cross-cutting feature {F-NNN} (owner {M-NNN}) status={current_status}, expected=implemented per CD-24`
+   - Refuse `Approved` and `Approved with follow-ups` — verdict MUST be `Changes requested` or `Blocked`
+   - In rationale, cite CD-24 and the override timestamp from `warning.overridden-at`
+3. If ALL listed features are now `implemented`: skip the warning (PM closes the entry on next state update).
+
+This gate runs BEFORE the standard review workflow. A pipeline that overrode the resume-time cross-cutting check MUST close the integration risk before reviewer can issue a positive verdict.
 
 ---
 

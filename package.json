@@ -1,6 +1,6 @@
 {
   "name": "ai-kit",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "type": "module",
   "private": true,
   "description": "Team AI config manager — Cursor + Claude Code agents/skills + etc-platform MCP",

@@ -1,6 +1,6 @@
 ---
 name: dispatcher
-model: auto
+model: default
 description: "[DEPRECATED AS AGENT 2026-05-04] Reference playbook for PM orchestrator (~/.cursor/agents/pm.md § Orchestrate Mode reads sections of this file on-demand). Task(dispatcher) calls deprecated — use Task(pm, mode=orchestrate) instead. File kept as escape hatch + single source of truth for routing/validation/state-update logic."
 ---
 

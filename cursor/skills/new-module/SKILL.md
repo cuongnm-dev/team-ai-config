@@ -1,175 +1,233 @@
 ---
 name: new-module
-description: Khởi tạo module SDLC mới (M-NNN) cho project có sẵn. Hỏi metadata, gọi MCP scaffold_module atomic, hand off PM agent cho stage ba. Trigger - thêm bounded context/domain mới vào project; "tạo module mới"; M-NNN chưa tồn tại trong module-catalog. Anti-trigger - module đã tồn tại in-progress/blocked thì /resume-module; cả project mới (chưa có docs/modules/) thì /from-doc hoặc /from-code hoặc /from-idea; thêm feature vào module có sẵn thì /new-feature. Example - "/new-module M-021" hoặc "/new-module" (auto-suggest next ID).
+description: Khởi tạo module SDLC mới (M-NNN) qua interview. Skill auto-allocate ID + slug theo quy tắc canonical, không nhận tham số ID. Dedup-check hard-stop nếu trùng module có sẵn (suggest /update-module). Hand-off bằng cách suggest /resume-module sau khi user confirm. Trigger - thêm bounded context/domain mới; "tạo module mới"; mô tả nghiệp vụ chưa có domain phù hợp. Anti-trigger - module đã tồn tại in-progress thì /resume-module; module có sẵn cần mở rộng thì /update-module; thêm feature thì /new-feature. Example - "/new-module" (interactive, không tham số).
 ---
 
-# Module Entry Point — Single-module incremental scaffold
+# New Module — Interview-first Entry Point
 
-User-facing output: Vietnamese. Artifact files and dispatcher prompts: English.
+User-facing prompts: Vietnamese. Skill prose + dispatcher prompts: English.
 
 ## ⚠️ ai-kit CLI Enforcement (ADR-005)
-**MUST call `Bash("ai-kit sdlc scaffold module ...")` for atomic create.** Skill = thin entry point.
+
+**MUST call `Bash("ai-kit sdlc scaffold module ...")` for atomic create — only after Step G confirm.** Skill = thin entry point.
 
 | Step | ai-kit CLI command |
 |---|---|
-| Validate ID/slug uniqueness | `ai-kit sdlc verify --scopes id_uniqueness --strict block` |
-| Atomic create folder + catalog + map | `ai-kit sdlc scaffold module --id M-NNN --name "..." --slug ... ...` |
-| Verify post-scaffold | `ai-kit sdlc verify --scopes structure,cross_references` |
-| Hand off to PM for ba stage | `Task(pm, mode=orchestrate)` |
+| Dedup check | `ai-kit sdlc dedup-check --kind module --query "..."` (graceful fallback to @Codebase if unavailable) |
+| Dependency suggest | `ai-kit sdlc deps-suggest --description "..."` (graceful fallback to heuristic) |
+| ID allocation | `ai-kit sdlc allocate-id --kind module` (atomic; fallback to catalog max+1) |
+| Atomic scaffold | `ai-kit sdlc scaffold module --id M-NNN --slug ... --depends-on ...` |
+| Rollback | `ai-kit sdlc rollback --kind module --id M-NNN` (for Step I delete path) |
 
 **Forbidden** per ADR-005 D3:
-- ❌ Write tool for `_state.md` / `module-brief.md` / `implementations.yaml`
-- ❌ mkdir for `docs/modules/**`
+- ❌ Accept user-provided `module-id` argument (full auto per Q1=A)
+- ❌ Accept user-provided `slug` argument
+- ❌ Write `_state.md` / `module-brief.md` / `implementations.yaml` directly
 - ❌ Direct edit of `module-catalog.json` / `module-map.yaml`
+- ❌ Skip dedup check at Step 3 (HARD-STOP enforcement per Q3=A)
 
 ---
 
-## ⚠️ SKILL ROLE — THIN ENTRY POINT
+## ⚠️ SKILL ROLE — INTERVIEW + SCAFFOLD ONLY
 
-Steps 1-4 = setup (gather inputs, MCP scaffold). Step 5 = single `Task(pm)` call. Surface PM verdict.
+This skill does NOT drive pipeline. It interviews user, validates uniqueness, scaffolds, then suggests `/resume-module {ID}`. PM dispatch is owned by `/resume-module`.
 
 ### Forbidden:
-- ❌ Reading `ba.md`/`sa.md`/`dev.md` agent definitions and "doing the work yourself"
-- ❌ Writing artifact files (`ba/`, `sa/`, dev outputs, etc.)
-- ❌ Re-implementing routing/validation — PM owns this
+- ❌ Calling `Task(pm)` or `Task(specialist)` — pipeline driver is /resume-module
+- ❌ Auto-spawning `/resume-module` — Q2 confirmed: skill ends with suggestion, user invokes
+- ❌ Reading agent definitions and "doing work yourself"
 
 ### Required:
-- ✅ Steps 1-4 = ai-kit CLI-only scaffold + verify
-- ✅ Step 5 = single `Task(pm)` call
-- ✅ Surface PM's final verdict to user
+- ✅ Steps 0-7 = setup (interview, dedup, dependency, scaffold)
+- ✅ Step 7 (post-scaffold) ends with suggestion `/resume-module {ID}`
+- ✅ User invokes /resume-module manually in next turn
 
 ---
 
-## Step 1 — Detect mode (NEW | REDIRECT)
+## Step 0 — Argument handling (Q1=A: ignore user-provided ID)
 
-If user provides `module-id` (e.g. `/new-module M-021`):
-
-```
-result = Bash("ai-kit sdlc resolve --workspace . --kind module --id {module-id}")
-parse stdout JSON
-```
-
-| Result | Action |
-|---|---|
-| Found + `status` ∈ `{in-progress, blocked}` | → **REDIRECT to `/resume-module {module-id}`** |
-| Found + `status: done` | → ERROR refuse (sealed module; create new ID instead) |
-| `error.code = MCP_E_NOT_FOUND` | → **NEW FLOW** (continue Step 2) |
-
-No `module-id` provided → **NEW FLOW** with auto-suggest next M-NNN.
-
-## Step 2 — NEW FLOW: gather inputs (interactive)
-
-Read existing `docs/intel/module-catalog.json` to compute next available M-NNN (`max(numeric IDs) + 1`).
-
-Prompt user via Cursor's interactive UI (or single-prompt batch):
-
-| Field | Required? | Notes |
-|---|---|---|
-| `module_id` | yes (auto-suggest) | Format `M-NNN`. User can override suggestion |
-| `module_name` | yes | English preferred for ASCII slug derivation |
-| `name_en` | recommended | If `module_name` is Vietnamese, provide English alias for slug |
-| `slug` | optional | If absent: `derive_slug(name_en or module_name)` per CD-22 precedence |
-| `primary_service` | optional | E.g. `services/iam-service` (mono only). Maps to `implementations.yaml` |
-| `depends_on` | optional | `[M-NNN, ...]` modules this depends on (FK enforced) |
-| `business_goal` | yes (≥50 chars) | 1-2 sentences for `_state.md` body |
-| `risk_path` | yes | `S` / `M` / `L` — controls `stages-queue` length |
-| `agent_flags` | optional | Conditional inserts: `designer` if `screens > 0`, `security-design` if `pii_found`, `data-governance` if `pii > 0`, etc. |
-| `tier` | optional | Tier 0/1/2/3 per project capability map |
-| `mvp_wave` | optional | Wave 1/2/3 |
-
-If user already provided JSON via `/new-module {json-blob}` syntax, parse + skip prompts.
-
-## Step 3 — Pre-flight validate via ai-kit CLI
+If user invokes `/new-module M-007` or `/new-module {anything}`:
 
 ```
-result = Bash("ai-kit sdlc verify --workspace . --scopes id_uniqueness --strict block")
-parse stdout JSON
+Print Vietnamese:
+  "ℹ Tham số đã được bỏ qua — /new-module luôn auto-allocate ID + slug theo quy tắc canonical
+   (tránh skip số thứ tự). Tiếp tục interview…"
 ```
 
-→ if `error.code == "MCP_E_VERIFICATION_FAILED"` → display findings, STOP. User must resolve before retry.
+Discard arg. Continue Step 1.
 
-Also validate `depends_on`:
+## Step 1 — Read intel + freshness gate
+
+Per LIFECYCLE.md P5 (stale-block):
+
 ```
-for dep in depends_on:
-  Bash("ai-kit sdlc resolve --workspace . --kind module --id <dep>")
-  → if `error.code = MCP_E_NOT_FOUND` → STOP with error: "depends_on <dep> not found in module-catalog"
+1. Read docs/intel/_meta.json
+   For each artifact in {actor-registry, sitemap, module-catalog, feature-catalog, data-model}:
+     IF _meta.artifacts[file].stale == true:
+       STOP with message:
+         "⚠ Intel artifact `{file}` is stale (last fresh: {produced_at}).
+          Run /intel-refresh before /new-module to avoid propagating bad data.
+          next-action: /intel-refresh --tier T1"
+       EXIT
+
+2. Read intel files (cache in skill memory):
+   docs/intel/module-catalog.json     -> existing modules (dedup + ID allocation)
+   docs/intel/feature-catalog.json    -> existing features (cross-cutting linkage)
+   docs/intel/actor-registry.json     -> roles[] (role_visibility)
+   docs/intel/sitemap.json            -> modules + routes
+   docs/intel/data-model.json         -> entities[] (dependency suggest)
+   docs/intel/id-aliases.json         -> reserved IDs (avoid reuse)
 ```
 
-## Step 4 — Scaffold atomic via ai-kit CLI
+If `module-catalog.json` empty (zero modules) then INFO: "No existing modules — first module in workspace."
+
+## Step 2 — Pre-flight interview (load shared notepad)
+
+Load `~/.cursor/skills/_shared/preflight-interview.md` and execute Step A (Description capture):
+- 5 questions (problem, outcome, actors, scope, constraints)
+- Validation rules (length, vague-input guard, 3-retry cap)
+
+User abort then EXIT (no state mutation).
+
+## Step 3 — Dedup check (HARD-STOP at strong match per Q3=A)
+
+Execute Step B + C from shared notepad:
+
+- B.1: Try `ai-kit sdlc dedup-check --kind module ...`
+- B.2: Fallback to heuristic (token Jaccard + @Codebase) if CLI unavailable
+- C: Triage decision tree
+
+**HARD-STOP behavior** (max_score >= 0.85):
+
+```
+Print Vietnamese:
+  "⚠ Trùng {ID} (similarity {score}, status {status}).
+   Module này đã tồn tại trong catalog với business intent tương đồng:
+     {matched_business_intent excerpt}
+   -> Dùng `/update-module {ID}` để mở rộng module hiện có.
+   -> Hoặc nếu chắc chắn cần module độc lập (vd. multi-tenant separation),
+      re-run `/new-module --force-new` (sẽ log audit trail trong _meta.json)."
+
+next-action: /update-module {ID}
+EXIT (no scaffold, no state mutation)
+```
+
+`--force-new` flag (escape hatch): adds entry to `_meta.json.dedup-overrides[]` with rationale, then continues normal flow. Logged for audit.
+
+## Step 4 — Dependency suggest
+
+Execute Step D from shared notepad:
+
+- D.1: Try `ai-kit sdlc deps-suggest --description ...`
+- D.2: Fallback heuristic (entity match in data-model + sitemap)
+- D.3: Display + user confirm/edit
+
+For modules, populate suggested:
+- `depends_on`: list of M-NNNs containing entities referenced in description
+- `role_visibility`: not applicable at module level (defer to feature scaffold)
+
+Validate:
+- Each suggested `depends_on` M-NNN exists in module-catalog -> if not, drop from suggestion + warn
+- DFS cycle check on proposed `depends_on`: build graph from module-catalog + new module -> run DFS -> if cycle would form, STOP with `MOD-CYCLE-001` and `next-action: edit depends_on selection`
+
+## Step 5 — Risk path estimation
+
+Execute Step E from shared notepad:
+
+```
+heuristic:
+  S: scope=1-screen + <=2 actors + no integration + no PII
+  M: scope=multi-flow + <=4 actors + <=1 integration + low PII
+  L: scope=cross-system OR >=5 actors OR >=2 integrations OR auth/PII/payment
+
+Print Vietnamese with rationale.
+User: [enter] confirm | [s/m/l] override
+```
+
+Result determines `stages-queue` length post-scaffold (PM picks up at ba stage with this hint).
+
+## Step 6 — Auto-allocate ID + slug
+
+Execute Step F from shared notepad:
+
+- F.1: Derive slug from name_en or transliterate Vietnamese name
+- F.2: Atomic ID allocation via CLI (fallback catalog max+1)
+
+Read-only display:
+```
+✓ ID allocated: M-{NNN}
+✓ Slug: {slug}
+```
+
+User cannot edit (Q1=A).
+
+## Step 7 — Confirm + scaffold + post-review
+
+### 7a. Preview (Step G from shared notepad)
+
+Display full SCAFFOLD PREVIEW block. User chooses:
+- `[enter]` then proceed
+- `[b]` then back to edit (allowed: business_goal, scope, actors, depends_on, risk_path; LOCKED: ID, slug)
+- `[a]` then abort (no scaffold, no state mutation)
+
+### 7b. Atomic scaffold
 
 ```
 result = Bash("ai-kit sdlc scaffold module \
   --workspace . \
-  --id <module_id> \
-  --name '<module_name>' \
-  --slug <slug> \
-  --primary-service '<primary_service>' \
-  --depends-on '<csv depends_on>' \
-  --business-goal '<business_goal>' \
-  --risk-path <S|M|L> \
-  --agent-flags '<json agent_flags>'")
+  --id {M-NNN} \
+  --slug '{slug}' \
+  --name '{name}' \
+  --business-goal '{Q1+Q2 trimmed}' \
+  --depends-on '{csv}' \
+  --risk-path {S|M|L} \
+  --primary-service '{primary_service or omit}' \
+  --agent-flags '{json or omit}'")
 parse stdout JSON
 ```
 
 CLI atomically:
 - Creates `docs/modules/M-NNN-{slug}/` with `_state.md`, `module-brief.md`, `implementations.yaml`
 - Creates 7 stage subdirs (ba/sa/designer/security/tech-lead/qa/reviewer) with `.gitkeep`
-- Updates `module-catalog.json` (append entry)
-- Updates `module-map.yaml` (append entry)
-- Bumps versions in `_meta.json`
+- Updates `module-catalog.json`, `module-map.yaml`, `_meta.json`
 
-Returns manifest with `data.module_path`, `data.files_created`, `data.new_versions`.
+On error then surface, no partial state (CLI atomic guarantee).
 
-## Step 5 — Verify post-scaffold
+### 7c. Post-scaffold verify
 
 ```
-result = Bash("ai-kit sdlc verify --workspace . --scopes structure,cross_references --strict warn")
-parse stdout JSON
+result = Bash("ai-kit sdlc verify --workspace . \
+  --scopes structure,cross_references \
+  --strict warn")
 ```
 
-If MEDIUM/HIGH findings → display warnings but proceed (these are followup polish issues).
+If MEDIUM/HIGH findings then display warnings but proceed (followup polish, not blocker).
 
-## Step 6 — Hand off to PM (single Task call)
+### 7d. Post-scaffold review (Step I from shared notepad)
 
-Build PM Orchestrate prompt (4-block cache-aware, mirror `resume-feature` §6.1):
+Display result block + "Còn bổ sung gì?" prompt:
+- `[enter]` then print suggestion `/resume-module M-NNN`, EXIT
+- `[field]` then edit loop via `ai-kit sdlc state update --op field ...`
+- `[d]` then rollback path: prompt "CONFIRM ROLLBACK" then `ai-kit sdlc rollback --kind module --id M-NNN` then EXIT
+
+## Step 8 — Final guidance (Q2 confirmed)
+
+When user picks `[enter]` at Step 7d:
 
 ```
-## Agent Brief
-You are PM in Orchestrate mode. Mission: drive module pipeline to completion. See ~/.cursor/agents/pm.md § Orchestrate Mode.
+Print Vietnamese:
+  "✅ Module M-NNN-{slug} đã sẵn sàng.
 
-## Mode
-orchestrate
+   Để bắt đầu pipeline (ba -> sa -> … -> reviewer):
+       /resume-module M-NNN
 
-## Project Conventions
-{≤5 lines from rules/40-project-knowledge.mdc relevant to this module; "(none)" if absent}
+   Module hiện ở stage `ba`, queue được set theo risk_path={S|M|L}.
 
-## Feature Context
-feature-id:        {module_id}    # field name kept for back-compat with PM parser
-feature-name:      {module_name}
-pipeline-type:     sdlc
-docs-path:         docs/modules/{module_id}-{slug}
-intel-path:        docs/intel
-output-mode:       {output-mode default lean}
+   Để thêm features cho module này, dùng:
+       /new-feature                 # interactive, parent module sẽ chọn từ catalog"
 
-## Inputs
-session-context:   "(none — fresh module)"
+EXIT.
 ```
-
-Call `Task(subagent_type="pm", prompt=prompt_above)` ONCE.
-
-PM internally:
-- Reads `_state.md`, dispatches `Task(specialist)` per stage
-- Validates artifacts, updates `_state.md` via `update_state` MCP tool
-- Loops until `done | hard-blocked | user-needed | iter≥200`
-
-## Step 7 — Surface result
-
-| `result.status` | Surface |
-|---|---|
-| `done` | "✅ Module {module_id} hoàn tất ba stage. Use `/new-feature` để thêm features hoặc `/resume-module {module_id}` cho stages tiếp" |
-| `blocked` | "❌ Module pipeline blocked: {description}". Suggest fix |
-| `user-needed` | "⚠ PM cần thông tin: {clarification_notes}". Re-run `/resume-module {module_id}` after answer |
-| `iter≥200` | "⚠ Pipeline hit safety cap. State preserved at {final_stage}" |
 
 ---
 
@@ -177,11 +235,21 @@ PM internally:
 
 | Condition | Action |
 |---|---|
-| `module-id` already done | Refuse — display existing module info |
-| `depends_on` references unknown M-NNN | STOP — list missing IDs, suggest fix |
-| `slug` collision (different M-NNN, same slug) | STOP — `MCP_E_NAME_COLLISION` |
-| `module_name` only Vietnamese, no `name_en` | WARN — slug will be transliteration; recommend providing `name_en` |
-| MCP server down | BLOCK — instruct `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` |
+| `module-catalog.json` empty (first module) | INFO "first module in workspace", proceed normal flow |
+| User provides arg | Step 0 ignore + warn |
+| Intel stale | STOP `next-action: /intel-refresh` |
+| User abort during interview | EXIT no state mutation |
+| Strong dedup >= 0.85 | HARD-STOP `next-action: /update-module {ID}` |
+| Partial dedup 0.60-0.85 + user picks 'u' | EXIT, suggest `/update-module {ID}` |
+| Partial dedup + user picks 'n' | Continue with `references: [{IDs}]` populated |
+| `depends_on` cyclic | STOP `MOD-CYCLE-001` (mirror /resume-module 3c.1 logic) |
+| `depends_on` references unknown M-NNN | Drop from suggestion + warn at Step 4 |
+| Slug derivation invalid | STOP — manual intervention required |
+| Slug collision | Auto-append `-2/-3...` increment |
+| ai-kit CLI unavailable | Fallback heuristic + warn "dedup degraded" |
+| User picks `[d]` rollback at Step 7d | Confirmation phrase + atomic reverse via CLI |
+| `--force-new` flag (escape hatch) | Log to `_meta.json.dedup-overrides[]` + continue |
+| MCP/CLI fails mid-scaffold | Atomic guarantee — no partial state; surface error to user |
 
 ---
 
@@ -189,8 +257,9 @@ PM internally:
 
 | Outcome | Next |
 |---|---|
-| Module ba stage done | `/new-feature` to add features OR `/resume-module {id}` for sa/designer/etc. |
-| Module blocker | `/feature-status {id}` for current state inspection |
-| All module features added + done | `/close-feature` per feature, then module reviewer DoD via `/resume-module` |
+| Module created, user satisfied | `/resume-module M-NNN` to start ba stage pipeline |
+| Module created, user wants to add features | `/new-feature` (interactive, parent = M-NNN selectable) |
+| Strong dedup HARD-STOP | `/update-module {existing-ID}` |
+| Rollback at post-scaffold | (no module created — re-run `/new-module` if needed) |
 
-Reference: `D:\AI-Platform\maintainer-notes\adr\ADR-003-sdlc-2tier-module-feature.md` D8/D11 + `plans/p0-mcp-tool-spec.md` §3.3.
+Reference: `D:\AI-Platform\maintainer-notes\adr\ADR-003-sdlc-2tier-module-feature.md` D8/D11 + `~/.cursor/skills/_shared/preflight-interview.md` + `plans/p0-mcp-tool-spec.md` §3.3 (scaffold_module).

@@ -1,6 +1,6 @@
 ---
 name: pm
-model: composer-2
+model: default
 description: "Delivery orchestrator: drives feature pipeline end-to-end via Task(specialist) calls. Owns path selection, exceptions, extended roles, escalation. Replaces dispatcher loop pattern as of 2026-05-04."
 ---
 

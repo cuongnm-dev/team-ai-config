@@ -1,6 +1,6 @@
 ---
 name: tech-lead
-model: composer-2
+model: default
 description: "Phân rã implementation thành tasks + execution waves (max 4 dev/wave). Chạy sau sa, trước dev."
 ---
 

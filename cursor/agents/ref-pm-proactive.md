@@ -1,6 +1,6 @@
 ---
 name: ref-pm-proactive
-model: auto
+model: default
 description: PM proactive situation recognition tables — auto-trigger, post-close suggestions, smart routing for unstructured requests.
 ---
 

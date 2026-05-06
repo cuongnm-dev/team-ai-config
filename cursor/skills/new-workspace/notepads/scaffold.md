@@ -13,10 +13,30 @@ git init && git config core.autocrlf false
 ```
 
 ## [2/14] Project skeleton + starter code
+
+**FIRST — atomic scaffold via ai-kit CLI** (creates AGENTS.md, CLAUDE.md, docs/intel/ stubs, catalogs, _meta.json — atomic, idempotent):
+
+```bash
+ai-kit sdlc scaffold workspace --workspace . --type {mini|mono} --stack {stack-id}
+```
+
+Required flags (DO NOT guess — verify via `ai-kit sdlc scaffold workspace --help`):
+- `--workspace .` — current dir
+- `--type mini|mono` — workspace topology (NOT `--workspace-type` / `--workspace_type` — exact flag is `--type`)
+- `--stack nodejs|python|go|rust|none` — stack template
+
+Parse stdout JSON for `data.files_created`. On error → STOP with displayed error message.
+
+ai-kit creates: AGENTS.md, CLAUDE.md, .gitignore stub, `docs/intel/` (empty stubs), `docs/modules/`, `docs/inputs/`, `docs/generated/`, `_meta.json`.
+
+**THEN — stack-specific starter code** (NOT created by ai-kit — skill must add):
 → Read `ref-stack-{stack-id}.md` now.
-Create dirs and files from the Directory Tree section. Create Starter Code files (not empty — working code). Create Conventions file at `.cursor/rules/project-conventions.mdc`.
-Create `.env.example` — all vars with placeholder values for documentation.
-Create `.env` — dev defaults pre-filled using docker-compose service names as hostnames (read `.env` template from `ref-docker.md` for chosen stack, substitute `{name}` with project name). Uncomment Redis vars if cache=Redis selected. `.env` must work with `docker compose up` without any manual edits.
+Create dirs and files from Directory Tree section (working code, NOT empty stubs):
+- Starter app code (server.ts / main.py / cmd/main.go) with framework boilerplate
+- `package.json` / `requirements.txt` / `go.mod` with all deps from preset
+- Conventions at `.cursor/rules/project-conventions.mdc`
+- `.env.example` — all vars with placeholder values for documentation
+- `.env` — dev defaults pre-filled using docker-compose service names as hostnames (read `.env` template from `ref-docker.md` for chosen stack, substitute `{name}` with project name). Uncomment Redis vars if cache=Redis selected. `.env` must work with `docker compose up` without any manual edits.
 
 ## [3/14] Cursor workspace + Master Sync
 → Read `ref-workspace.md` now.

@@ -20,11 +20,11 @@ from pathlib import Path
 
 # Tier mapping per dispatcher.md § Tiered Routing
 PRO_MAPPING = {
-    "dev": "claude-opus-4-7",
-    "qa": "claude-opus-4-7",
-    "reviewer": "claude-opus-4-7",
-    "sa": "claude-opus-4-7",
-    "ba": "claude-opus-4-7",
+    "dev": "default",
+    "qa": "default",
+    "reviewer": "default",
+    "sa": "default",
+    "ba": "default",
 }
 
 PRO_NOTE = (
@@ -58,7 +58,7 @@ def transform(base_text: str, role: str, pro_model: str) -> str:
             # Append escalation marker to description
             desc = line[len("description:"):].strip()
             new_lines.append(
-                f"description: [ESCALATION TIER — opus] {desc}"
+                f"description: [ESCALATION TIER] {desc}"
             )
         else:
             new_lines.append(line)

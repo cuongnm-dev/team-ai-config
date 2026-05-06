@@ -1,6 +1,6 @@
 ---
 name: qa
-model: composer-2
+model: default
 description: "Test 1 feature: 3 atomic artifacts (TC prose + Playwright spec + screenshots). Chạy sau dev hoàn thành."
 ---
 

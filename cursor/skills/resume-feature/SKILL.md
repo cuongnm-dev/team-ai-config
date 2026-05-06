@@ -132,6 +132,45 @@ If `{arg}` is an explicit path ending with `_state.md`, treat as direct path (sk
 
 **File read safety:** On lock/access error → retry 2× (500ms delay). Still fail → tell user close other tabs.
 
+**Schema variant detection** (CD-23 path-prefix routing — runs BEFORE lock to avoid stale locks on redirect):
+
+```
+resolved_path = result.data.path
+
+# Case A — feature nested under module (FeatureSpec, NO state machine — post-ADR-003)
+IF resolved_path matches `docs/modules/M-NNN-*/features/F-NNN-*/`
+   AND `_feature.md` exists in resolved_path
+   AND `_state.md` does NOT exist:
+  parent_M = read `_feature.md` frontmatter → `module-id`
+  Print Vietnamese to user:
+    "⚠ {feature-id} là feature post-ADR-003 nested trong {parent_M}.
+     Pipeline drive ở cấp module — feature nested không có state machine riêng.
+     → Dùng /resume-module {parent_M} để tiếp tục."
+  next-action: /resume-module {parent_M}
+  EXIT (no lock created, no state mutation)
+
+# Case B — module-level state hit via feature skill (works but suboptimal UX)
+IF resolved_path matches `docs/modules/M-NNN-*/` AND `_state.md` exists at top level:
+  Print Vietnamese to user:
+    "ℹ {arg} là module ID. /resume-feature drive được nhưng thiếu UX
+     module-specific (catalog summary, feature_ids, depends_on cross-module).
+     Khuyến nghị /resume-module {arg}. Tiếp tục anyway? (y/N)"
+  IF user=N → EXIT with suggestion `/resume-module {arg}`
+  IF user=y → continue (schema=ModuleState, treat as alias for resume-module)
+
+# Case C — module folder exists but `_state.md` missing
+IF resolved_path matches `docs/modules/M-NNN-*/` AND `_state.md` does NOT exist:
+  STOP blocker STATE-MISSING-001:
+    "Module folder at {resolved_path} but `_state.md` missing."
+  next-action: /new-module {module-id}
+  EXIT
+
+# Case D — hotfix / legacy feature / doc-generation → continue normal flow
+ELSE: continue to Advisory lock (Step 3.0 frontmatter parser handles per CD-23 + CD-10 #20)
+```
+
+Why this guard exists: post-ADR-003 nested F-NNN folders contain `_feature.md` (spec card) only — no state machine. Without this guard, Step 3.0 reads non-existent `_state.md` and STOPs with "Missing required fields", leaving user without a `next-action` directive (violates CD-12 mandate in `~/.claude/CLAUDE.md`).
+
 **Advisory lock:** Check `{docs-path}/.resume-lock`:
 - Exists, < 10min old → ask: wait or force takeover
 - Create lock (session-id + timestamp) before proceed
@@ -325,6 +364,9 @@ PM emits checkpoint markers internally per `notepads/checkpoints.md` on stage ad
 | `status: blocked` | Display blockers, ask user to resolve |
 | `pipeline-type` missing | Infer (sdlc if `feature-id`, else `doc-generation`) or ask |
 | Legacy no `stages-queue` | Reconstruct from path − completed |
+| F-NNN nested post-ADR-003 (only `_feature.md` exists) | Step 2 schema-variant detection redirects to `/resume-module {parent_M}` before lock |
+| Module ID provided to feature skill | Step 2 prompts confirm-or-switch to `/resume-module` (works either way, UX warning) |
+| Module folder present but `_state.md` missing | Blocker `STATE-MISSING-001` → `next-action: /new-module {module-id}` |
 
 ---
 

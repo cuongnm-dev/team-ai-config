@@ -87,6 +87,26 @@
           "type": "string",
           "enum": ["critical", "high", "medium", "low"]
         },
+        "module_id": {
+          "type": "string",
+          "pattern": "^M-[0-9]{3,}$",
+          "description": "Owner module ID (post-ADR-003 nested structure). FK to module-catalog.json. Required for new features scaffolded post-2026-05; legacy features may omit."
+        },
+        "consumed_by_modules": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^M-[0-9]{3,}$" },
+          "description": "Cross-cutting feature: list of module IDs that consume this feature without owning it (CD-24). Owner module is in module_id; this list is downstream consumers. Empty for non-cross-cutting features."
+        },
+        "expected_pipeline_path": {
+          "type": "string",
+          "enum": ["S", "M", "L"],
+          "description": "Pipeline-path hint set at /new-feature interview (Step 5). PM may override during Path Selection Logic post-BA. Final path stored in module-level _state.md.frontmatter.pipeline-path."
+        },
+        "references": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^F-[0-9]{3,}$" },
+          "description": "Related feature IDs (e.g., from partial dedup [n] new-with-references). Informational, not FK — features may reference deprecated/legacy IDs."
+        },
         "role_visibility": {
           "type": "array",
           "minItems": 0,

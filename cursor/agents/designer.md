@@ -1,6 +1,6 @@
 ---
 name: designer
-model: composer-2
+model: default
 description: "Phân tích UI/UX flow, form behavior, empty/error/loading states. Chạy sequentially sau BA khi UI impact flagged, TRƯỚC SA."
 ---
 

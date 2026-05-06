@@ -1151,7 +1151,108 @@ For each pipeline in pipelines[]:
 
 Issue all Write calls PARALLEL with _state.md writes (single message, multiple Write tools).
 
-### 5g. Update _state.md feature-req to point to feature-brief
+### 5g. Populate feature-catalog.json via ai-kit scaffold feature loop — MANDATORY
+
+**Purpose**: Step 4a `scaffold workspace` only creates an EMPTY feature-catalog.json stub. Step 5g MUST iterate over each feature in each pipeline and call `ai-kit sdlc scaffold feature` to populate the catalog atomically + create `_feature.md` (FeatureSpec per CD-23) + update sitemap/permission-matrix placeholders. WITHOUT this loop, Step 5h Tier 1 gate fails with `feature-catalog EMPTY`.
+
+```
+FOR each pipeline in pipelines[]:
+  parent_module_id = pipeline.module_id  # the M-NNN owning this pipeline (per Step 5d module catalog scaffold)
+
+  FOR each feature in pipeline.features:
+    # Derive slug from feature.name (kebab-case ASCII; transliterate VN if no name_en)
+    slug = derive_slug(feature.name_en || transliterate(feature.name))
+
+    # Build acceptance_criteria JSON array (ACs from doc-brief Section per feature)
+    ac_json = JSON.stringify(feature.acceptance_criteria || [])
+
+    # Detect cross-cutting consumers (modules that reference this feature in doc-brief)
+    consumed_by_csv = feature.consumed_by_modules.join(',') || ''
+
+    Bash("ai-kit sdlc scaffold feature \
+      --workspace . \
+      --module {parent_module_id} \
+      --id {feature.id} \
+      --name '{feature.name}' \
+      --slug '{slug}' \
+      --description '{feature.description}' \
+      --business-intent '{feature.business_intent}' \
+      --flow-summary '{feature.flow_summary}' \
+      --acceptance-criteria '{ac_json}' \
+      --consumed-by '{consumed_by_csv}' \
+      --priority {feature.priority || 'medium'}")
+    parse stdout JSON → if !ok: STOP with feature.id + error
+
+    # Post-scaffold: populate fields not supported by scaffold CLI (per CLI --help note)
+    # role_visibility / expected_pipeline_path / depends_on / references go here
+    IF feature.role_visibility (map):
+      Bash("ai-kit sdlc state update --op field \
+        --kind feature --id {feature.id} \
+        --path role_visibility \
+        --value '{JSON.stringify(feature.role_visibility)}'")
+    IF feature.depends_on (csv):
+      Bash("ai-kit sdlc state update --op field \
+        --kind feature --id {feature.id} \
+        --path depends_on \
+        --value '{JSON.stringify(feature.depends_on)}'")
+    IF feature.expected_pipeline_path (S|M|L from heuristic):
+      Bash("ai-kit sdlc state update --op field \
+        --kind feature --id {feature.id} \
+        --path expected_pipeline_path \
+        --value '\"{feature.expected_pipeline_path}\"'")
+```
+
+After loop:
+- `feature-catalog.json` populated with N entries (N = total feature count)
+- `sitemap.json` placeholders added per feature (status: planned, confidence: low)
+- `permission-matrix.json` placeholders per role_visibility (when set)
+- `feature-map.yaml` updated atomically (F-NNN → parent_module + path)
+- Each F-NNN folder created at `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/` with `_feature.md`, `implementations.yaml`, `test-evidence.json`
+
+### 5g.5. Emit business-context.json — MANDATORY (T3 primary producer per OUTLINE_COVERAGE.md § 5)
+
+**Purpose**: `from-doc` is the SOLE producer of `business-context.json`. Step 5h Tier 3 gate hard-stops if missing. Synthesize from doc-brief + tech-brief sections.
+
+```
+business_context = {
+  schema_version: "1.0",
+  project: {
+    name: doc-brief.system_name,
+    name_vn: doc-brief.system_name_vn,
+    code: doc-brief.project_code || derive_from_name,
+    sector: doc-brief.sector || 'public-administration',
+  },
+  legal_basis: doc-brief.legal_references[],         # MUST be ≥3 entries — extract NĐ/QĐ/CT/Luật from §1 of doc
+  objectives: {
+    general: doc-brief.objectives.general,
+    specific: doc-brief.objectives.specific[],       # MUST be ≥3
+  },
+  pain_points: doc-brief.pain_points[],              # MUST be ≥3 — extract from §2 problem statement
+  scope: {
+    in_scope: doc-brief.scope.in_scope[],            # MUST be non-empty
+    out_of_scope: doc-brief.scope.out_of_scope[],
+    deferred: doc-brief.scope.deferred[],
+  },
+  stakeholders: doc-brief.stakeholders[],
+  expected_outcomes: doc-brief.expected_outcomes[],
+  ...
+}
+
+Write docs/intel/business-context.json (validate via JSON schema before write)
+Bash("python ~/.claude/scripts/intel/validate.py docs/intel/business-context.json --schema business-context")
+IF validation fails → STOP with field-level error, suggest [r] re-run Step 3 OR [i] interactive fill at Step 5h gate
+```
+
+**Hard-stop conditions** (matches Step 5h gate):
+- `project.name` empty
+- `legal_basis[]` count < 3
+- `objectives.specific[]` count < 3
+- `pain_points[]` count < 3
+- `scope.in_scope[]` empty
+
+If doc-brief section missing required content for any field → set field to `[CẦN BỔ SUNG: <description>]` placeholder string and Print warning. Step 5h will catch and prompt user [i] interactive fill.
+
+### 5g.6. Update _state.md feature-req to point to feature-brief
 
 ```yaml
 repo-type: {mono|mini}
@@ -1169,11 +1270,11 @@ features:
 
 Register all files in artifacts map.
 
-**Artifacts**: `_state.md` per pipeline, `feature-map.yaml`
+**Artifacts**: per-feature `_feature.md` (via 5g scaffold loop), per-pipeline `_state.md` + `feature-brief.md`, `feature-catalog.json` populated, `business-context.json`, `feature-map.yaml`
 **State**: `current_step: "6"`, `steps.5.status: "done"`
 
 **MANDATORY EXIT** (DO NOT STOP — continue to Step 5h):
-Print: "✅ Step 5 complete. Proceeding to Step 5h (intel quality gate)..."
+Print: "✅ Step 5 complete (5g feature scaffold + 5g.5 business-context emit done). Proceeding to Step 5h (intel quality gate)..."
 → IMMEDIATELY execute Step 5h below. DO NOT pause.
 
 ---

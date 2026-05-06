@@ -1,6 +1,6 @@
 ---
 name: devops
-model: composer-2
+model: default
 description: "Pre-deploy readiness: env vars, schema migrations, CI/CD, Docker. Chạy khi tech-lead flag Deploy Impact."
 is_background: true
 ---

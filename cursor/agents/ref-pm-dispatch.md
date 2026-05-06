@@ -1,6 +1,6 @@
 ---
 name: ref-pm-dispatch
-model: auto
+model: default
 description: Agent Dispatch Reference — when to invoke each agent, placement in pipeline, and context bundle to pass.
 ---
 
