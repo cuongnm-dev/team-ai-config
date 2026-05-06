@@ -9,25 +9,25 @@ User-facing prompts: Vietnamese. Skill prose + dispatcher: English.
 
 ## ⚠️ SKILL ROLE — BATCH WRAPPER
 
-Skill này KHÔNG drive pipeline trực tiếp. Vai trò:
-1. Đọc `module-catalog.json` + topological sort theo `depends_on`
-2. Loop: `Skill("resume-module", {id})` cho từng module trong queue
-3. Track tiến độ ở `docs/intel/_batch-state.json`
-4. Báo cáo cuối cùng
+This skill does NOT drive a pipeline directly. Role:
+1. Read `module-catalog.json` and perform topological sort by `depends_on`
+2. Loop: `Skill("resume-module", {id})` for each module in queue
+3. Track progress in `docs/intel/_batch-state.json`
+4. Final report
 
-Pipeline driver vẫn là `/resume-module` (PM Orchestrate Mode). Skill này thuần điều phối + state management.
+Pipeline driver remains `/resume-module` (PM Orchestrate Mode). This skill is pure orchestration + state management on top.
 
 ### Forbidden:
-- ❌ Direct `Task(pm)` call — phải dùng `Skill("resume-module")` để giữ contract của resume-module
-- ❌ Skip topological order — phải tôn trọng `depends_on` (M phụ thuộc M-Y phải chạy sau M-Y)
-- ❌ Bỏ qua `_batch-state.json` — phải resumable
-- ❌ Override policy mặc định — chỉ user cấu hình qua `--on-error`
+- ❌ Direct `Task(pm)` call — MUST use `Skill("resume-module")` to preserve resume-module's contract
+- ❌ Skipping topological order — `depends_on` MUST be honored (M depending on M-Y runs AFTER M-Y)
+- ❌ Bypassing `_batch-state.json` — skill MUST be resumable
+- ❌ Overriding default policy — user configures via `--on-error` only
 
 ### Required:
 - ✅ Step 0-2: load + topological sort + state init/resume
-- ✅ Step 3: main loop với error handling theo policy
-- ✅ Step 4: final report rõ ràng (completed / failed / skipped / user-needed)
-- ✅ Checkpoint state sau mỗi module (interrupt-safe)
+- ✅ Step 3: main loop with error handling per policy
+- ✅ Step 4: clear final report (completed / failed / skipped / user-needed)
+- ✅ State checkpoint after every module (interrupt-safe)
 
 ---
 
@@ -284,7 +284,7 @@ WHILE state.current_idx < state.queue.length:
   state.current_idx++
   Write state_path
   
-  # 5.6 Brief pause (tránh rate-limit + cho user kịp xem progress)
+  # 5.6 Brief pause (avoid rate-limit + give user time to read progress)
   Sleep 3s
 
 # End of loop

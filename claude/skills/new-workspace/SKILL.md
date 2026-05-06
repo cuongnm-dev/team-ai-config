@@ -238,16 +238,16 @@ git init && git config core.autocrlf false
 
 **[2/14] Project skeleton + starter code**
 
-**Pre-flight: kiểm tra workspace đã scaffold chưa** (tránh `MCP_E_ALREADY_EXISTS`):
+**Pre-flight: detect existing scaffold** (avoid `MCP_E_ALREADY_EXISTS`):
 
 ```bash
-# Phát hiện markers (file đặc trưng project + intel layer):
+# Detect project markers + intel layer:
 has_git=[[ -e .git ]]
 has_pkg=[[ -e package.json || -e go.mod || -e pyproject.toml || -e Cargo.toml || -e requirements.txt ]]
 has_intel=[[ -f docs/intel/_meta.json ]]
 
 IF has_git OR has_pkg OR has_intel:
-  Print Vietnamese:
+  Print Vietnamese to user:
     "⚠ Workspace đã tồn tại tại {workspace_path}:
        - .git:       {has_git}
        - Project marker: {has_pkg}
@@ -258,30 +258,30 @@ IF has_git OR has_pkg OR has_intel:
        [s] Skip step [2/14] — bỏ qua scaffold workspace, chỉ fill missing pieces ở [3-14]
        [a] Abort — gợi ý /configure-workspace nếu chỉ muốn thêm SDLC infra vào repo có sẵn"
   
-  IF user picks [r]: thêm `--force` vào CLI command bên dưới
-  IF user picks [s]: SKIP CLI scaffold, jump tới [3/14] (sync-cursor)
-  IF user picks [a]: STOP, gợi ý `/configure-workspace` cho retrofit lean
+  IF user picks [r]: append `--force` to CLI command below
+  IF user picks [s]: SKIP CLI scaffold, jump to [3/14] (sync-cursor)
+  IF user picks [a]: STOP, suggest `/configure-workspace` for lean retrofit
 ELSE:
-  Continue scaffold bên dưới (workspace mới hoàn toàn)
+  Continue scaffold below (fresh workspace)
 ```
 
-**THEN — atomic scaffold via ai-kit CLI** (chỉ chạy nếu pre-flight cho phép):
+**THEN — atomic scaffold via ai-kit CLI** (only if pre-flight allows):
 
 ```bash
 ai-kit sdlc scaffold workspace --workspace . --type {mini|mono} --stack {stack-id} [--force]
 ```
 
 Required flags (DO NOT guess — verify via `ai-kit sdlc scaffold workspace --help`):
-- `--workspace .` — thư mục hiện tại (CLI yêu cầu absolute path; `.` được resolve về cwd absolute)
-- `--type mini|mono` — workspace topology (chính xác là `--type`, KHÔNG phải `--workspace-type` / `--workspace_type`)
+- `--workspace .` — current dir (CLI requires absolute path; `.` resolves to cwd absolute)
+- `--type mini|mono` — workspace topology (exact flag is `--type`, NOT `--workspace-type` / `--workspace_type`)
 - `--stack nodejs|python|go|rust|none` — stack template
-- `--force` (optional) — chỉ thêm khi user chọn [r] re-scaffold
+- `--force` (optional) — only append when user picked [r] re-scaffold
 
-**Lưu ý**: CLI hiện hỗ trợ `--config '<json>'` (auth/db/cache/...) nhưng `scaffoldWorkspaceImpl` chưa consume nó. Auth/DB/Cache/CI/Observability đã gather ở Phase 1-5 sẽ được render manual ở các step [3-14] dưới (NOT qua --config flag). Flag `--config` reserved cho future schema bump.
+**Note**: CLI accepts `--config '<json>'` flag (auth/db/cache/...) but `scaffoldWorkspaceImpl` does NOT consume it currently. Auth/DB/Cache/CI/Observability gathered in Phase 1-5 are rendered manually in steps [3-14] below (NOT via `--config`). The `--config` flag is reserved for a future schema bump.
 
-Parse stdout JSON cho `data.files_created`. Trên error → STOP với error message hiển thị.
+Parse stdout JSON for `data.files_created`. On error → STOP with displayed error message.
 
-ai-kit tạo: AGENTS.md, CLAUDE.md, .gitignore stub, `docs/intel/` (empty stubs: actor-registry.json, feature-catalog.json, module-catalog.json, sitemap.json, permission-matrix.json), `docs/modules/`, `docs/inputs/`, `docs/generated/`, `_meta.json`.
+ai-kit creates: AGENTS.md, CLAUDE.md, .gitignore stub, `docs/intel/` (empty stubs: actor-registry.json, feature-catalog.json, module-catalog.json, sitemap.json, permission-matrix.json), `docs/modules/`, `docs/inputs/`, `docs/generated/`, `_meta.json`.
 
 **THEN — stack-specific starter code** (NOT created by ai-kit — skill must add):
 → Read `ref-stack-{stack-id}.md` now.
