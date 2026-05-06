@@ -174,7 +174,12 @@ export async function scaffoldModuleImpl(workspacePath, moduleId, moduleName, sl
     tx.add(join(modPath, '_state.md'), stateMd);
     tx.add(join(modPath, 'module-brief.md'), briefMd);
     tx.add(join(modPath, 'implementations.yaml'), implYaml);
-    for (const sub of ['ba', 'sa', 'designer', 'security', 'tech-lead', 'qa', 'reviewer']) {
+    // Active stage folders match risk_path + agent_flags (Issue 2b fix 2026-05-07).
+    // Path S → 4 folders (ba, tech-lead, dev, reviewer)
+    // Path M → 6 folders (+ sa, qa)
+    // Path L → 7 folders (+ security)
+    // + designer if agent_flags.designer.screen_count > 0
+    for (const sub of activeStageFoldersFor(risk_path, agent_flags)) {
       tx.add(join(modPath, sub, '.gitkeep'), '');
     }
     tx.add(io.moduleCatalogPath(ws), catContent);
@@ -421,6 +426,25 @@ function isMonoRepo(ws) {
     if (existsSync(join(ws, d))) { hasDirs = true; break; }
   }
   return hasTool || hasDirs;
+}
+
+// Active stage subdirs per risk_path — matches stagesQueueFor + 'ba' (always — current-stage init).
+// dev-wave-N → 'dev' folder; security-design / security-review → 'security' folder.
+function activeStageFoldersFor(riskPath, agentFlags) {
+  const folders = ['ba'];                                   // always — current-stage init
+  if (riskPath === 'M' || riskPath === 'L') folders.push('sa');
+  const designer = (agentFlags && agentFlags.designer) || {};
+  if ((designer.screen_count || 0) > 0) {
+    if (folders.includes('sa')) folders.splice(folders.indexOf('sa'), 0, 'designer');
+    else folders.push('designer');
+  }
+  if (riskPath === 'L') folders.push('security');
+  const security = (agentFlags && agentFlags.security) || {};
+  if (security.pii_found && !folders.includes('security')) folders.push('security');
+  folders.push('tech-lead', 'dev');
+  if (riskPath === 'M' || riskPath === 'L') folders.push('qa');
+  folders.push('reviewer');
+  return folders;
 }
 
 function stagesQueueFor(riskPath, agentFlags) {
