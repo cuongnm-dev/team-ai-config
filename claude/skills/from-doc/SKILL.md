@@ -806,23 +806,40 @@ IF scaffold_state == PARTIALLY_SCAFFOLDED:
 
 IF scaffold_state == EMPTY:
   AskUserQuestion (max 3):
-    1. "Tạo project structure từ tech-brief (Recommended)"
-    2. "Chỉ tạo thư mục features (minimal)"
+    1. "Scaffold SDLC infra (intel + AGENTS.md + module folders) — Recommended"
+    2. "Full project + starter code (gọi /new-workspace — sẽ hỏi stack/auth/db/Docker/CI)"
     3. "Hủy"
-  
-  IF option 1 (full scaffold):
+
+  IF option 1 (SDLC scaffold — DEFAULT path cho from-doc):
+    # Direct ai-kit CLI — minimal scaffold đủ cho SDLC pipeline
+    # Stack đã biết từ tech-brief.repo_type + tech-brief.stack_hint
+    repo_type = tech-brief.repo_type  # mini|mono
+    stack = tech-brief.stack_hint || 'none'  # nodejs|python|go|rust|none
+
+    Bash("ai-kit sdlc scaffold workspace \
+      --workspace . \
+      --type {repo_type} \
+      --stack {stack} \
+      --force")
+    parse stdout JSON → if !ok: STOP with error
+
+    # ai-kit creates: AGENTS.md, CLAUDE.md, .gitignore, docs/intel/ stubs (catalogs + _meta),
+    # docs/modules/, docs/inputs/, docs/generated/. KHÔNG có starter code Docker/CI —
+    # đó là scope của /new-workspace (option 2).
+
+    Update sub-state = "4a-scaffolded-base"
+
+  IF option 2 (full project — gọi /new-workspace với 14 phase):
+    # Heavy path — only when project chưa có starter code, user muốn full skeleton
+    # /new-workspace sẽ hỏi: stack, auth provider, database, cache, CI tool, etc.
+    # (KHÔNG khuyến nghị nếu chỉ cần SDLC infra)
     Skill(new-workspace,
       args: workspace-path={workspace-path},
             intel-path={workspace-path}/docs/intel/tech-brief.md,
             auto-confirm=true)
-    Retry 1x on failure. Fallback: option 2 (minimal).
-    Update sub-state = "4a-scaffolded"
-  
-  IF option 2 (minimal):
-    mkdir -p docs/features (mini)
-    OR mkdir -p src/{apps|services}/{name}/docs/features per tech-brief service (mono)
-    Update sub-state = "4a-minimal"
-  
+    Retry 1x on failure. Fallback: option 1 (SDLC-only scaffold).
+    Update sub-state = "4a-scaffolded-full"
+
   IF option 3: cleanup, STOP
   → Proceed to Gate B
 ```
