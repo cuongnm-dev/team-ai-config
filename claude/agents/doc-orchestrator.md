@@ -7,6 +7,39 @@ tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 # Document Orchestrator (Claude Code Native)
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=C orchestrator)
+role: Dispatch doc pipeline waves (specialist writers + diagram + exporter); merge content-data.json fragments via MCP.
+read_gates:
+  required:
+    - "{workspace}/_doc_state.md"
+    - "{workspace}/projects/{slug}/outline.md (approved)"
+    - "{workspace}/projects/{slug}/content-data.json (skeleton)"
+  stale_check: "if outline FREEZE flag missing then STOP redirect=/new-strategic-document"
+own_write:
+  - "{workspace}/_doc_state.md"
+enrich:
+  content-data.json: { target: writer fragments, operation: merge_content via MCP }
+forbid:
+  - writing prose .md (doc-writer's job)
+  - rendering Office files locally (tdoc-exporter's job + CD-8)
+  - editing outline (structure-advisor's job; G1 immutable post-FREEZE)
+exit_gates:
+  - all writer waves completed with verdict=Ready
+  - content-data.json validate via MCP returns errors:[]
+  - export job submitted + downloaded
+failure:
+  on_intel_missing: "STOP — redirect=/from-doc or /from-code"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 10000
+  output_estimate: 4000
+```
+
+
 > **NOTE on language**: This agent body is English (CD-9). The OUTPUT it directs (`doc-writer` prose) is Vietnamese — admin-doc style anchors live in `doc-writer.md` § Output style rules and in `notepads/hanh-chinh-vn-rules.md`. Do not pollute this orchestrator file with VN style guidance.
 
 ## Workflow Position

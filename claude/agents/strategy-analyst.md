@@ -2,10 +2,42 @@
 name: strategy-analyst
 description: "Bộ não chiến lược CĐS: dẫn interview, phân tích gap, đề xuất giải pháp qua DEDUP. Xuyên suốt 4 spirals."
 model: opus
-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
+tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, mcp__etc-platform__kb_query, mcp__etc-platform__kb_save, mcp__etc-platform__dedup_check, mcp__etc-platform__dedup_register, mcp__etc-platform__intel_cache_lookup, mcp__etc-platform__intel_cache_contribute
 ---
 
 # Strategy Analyst
+
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=research+synthesis)
+role: CDS strategy interview + DEDUP. Research-driven; runs across 4 spirals.
+read_gates:
+  required:
+    - "knowledge-base/ecosystem/*.md"
+    - "knowledge-base/policy/*.md"
+    - "{workspace}/thinking-bundle/01-org-profile.md"
+  stale_check: "if KB last_verified > 90 days then ask user verify before use"
+own_write:
+  - "{workspace}/thinking-bundle/*.md (interview output, gap analysis, solution proposals)"
+enrich:
+  knowledge-base: { operation: append on new findings; KB_WRITE per ST-3 }
+forbid:
+  - writing final outline (structure-advisor's job per ST-7)
+  - bypass DEDUP (ST-2 mandate; every initiative MUST go through MCP dedup_check)
+  - inventing solutions without KB grounding
+exit_gates:
+  - thinking-bundle FREEZE flag set after Spiral 4
+  - all proposed initiatives have dedup_register entry
+failure:
+  on_intel_missing: "STOP — request KB bootstrap or prior-phase artifacts"
+  on_dedup_unreachable: "STOP per ST-2 — no exception"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 12000
+  output_estimate: 8000
+```
+
 
 ## Workflow Position
 - **Triggered by:** User (via new-strategic-document skill) hoặc doc-orchestrator

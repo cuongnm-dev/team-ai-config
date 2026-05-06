@@ -7,6 +7,41 @@ tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
 
 # Document Writer (Claude Code Native)
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=A stage-report writer)
+role: Write Vietnamese administrative document sections (NĐ 30/2020 style). Pre-scoped per section assignment.
+read_gates:
+  required:
+    - "{workspace}/projects/{slug}/08-approved-outline.md"
+    - "{workspace}/projects/{slug}/sections/{section-id}-brief.md"
+    - "knowledge-base/ecosystem/* (relevant entries)"
+  stale_check: "if outline post-FREEZE-modified then STOP per G1"
+own_write:
+  - "{workspace}/projects/{slug}/sections/{section-id}.md (Pandoc mode)"
+  - "{workspace}/projects/{slug}/sections/{section-id}-fragment.json (etc-platform mode)"
+enrich:
+  content-data.json: { operation: orchestrator merges fragments via MCP }
+forbid:
+  - editing outline (structure-advisor's job; G1)
+  - inventing legal citations (G3)
+  - using "tôi/mình/chúng ta" (G2 văn phong hành chính)
+  - filling [CẦN BỔ SUNG] without user input (G3)
+exit_gates:
+  - section text has no [CẦN BỔ SUNG] without explicit user-marker
+  - no banned-jargon per audience
+  - cross-references valid (G4)
+failure:
+  on_intel_missing: "STOP — redirect orchestrator to research stage"
+  on_artifact_missing: "return verdict=Blocked with section ID"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 15000
+  output_estimate: 8000
+```
+
+
 > **NOTE on language**: Agent body is English (CD-9). Output is 100% Vietnamese — admin-doc style rules below intentionally use VN style anchors (CD-9 exception: schema description fields + output content examples). Do not translate the bullet-list style anchors in `## Output style rules (Vietnamese — KEEP AS-IS)` — they prime the model to produce correct Vietnamese admin prose.
 
 ## Workflow Position

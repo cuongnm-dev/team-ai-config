@@ -198,12 +198,12 @@ if recommendation == "proceed" AND architectural_decision_found == true:
     Architectural decision discovered during spike must be recorded before implementation.
     Spike doc at {project_path}/docs/spikes/{spike-id}.md passed as context.
   After /adr completes:
-  → Suggested: /plan-feature
+  → Suggested: /plan
     reason: spike answered the question — plan the implementation now.
     Run now? (yes / skip)
 
 elif recommendation == "proceed" AND architectural_decision_found == false:
-  → Suggested: /plan-feature
+  → Suggested: /plan
     reason: spike answered the question — implementation approach is clear.
     Run now? (yes / skip)
 

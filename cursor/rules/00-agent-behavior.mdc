@@ -50,9 +50,9 @@ alwaysApply: true
 ## Boundary 1 — Pipeline routing
 
 Locate active pipelines (resolution order):
-1. **`docs/feature-map.yaml`** → scan entries where `status` ≠ `done` (PRIMARY — fast, no glob)
-2. Fallback: glob `docs/features/**/_state.md`, `docs/hotfixes/**/_state.md`
-3. Monorepo fallback: `**/docs/features/**/_state.md`
+1. **`Bash("ai-kit sdlc resolve --kind {feature|hotfix|module} --id {ID} --include-metadata")`** — atomic, ai-kit Node-native. Single-call resolution per ADR-005 D3. Reads `docs/intel/feature-map.yaml` + `docs/intel/module-map.yaml`.
+2. ai-kit CLI unavailable → **BLOCK pipeline** per ADR-005 D3. Print: "Install/update ai-kit CLI: `ai-kit update`. Verify via `ai-kit doctor`."
+3. **NO Glob fallback.** Pre-ADR-005 fallback (`glob docs/features/**/_state.md`) is FORBIDDEN — agent must BLOCK instead of mutating workspace at non-canonical paths.
 
 ```
 IF request names a feature-id AND pipeline active (status ≠ done):
@@ -77,16 +77,19 @@ IF unrelated to any pipeline:
 <!-- AUTO-VERIFY: this list is hand-maintained. Source of truth = `~/.cursor/skills/*/SKILL.md` frontmatter `name:` fields.
      When adding/removing skills under ~/.cursor/skills/, update this list AND keep groupings sensible.
      Sanity check (rerun if list feels stale): `ls ~/.cursor/skills/` should match the union below.
-     LAST_VERIFIED_BUMP: 2026-05-02 (kept in this comment so date does NOT enter LLM context — preserves alwaysApply cache). -->
-Available skills (23 active + 1 deprecated):
+     LAST_VERIFIED_BUMP: 2026-05-06 (kept in this comment so date does NOT enter LLM context — preserves alwaysApply cache). -->
+Available skills (29 active + 1 deprecated):
 - Project: `/new-workspace` `/new-project` `/configure-workspace` `/ui-catalog`
-- Pipeline: `/new-feature` `/hotfix` `/resume-feature` `/feature-status` `/close-feature`
+- Pipeline (feature): `/new-feature` `/hotfix` `/resume-feature` `/feature-status` `/close-feature`
+- Pipeline (module): `/new-module` `/resume-module`
 - Dev: `/plan` `/implement` `/code-change`
 - Architecture: `/spike` `/adr` `/arch-review`
 - Release: `/release`
 - Ops: `/incident` `/runbook`
 - Quality: `/quality` (modes: review | gen-tests | security | compliance | dependencies). `/audit` is DEPRECATED → redirects to `/quality`.
-- Docs: `/from-doc` `/generate-docs` `/strategic-critique` `/zip-disk`
+- Docs: `/from-doc` `/from-code` `/generate-docs` `/strategic-critique` `/zip-disk`
+- Intel: `/intel-refresh` `/intel-snapshot`
+- Engineering tools: `/cache-lint`
 
 ## Boundary 3 — PM session continuity
 

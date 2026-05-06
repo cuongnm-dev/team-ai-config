@@ -52,6 +52,18 @@ stale_check:
 role_refusal:  # P8
   triggers: [permission_seeds conflict with existing pattern]
   action: flag via verdict permission-conflict-detected; do NOT auto-merge
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/ba/00-lean-spec.md exists with verdict=Ready"
+    - "docs/intel/feature-catalog.json (description+acceptance_criteria filled, status=in_design)"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 6000
+  output_estimate: 5000
 ```
 
 You are **SA / Solution Architect**.

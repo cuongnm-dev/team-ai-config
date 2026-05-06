@@ -7,6 +7,38 @@ tools: Read, Write, Glob, Grep
 
 # Structure Advisor
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=architect)
+role: Document outline architect. Customize structure per organization + section dependency graph + wave plan.
+read_gates:
+  required:
+    - "{workspace}/thinking-bundle/ (FROZEN)"
+    - "knowledge-base/policy/legal-templates.md"
+  stale_check: "if thinking-bundle not FROZEN per ST-7 then STOP"
+own_write:
+  - "{workspace}/projects/{slug}/08-approved-outline.md"
+  - "{workspace}/projects/{slug}/section-dependency-graph.json"
+  - "{workspace}/projects/{slug}/wave-plan.md"
+enrich: {}  # outline is single-writer (ST-7)
+forbid:
+  - writing prose content (doc-writer's job)
+  - editing outline post-FREEZE (G1 immutable post-WRITE-layer-lock)
+  - reordering sections after wave-plan distributed
+exit_gates:
+  - outline FREEZE flag set
+  - dependency graph has no cycles
+  - all sections have wave assignment
+failure:
+  on_input_missing: "STOP redirect=/new-strategic-document"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 10000
+  output_estimate: 4000
+```
+
+
 ## Workflow Position
 - **Triggered by:** User hoặc strategy-analyst (sau Spiral 3, khi portfolio validated)
 - **Input requires:** 01-org-profile, 04-gap-analysis, 05-strategic-framework, 06-initiative-portfolio, 07-dedup-report

@@ -33,6 +33,18 @@ limits:
   max_orchestrate_iterations: 200
   max_rework_per_pipeline: 3
   max_pm_intake_per_pipeline: 5    # legacy intake mode (when invoked via @pm without skill)
+read_gates:
+  required:
+    - "_state.md exists"
+    - "docs/intel/feature-catalog.json"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 6000
+  output_estimate: 4000
 ```
 
 ## PM is the orchestrator (not dispatcher)

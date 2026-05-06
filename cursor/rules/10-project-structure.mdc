@@ -17,12 +17,12 @@ globs:
 ├── src/
 │   ├── apps/{app-name}/              ← Deployable FE/mobile apps (NX projects)
 │   │   ├── src/
-│   │   ├── docs/                     ← architecture/, adr/, features/{feature-id}/
+│   │   ├── docs/                     ← project-local: architecture/, adr/ (NO features/ — see CD-22)
 │   │   └── project.json
 │   ├── services/{service-name}/      ← Backend services (NX projects)
 │   │   ├── src/
 │   │   ├── db/migrations/            ← Service-local SQL migrations (if applicable)
-│   │   ├── docs/                     ← architecture/, adr/, features/{feature-id}/
+│   │   ├── docs/                     ← project-local: architecture/, adr/ (NO features/ — see CD-22)
 │   │   ├── Dockerfile
 │   │   └── project.json
 │   └── shared/
@@ -30,10 +30,15 @@ globs:
 │       └── assets/                   ← Shared static assets
 ├── infra/                            ← Docker, K8s, Terraform, CI configs
 ├── tools/generators/                 ← NX custom generators
-├── docs/                             ← Cross-cutting docs only
-│   ├── architecture/                 ← system-context, containers, tech-radar, adr/
-│   ├── business/                     ← vision, domain-model, stakeholders
-│   └── data/                         ← Master data, schemas
+├── docs/                             ← Workspace docs (CD-22 locked tree + org docs coexist)
+│   ├── intel/                        ← CD-22: shared intel layer (catalogs, maps, snapshots) — single source of truth
+│   ├── modules/M-NNN-{slug}/         ← CD-22: SDLC modules (with nested features/F-NNN-{slug}/)
+│   ├── hotfixes/H-NNN-{slug}/        ← CD-22: hotfix pipelines
+│   ├── inputs/                       ← CD-22: raw user-provided docs
+│   ├── generated/                    ← CD-22: Office output
+│   ├── architecture/                 ← Org-level: system-context, containers, tech-radar, adr/ (NOT in CD-22 lock; coexists)
+│   ├── business/                     ← Org-level: vision, domain-model, stakeholders (coexists)
+│   └── data/                         ← Org-level: master data, schemas (coexists)
 ├── docker-compose.yml
 ├── AGENTS.md
 └── nx.json, package.json, tsconfig.base.json
@@ -46,20 +51,24 @@ globs:
 | Workspace config (nx.json, tsconfig.base.json) | Root only |
 | Workspace ADR (affects ≥2 projects) | `docs/architecture/adr/` |
 | Project ADR (one project only) | `{project_path}/docs/adr/` |
-| Feature pipeline artifacts | `{project_path}/docs/features/{feature-id}/` |
-| Cross-cutting feature (PM designates) | `docs/features/{feature-id}` |
+| Feature pipeline artifacts (CD-22) | `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/` |
+| Cross-cutting feature (CD-24) | Same nested path under primary owner module; secondary modules listed in `feature-catalog.features[].consumed_by_modules[]` |
+| Hotfix pipeline (CD-22) | `docs/hotfixes/H-NNN-{slug}/` |
+| Module pipeline (CD-22) | `docs/modules/M-NNN-{slug}/` |
+| Intel layer (CD-10/CD-22) | `docs/intel/` (catalogs, maps, registries) |
 | Shared components (≥2 apps) | `src/shared/libs/ui/src/` |
 | Service Dockerfile | Collocated: `{project_path}/Dockerfile` |
 
-## Docs Path Formula
+## Docs Path Formula (CD-22 locked tree)
 
 ```
-project-path = src/apps/{name}  OR  src/services/{name}
-docs-path    = {project-path}/docs/features/{feature-id}
-adr-path     = {project-path}/docs/adr/
+project-path = src/apps/{name}  OR  src/services/{name}    # code location
+docs-path    = docs/modules/M-NNN-{slug}/features/F-NNN-{slug}    # SDLC docs (CD-22)
+adr-path     = {project-path}/docs/adr/                    # project-local ADRs
+intel-path   = docs/intel/                                 # shared intel (CD-10)
 ```
 
-Feature locate: `docs/feature-map.yaml` → lookup `features.{id}.docs_path` (PRIMARY, avoids glob).
+Feature locate: **`Bash("ai-kit sdlc resolve --workspace . --kind feature --id F-NNN")`** (atomic, ai-kit Node-native). ai-kit CLI unavailable → BLOCK per ADR-005 D3 (no Glob fallback). Map source: `docs/intel/feature-map.yaml` (per ADR-003 D9-4).
 
 ## NX Project Tags Convention
 

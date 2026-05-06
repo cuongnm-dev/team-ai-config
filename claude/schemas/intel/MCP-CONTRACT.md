@@ -2,7 +2,7 @@
 
 **Single source of truth** cho etc-platform MCP usage rules. Replaces previously duplicated content in `~/.claude/CLAUDE.md` § "etc-platform MCP Rules" và `~/.cursor/AGENTS.md` § "etc-platform MCP".
 
-> **Last updated:** 2026-05-04 (post-merge unified architecture).
+> **Last updated:** 2026-05-06 (post-v3.2.0 — 11 NEW SDLC scaffolding tools added per ADR-003 D6/D7/D8/D11).
 > **Stability:** stable; changes require coordinated update of dependent skills.
 
 ## 1. Topology
@@ -16,9 +16,11 @@
 
 Back-compat alias `:8000/sse` còn active trong giai đoạn migration (sẽ retire sau 2026-Q3).
 
-## 2. Tool surface (24 tools, FastMCP-prefixed `mcp__etc-platform__*`)
+## 2. Tool surface (35 tools post-v3.2.0, FastMCP-prefixed `mcp__etc-platform__*`)
 
-### Render pipeline
+**Breakdown**: 24 EXISTING (pre-v3.2.0) + 11 NEW SDLC scaffolding (added v3.2.0 per ADR-003 D6/D7/D8/D11) = 35 total.
+
+### Render pipeline (existing, unchanged)
 - **Validation**: `validate(content_data)`, `validate_uploaded(upload_id)`, `validate_workspace(workspace_id)` — Pydantic ContentData
 - **Export**: `export(...)`, `export_async(...)` — render Office files
 - **Jobs**: `job_status(job_id)`, `cancel_job(job_id)`, `upload_capacity()`
@@ -27,12 +29,26 @@ Back-compat alias `:8000/sse` còn active trong giai đoạn migration (sẽ ret
 - **Field map**: `field_map(doc_type)` — interview-to-field mapping
 - **Templates (render-side)**: `template_list()`, `template_fork(source_path, kind)` — Office template management
 
-### Registry / KB
+### Registry / KB (existing, unchanged)
 - **Outlines**: `outline_load(doc_type, version)`, `outlines_list()` — IMMUTABLE outlines NĐ 45/2026 (TKCT/TKCS/TKKT/HSMT/HSDT/dự toán/NCKT/thuyết minh/báo cáo CT)
 - **KB**: `kb_query(...)`, `kb_save(...)` — legal refs, ATTT patterns, NFR boilerplate
 - **DEDUP**: `dedup_check(...)`, `dedup_register(...)` — CT 34 §6 cross-project deduplication
 - **Intel cache**: `intel_cache_lookup(...)`, `intel_cache_contribute(...)` — cross-project pattern library
 - **Templates (workspace-side)**: `template_registry_load(namespace, template_id)`, `templates_registry_list(namespace)` — new-workspace stack scaffolds (renamed to avoid collision với render-side `template_list/template_fork`)
+
+### SDLC scaffolding (NEW v3.2.0 — 11 tools per ADR-003)
+
+Per CD-8 v3 enforcement: skills MUST call these instead of `Write`/`mkdir`/glob for SDLC structure.
+
+- **Atomic create (5)**: `scaffold_workspace(workspace_path, workspace_type ∈ {mini,mono}, stack)`, `scaffold_app_or_service(...)`, `scaffold_module(M-NNN, name, slug, ...)`, `scaffold_feature(M-NNN, F-NNN, name, slug, ...)`, `scaffold_hotfix(H-NNN, name, slug, patch_summary, ...)`
+- **Refactor (1)**: `rename_module_slug(M-NNN, new_slug, reason)` — atomic slug evolution + alias entry per D10-1
+- **Read (1)**: `resolve_path(kind ∈ {module,feature,hotfix}, id, include_metadata)` — REPLACES skill glob fallback for `docs/{modules,features,hotfixes}/**`
+- **Repair (1)**: `autofix(fix_classes[], dry_run, confirm_destructive)` — orphan-removal functional; missing-scaffold/schema-migrate/id-collision-resolve/cross-ref-repair pending verify integration
+- **Mutate (1, consolidated)**: `update_state(file_path, op ∈ {field,progress,kpi,log,status}, ...)` — 5 ops via discriminator pattern; enforces locked-fields[]
+- **Verify (1, consolidated)**: `verify(scopes[] ∈ 8 kinds, strict_mode ∈ {block,warn,info}, context)` — catches F-061 namespace collision bug class via id_uniqueness scope
+- **Templates (1, consolidated)**: `template_registry(namespace, action ∈ {list,load}, template_id)` — replaces 2 separate list+load tools per D11
+
+**Tool budget**: 35 tools at hard cap per ADR-003 D10-5. D11 consolidation saved net 18 slots vs initial 53-tool sketch (29 NEW granular + 24 existing). User MCPs (Figma, Playwright, scheduled-tasks, etc.) cohabit Cursor's 50-tool ceiling with 15+ slots free.
 
 ## 3. Default ON, opt-out via flag
 

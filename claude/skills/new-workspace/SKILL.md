@@ -7,14 +7,36 @@ description: Tạo workspace mới cho dự án — chọn giữa mini-repo (1 s
 
 **Standard: `dev` works in 30 seconds without reading docs.**
 
-## § Template Source — centralized MCP (default) with local fallback
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+**Phase 6 (workspace scaffold) MUST call `Bash("ai-kit sdlc scaffold workspace ...")`** instead of direct `Write`/`mkdir`.
 
-**Default (Phase 2+)**: `mcp__etc-platform__template_registry_load(namespace="new-workspace", template_id="ref-X")` — server-managed canonical templates.
+| Legacy step | New ai-kit CLI command |
+|---|---|
+| Phase 6 §[2/14] mkdir + AGENTS.md/CLAUDE.md Write | `ai-kit sdlc scaffold workspace --workspace . --type {mini|mono} --stack {nodejs|python|go|rust|none}` — atomic 12+ files |
+| Phase 6 §[12/14] docs/intel + feature-map.yaml stubs | Generated atomically by `scaffold workspace` |
+| Phase 6 §[7/14] Dockerfile + docker-compose.yml | Stack-specific templates bundled in ai-kit (`bin/lib/sdlc/templates.mjs`); current emits `STACK_TEMPLATE_DEFERRED` warning |
+| Phase 6 §[3/14] junctions/copies for `.cursor/` | Existing pattern — unchanged |
 
-**Fallback path** — when MCP unavailable OR explicit opt-out (`--no-mcp` flag OR `ETC_USE_MCP=0`):
+After `ai-kit sdlc scaffold workspace` succeeds, stdout JSON returns manifest of files created. Skill prints summary + git init via `Bash`.
+
+**Local templates fallback DEPRECATED**: Phase 6 used to read `assets/templates/{stack}/...` from skill folder. Post-ADR-005 (2026-05-06), templates rendered by ai-kit Node CLI inline (no Jinja2 / asset bundle dependency).
+
+**Forbidden**:
+- ❌ Write AGENTS.md / CLAUDE.md / .gitignore directly during Phase 6 (handled by `scaffold workspace`)
+- ❌ mkdir `docs/intel/` / `docs/modules/`
+
+**Reference**: ADR-003 D6/D8 + ADR-005 D3.
+
+---
+
+## § Template Source — ai-kit CLI (default) with local fallback
+
+**Default** (per ADR-005 D3): `Bash("ai-kit sdlc template-registry --namespace new-workspace --action load --template-id ref-X")` — ai-kit-managed canonical templates. Parse stdout JSON for `data.content`.
+
+**Fallback path** — when ai-kit unavailable OR explicit opt-out (`--no-ai-kit` flag OR `ETC_USE_AI_KIT=0`):
 - `Read("ref-X.md")` from this skill dir (local copy preserved as fallback).
 
-**Behavior on MCP failure** — print warning, fall through to local Read silently. Skill must still complete the scaffold.
+**Behavior on ai-kit failure** — print warning, fall through to local Read silently. Skill must still complete the scaffold.
 
 **Why default ON now**: Phase 1 verified byte-identical 17/17 templates, ≥99% uptime over observation window. Centralized source = team-wide updates propagate without per-client edits.
 

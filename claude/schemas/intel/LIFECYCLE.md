@@ -860,6 +860,67 @@ and propagates `merged_from` chain. Skipping this break P2 (read-validate-write)
 > /new-feature for greenfield), and §5.7 respectively. Stage agents (ba/sa/qa) are
 > Cursor-only; Claude does not run SDLC stages.
 
+### 5.12 `/hotfix` (Cursor)
+
+```
+┌─ /hotfix ───────────────────────────────────────────────────────────────┐
+│ ROLE        : Apply targeted fix to existing feature without full       │
+│               ba+sa+designer pipeline. Skip-stage flow per CD-23.       │
+│                                                                          │
+│ READ-GATES  :                                                            │
+│   ✓ docs/intel/_meta.json (freshness check)                             │
+│   ✓ docs/intel/feature-catalog.json#features[id={parent_feature_id}]    │
+│     (existing feature this hotfix patches; routes/AC inherited)         │
+│   ✓ docs/intel/sitemap.json#routes[] (impacted routes)                  │
+│   ✓ docs/intel/permission-matrix.json (existing role-action rows)       │
+│   ✓ docs/intel/module-catalog.json (affected_modules validation)        │
+│   ✗ doc-brief.md / code-brief.md (lazy)                                 │
+│                                                                          │
+│ OWN-WRITE   :                                                            │
+│   - docs/hotfixes/H-NNN-{slug}/_state.md (HotfixState schema per CD-23) │
+│   - docs/hotfixes/H-NNN-{slug}/patch-summary.md (root cause + fix)      │
+│   - docs/hotfixes/H-NNN-{slug}/qa/smoke-test-report.md                  │
+│                                                                          │
+│ ENRICH      :                                                            │
+│   - feature-catalog.json#features[id={parent_feature_id}]:              │
+│     • hotfix_history[]: append {h_id, severity, applied_at, summary}    │
+│     • last_hotfix_ref: H-NNN                                            │
+│   - test-evidence/{parent_feature_id}.json: append smoke TC under       │
+│     test_cases[] with source: "hotfix-smoke", status: executed          │
+│                                                                          │
+│ FORBID      :                                                            │
+│   - Creating new feature-catalog.features[] entry (hotfix patches       │
+│     existing feature, NEVER creates new feature ID)                     │
+│   - Modifying feature-catalog.routes[] / entities[] (sa job — if hotfix │
+│     requires schema change, escalate to /resume-feature with sa stage)  │
+│   - Creating new permission-matrix rows (route a-priori, change-existing│
+│     only — if hotfix needs new role-action, escalate to sa)             │
+│   - Skipping smoke test (atomic minimum: 1 smoke TC + screenshot)       │
+│                                                                          │
+│ EXIT-GATES  :                                                            │
+│   - HotfixState.severity ∈ {S1, S2, S3, S4} set                         │
+│   - HotfixState.affected_modules[] non-empty                            │
+│   - patch-summary.md present with root-cause + fix description          │
+│   - At least 1 executed smoke TC in test-evidence/{parent_feature_id}   │
+│   - At least 1 screenshot per affected user-facing route (CD-4 naming   │
+│     with -hotfix suffix to distinguish from QA atomic triple)           │
+│   - feature-catalog.hotfix_history updated                              │
+│   - _meta.json producer chain updated                                   │
+│                                                                          │
+│ FAILURE     :                                                            │
+│   - parent_feature_id missing from feature-catalog → STOP, suggest      │
+│     /resume-feature for greenfield (hotfix is patch, not creation)      │
+│   - Hotfix scope expands beyond patch (new routes/entities) → STOP,     │
+│     escalate to /resume-feature with sa stage (P8 role refusal)         │
+│   - Smoke test fails → STOP, no seal                                    │
+│   - intel artifact stale → STOP, redirect /intel-refresh                │
+│                                                                          │
+│ TOKEN-BUDGET: ~25K input, ~8K output                                    │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+> **Hotfix vs greenfield boundary**: `/hotfix` patches an EXISTING `feature-catalog.features[id]` entry — never creates new feature ID. Scope expansion (new routes/entities/permissions) → STOP + escalate to `/resume-feature` with sa stage. This preserves CD-10 #14 (test-evidence is feature deliverable) since hotfix smoke TCs append to parent feature's test-evidence, not a new bucket. CD-10 #15 (min_tc quota) does NOT apply to hotfix — smoke test minimum is 1 TC; full QA quota only enforced at next `/close-feature` of parent feature.
+
 ---
 
 ## §6. Enforcement (placeholder for next phase)

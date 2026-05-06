@@ -18,19 +18,19 @@ alwaysApply: false
 
 ---
 
-## Feature Location Convention
+## Feature Location Convention (CD-22 locked tree)
 
-| Repo type | Features root | feature-map.yaml |
+| Pipeline type | Path | Map (atomic) |
 |---|---|---|
-| mini | `docs/features/` | Recommended |
-| mono — app | `{project-path}/docs/features/` | **Required** |
-| mono — service | `{project-path}/docs/features/` | **Required** |
-| mono — cross-cutting | `docs/features/` | **Required** |
-| hotfix (any) | `docs/hotfixes/` | Recommended |
+| Feature (all repo types) | `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/` | `docs/intel/feature-map.yaml` |
+| Module | `docs/modules/M-NNN-{slug}/` | `docs/intel/module-map.yaml` |
+| Hotfix | `docs/hotfixes/H-NNN-{slug}/` | `docs/intel/feature-map.yaml` (hotfix entry) |
+| Cross-cutting feature (CD-24) | Same nested path under primary owner module; secondary owners in `feature-catalog.features[].consumed_by_modules[]` |
 
-**`docs/feature-map.yaml`** at workspace root is the PRIMARY lookup index.
-All state writers (new-feature, from-doc, hotfix) create/update this file.
-All state readers (resume-feature, feature-status, close-feature, update-feature) read it FIRST.
+**Path resolution**: `Bash("ai-kit sdlc resolve --kind {feature|module|hotfix} --id {ID}")` — atomic, ai-kit Node-native, single source of truth. ai-kit CLI unavailable → **BLOCK pipeline** per ADR-005 D3 (no Glob fallback).
+
+**Producers** (call ai-kit CLI): `ai-kit sdlc scaffold feature` / `scaffold module` / `scaffold hotfix` (atomic update of state file + intel maps + catalogs).
+**Consumers** (call ai-kit CLI): `ai-kit sdlc resolve` for lookup, `ai-kit sdlc verify --scopes structure` for integrity.
 
 ## Artifact Paths
 
@@ -57,11 +57,12 @@ sa/                               ← 00-lean-architecture.md
 
 ---
 
-## State Ownership
+## State Ownership (post-2026-05-04 PM-orchestrator architecture)
 
-- **Dispatcher** owns `_state.md` writes (current-stage, stages-queue, completed-stages, status, kpi)
-- **Skills** create initial `_state.md` (new-feature, from-doc, hotfix) and seal it (close-feature)
-- **Agents** return verdict JSON to Dispatcher — they do NOT write `_state.md` directly
+- **PM** owns `_state.md` writes via `Bash("ai-kit sdlc state update --op ...")` — 6 ops via discriminator (field/progress/kpi/log/status/stage_rollback)
+- **Skills** create initial `_state.md` via `ai-kit sdlc scaffold {workspace|module|feature|hotfix}` (new-feature, from-doc, hotfix); seal via `ai-kit sdlc state update --op status --status done` (close-feature)
+- **Agents** return verdict JSON to PM — they do NOT write `_state.md` directly
+- **dispatcher.md** is reference playbook (deprecated as callable agent per AGENTS.md:27); PM reads sections on-demand for routing/validation logic
 
 ---
 
@@ -83,19 +84,21 @@ Max 2 rework cycles before escalating to user.
 - Max 8 dev agents per wave; no overlapping ownership in same wave
 - Max 2 refinement loops per agent pair before escalating
 - Artifact language: English. Skills may override for user-facing responses.
-- `_state.md` schema: see contract at `.cursor/skills/from-doc/SKILL.md`
+- `_state.md` schema: validated via `Bash("ai-kit sdlc verify --scopes schemas")` (note: schema-level JSON validation deferred during ADR-005 transition; structure / cross_references / id_uniqueness scopes fully ported. Use Python `etc-platform verify --scopes schemas` for full schema validation until B-031 cutoff). Canonical schemas under `team-ai-config/bin/lib/sdlc/` (Node-native templates) and Python `etc-platform/src/etc_platform/assets/schemas/intel/_state.md.schema.json` (per CD-23 oneOf discriminator on `pipeline-type: sdlc | hotfix`). `_feature.md` schema: same paths.
 
 ---
 
-## Session Context Resolution
+## Session Context Resolution (ADR-005 D3 compliant)
 
 ```
-1. docs/feature-map.yaml → scan for active features (status ≠ done)
-2. IDE file open → walk up for docs/features/*/_state.md → read frontmatter
-3. No feature-map + no _state.md → match path: {project-path}/** → derive project
-4. git branch --show-current → parse {project}/{type}/{description}
-5. Last resort → ask user. NEVER write to shared global context file.
+1. Bash("ai-kit sdlc resolve --kind {feature|module|hotfix} --id {ID}") → atomic
+2. ai-kit CLI unavailable → BLOCK pipeline per ADR-005 D3:
+   "Install/update ai-kit CLI: ai-kit update. Verify via ai-kit doctor."
+3. Multiple active pipelines → ask user which one (NEVER write to shared global state).
+4. Git branch context (informational only, not authoritative): git branch --show-current
 ```
+
+**No Glob fallback.** Pre-CD-8 v3 fallback (`glob docs/features/**/_state.md`) is FORBIDDEN — agents must BLOCK instead of mutating workspace at non-canonical paths.
 
 ---
 
@@ -125,12 +128,11 @@ if severity in [P0, P1] AND confidence == "High":
 
 | Producer | Artifact | Consumer |
 |---|---|---|
-| `/plan-feature` | `{project-path}/docs/plans/{slug}.md` | `/implement` |
-| `/breakdown` | `{project-path}/docs/plans/{slug}-tasks.md` | `/implement`, `/new-feature` |
-| `/spike` | `{project-path}/docs/spikes/{slug}.md` | `/adr`, `/plan-feature` |
-| `/fix-bug` | `{project-path}/docs/fixes/{slug}.md` | `/hotfix`, `/review-pr` |
-| `/arch-review` | `{project-path}/docs/architecture/review-{date}.md` | `/adr`, `/tech-debt` |
-| `/gen-tests` | test files in `{project-path}/src/` | `/review-pr` |
+| `/plan` | `{project-path}/docs/plans/{slug}.md` | `/implement` |
+| `/spike` | `{project-path}/docs/spikes/{slug}.md` | `/adr`, `/plan` |
+| `/code-change` (fix mode) | `{project-path}/docs/fixes/{slug}.md` | `/hotfix`, `/quality review` |
+| `/arch-review` | `{project-path}/docs/architecture/review-{date}.md` | `/adr` |
+| `/quality gen-tests` | test files in `{project-path}/src/` | `/quality review` |
 | `/ui-catalog` | `docs/ui-library/{template}-catalog.md` | `designer`, `fe-dev` |
 
 ---
@@ -146,7 +148,7 @@ Pass `docs-path` to agents (not full artifact content inline).
 ## Doc Generation Pipeline
 
 Separate pipeline for generating documentation from source code or description files.
-Uses `doc-*` agents, same Dispatcher, same `_state.md` schema with `pipeline-type: doc-generation`.
+Uses `doc-*` agents, same PM orchestrator, same `_state.md` schema with `pipeline-type: sdlc` (until DocGenerationState schema variant defined per ADR-003 follow-up). Pipeline distinction by skill entry point (`/from-doc`, `/from-code`, `/generate-docs`) + `agent-flags.{stage}` declarations, not separate `pipeline-type` value.
 
 | Stage | Agent | Trigger |
 |---|---|---|

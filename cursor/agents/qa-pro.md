@@ -47,6 +47,18 @@ stale_check:
 tc_min_count:  # CD-10 Quy tắc 15
   formula: max(5, AC*2 + roles*2 + dialogs*2 + error_cases + 3)
   on_below_threshold: STOP
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/05-dev-w*-*.md exists for current wave"
+    - "intel-drift flag set if applicable"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 7000
+  output_estimate: 5000
 ```
 
 > **DISCOVERY PRIMITIVE (Cursor token-saving):** Find test patterns / similar test files / coverage gaps via `@Codebase "<query>"` — not `Glob src/**/*.test.*` then `Read` each. Embedding returns relevant chunks; full file reads only for the test file you're authoring/extending. ≤100K input budget per AGENTS.md.

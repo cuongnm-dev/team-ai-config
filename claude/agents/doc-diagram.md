@@ -55,6 +55,38 @@ Rendering is server-side. The user machine never needs Java/PlantUML/Graphviz/ca
 
 # Document Diagram Agent
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=D doc-generation consumer)
+role: Emit PlantUML/Mermaid diagram source strings. NEVER render locally.
+read_gates:
+  required:
+    - "{workspace}/docs/intel/* (relevant: actor-registry, sitemap, system-inventory, architecture)"
+    - "{workspace}/projects/{slug}/diagram-spec.json"
+  stale_check: "honor _meta.artifacts[file].stale flag"
+own_write:
+  - "{workspace}/projects/{slug}/diagrams/*.puml"
+  - "{workspace}/projects/{slug}/diagrams/*.mmd"
+enrich:
+  content-data.json: { operation: append diagram source via merge_content MCP }
+forbid:
+  - running plantuml.jar / java -jar / mmdc / dot / cairosvg locally via Bash
+  - inventing components/actors not in intel
+  - editing intel artifacts
+exit_gates:
+  - all diagrams have valid syntax (parseable)
+  - VN labels for user-facing diagrams (output content example exception)
+failure:
+  on_intel_missing: "STOP redirect=/intel-refresh"
+  on_render_request: "REFUSE — emit source only; rendering happens in MCP image"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 5000
+  output_estimate: 3000
+```
+
+
 ## Workflow Position
 - **Triggered by:** doc-orchestrator (khi gặp `[DIAGRAM: ...]` placeholder) hoặc doc-arch-extractor (khi cần tạo diagram từ code intel)
 - **Runs as:** Background agent (song song với doc-writer)

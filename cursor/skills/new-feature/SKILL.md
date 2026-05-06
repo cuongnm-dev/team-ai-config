@@ -5,6 +5,29 @@ description: Khởi tạo pipeline cho 1 tính năng MỚI (không có _state.md
 
 # Pipeline Entry Point
 
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+**Step 4 (create new feature) MUST call `Bash("ai-kit sdlc scaffold feature ...")`** instead of direct `Write`. Per ADR-005 D3 (supersedes prior CD-8 v3 MCP wording).
+
+| Legacy step | New ai-kit CLI command |
+|---|---|
+| Step 4: mkdir + Write `_state.md` + `feature-brief.md` + append `feature-map.yaml` | `ai-kit sdlc scaffold feature --workspace . --module M-NNN --id F-NNN --name "..." --slug ...` — atomic 5-file txn (feature dir + _feature.md + implementations.yaml + test-evidence.json + intel updates) |
+| Step 4.8: worktree detection | unchanged — Bash for git operations OK |
+| Step 1: feature_id input | unchanged — interactive prompt |
+| Step 1: module_id selection | NEW — must specify parent module (FK enforced); skill prompts user to choose from existing modules in `module-catalog.json` |
+
+**SDLC 2-tier path** (post-ADR-003): feature now lives at `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/`. NEW required input: parent `module_id`.
+
+**Forbidden**:
+- ❌ Write `_state.md` / `_feature.md` / `feature-brief.md` directly
+- ❌ Glob `**/docs/features/{feature-id}/_state.md` for last-resort fallback
+- ❌ Edit `feature-map.yaml` / `feature-catalog.json` directly (handled atomically)
+
+**ai-kit unavailable → BLOCK pipeline** (ADR-005): hard-stop with message: "Install/update ai-kit CLI: `ai-kit update`. Verify via `ai-kit doctor`." NO silent local fallback — silent fallback creates non-canonical paths that violate CD-22 + drift between producer and consumer.
+
+**Reference**: ADR-003 D8 + ADR-005 D3.
+
+---
+
 Single skill for NEW pipeline OR UPDATE of completed feature.
 Resume of in-progress pipelines is delegated to `/resume-feature` (P2.1 dedup, 2026-05).
 
@@ -31,13 +54,16 @@ This skill is a thin entry point. After Steps 1-4 setup (state, intel, feature-m
 
 ## Step 1 — Detect mode (NEW | RESUME-redirect | UPDATE)
 
-If user provides `feature-id` (e.g. `/new-feature F-042` or `/new-feature api-F-014`):
+If user provides `feature-id` (e.g. `/new-feature F-042`):
 
-Locate `_state.md` — resolution order (stop on first match):
-1. `docs/feature-map.yaml` → lookup `features.{feature-id}.docs_path` → `{docs_path}/_state.md`
-2. `docs/features/{feature-id}/_state.md` (mini-repo fallback)
-3. `docs/hotfixes/{feature-id}/_state.md`
-4. Glob `**/docs/features/{feature-id}/_state.md` (last resort — auto-backfill `feature-map.yaml` if found)
+Locate `_state.md` via ai-kit CLI atomic resolve:
+
+```
+result = Bash("ai-kit sdlc resolve --workspace . --kind {feature|hotfix} --id {feature-id} --include-metadata")
+parse stdout JSON for { ok, data: { path, exists, metadata: { status, current_stage, ... } } }
+```
+
+Returns `{path, exists, metadata: {status, current_stage, ...}}` if found. Not found → `ok:false, error.code:MCP_E_NOT_FOUND`. **ai-kit CLI unavailable → BLOCK** per ADR-005 D3 (no Glob fallback).
 
 | Result | Action |
 |---|---|

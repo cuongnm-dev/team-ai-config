@@ -5,6 +5,23 @@ description: Sinh trọn bộ tài liệu kỹ thuật ETC từ mã nguồn dự
 
 # 🛑 STOP — READ THIS FIRST
 
+## ⚠️ MCP-First Path Routing
+**Path read paths updated for SDLC 2-tier structure.** Stage 1-4 readers must use new nested location:
+
+| Legacy path | New path (post-ADR-003) |
+|---|---|
+| `docs/features/F-NNN/_state.md` | `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/_feature.md` |
+| `docs/features/F-NNN/feature-brief.md` | `docs/modules/M-NNN-{slug}/module-brief.md` (module-level scoped digest) |
+| Glob `docs/features/F-*/test-evidence.json` | `Bash("ai-kit sdlc resolve --kind feature --id F-NNN")` returns canonical path (parse stdout JSON) |
+
+Stage 4 readers (catalog/HDSD/test-case writers): use `Bash("ai-kit sdlc resolve --kind feature --id F-NNN --include-metadata")` to get path + metadata in 1 call.
+
+**This is generate-docs CONSUMER-SIDE path adjust only per D10-8 boundary** — producer logic (tdoc-* writer agents) UNTOUCHED. Full producer refactor deferred to future enterprise-scope refactor.
+
+**Reference**: ADR-003 D8 + D10-8.
+
+---
+
 **Nếu bạn đang có ý định tạo bất kỳ file `.py` nào** (vd `pipeline_build.py`, `gen_content_data.py`, `orchestrator.py`, `hydrate_screens.py`, `build_*.py`) — **DỪNG LẠI NGAY**. Đây là **anti-pattern**, vi phạm design của skill.
 
 ## Pipeline = parallel Agent dispatch + MCP tools, KHÔNG phải Python script
@@ -83,6 +100,13 @@ This skill participates in the shared Intel Layer at `{workspace}/docs/intel/`. 
 - **REMOVED:** `frontend-report.json` (absorbed into `sitemap.routes[].playwright_hints`)
 - **REQUIRED:** Producers call `intel-merger` when existing artifact present; consumers check `_meta.artifacts[file].stale`
 - **Schemas:** `~/.claude/schemas/intel/{actor-registry,permission-matrix,sitemap,feature-catalog,_meta}.schema.json`
+
+**Reuse-first summary** (CD-10 #9 mandate): At Stage 0 preflight, after intel artifact existence checks pass, MUST print per artifact found:
+```
+For each REQUIRED intel artifact (actor-registry, permission-matrix, sitemap, feature-catalog) where _meta.artifacts[file].stale == false:
+  Print: "♻ {file}: reused (fresh, age: {N}d, producer: {p})"
+```
+Silent reuse (skip without summary) is FORBIDDEN. Re-discovery when intel is fresh is FORBIDDEN per CD-10 #9. Only override is `--rerun-stage N` flag.
 
 ## 🏛 Pipeline Architecture (6 stages)
 

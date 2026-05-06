@@ -7,6 +7,23 @@ description: Tiếp tục pipeline đang dở từ checkpoint cuối cùng. Hỗ
 
 User-facing: Vietnamese. Dispatcher prompts: English.
 
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+**Path resolution MUST use `Bash("ai-kit sdlc resolve ...")` instead of glob fallback.** Per ADR-005 D3 (supersedes prior CD-8 v3 MCP wording).
+
+| Legacy step | New ai-kit CLI command |
+|---|---|
+| Step 2 path resolution glob `**/docs/features/{arg}/_state.md` | `ai-kit sdlc resolve --kind feature --id F-NNN` returns canonical path; falls back to id-aliases for legacy renames |
+| Step 3a feature-map.yaml read | `ai-kit sdlc resolve --kind feature --id F-NNN --include-metadata` returns path + metadata in 1 call |
+| Step 3.1a worktree backfill via Edit | `ai-kit sdlc state update --op field --path worktree-path --value '"<path>"'` |
+
+**SDLC 2-tier path** (post-ADR-003 D8): feature lives at `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/_feature.md`. Module-level state at `docs/modules/M-NNN-{slug}/_state.md`. Use `resolve_path` to get correct location.
+
+**Wave task glob** (line 135 `glob 05-*-w{N}-*.md`): KEEP — this is per-feature enumeration within already-resolved feature folder, not cross-feature glob. Legitimate use.
+
+**MCP down → BLOCK pipeline** (CD-8 v3): hard-stop with message: "Run `docker compose up -d` in `~/.ai-kit/team-ai-config/mcp/etc-platform/` then retry." NO silent fallback to glob — Step 2 line 6 last-resort glob is FORBIDDEN. If `resolve_path` fails, surface error to user, do not mutate workspace.
+
+**Reference**: ADR-003 D8 + p0-mcp-tool-spec.md §3.7.
+
 ---
 
 ## ⚠️ SKILL ROLE — THIN ENTRY POINT (2026-05-04 architecture)
@@ -26,6 +43,68 @@ This skill is a **thin entry point**. Its job: parse args, validate `_state.md`,
 
 ---
 
+## Step 0 — Flag handling (Resume Protocol Lockout escape — audit-2026-05-06 T1-9)
+
+**Purpose**: Allow user to redo a stage when output quality is unsatisfactory, without hand-editing `_state.md`. Without these flags, completed-stages are append-only and only Option C in clarification-notes branch (Step 4b:175) can roll back — and only when PM is asking.
+
+**Recognized flags**:
+
+| Flag | Effect |
+|---|---|
+| `--rerun-stage <stage>` | Roll back to specified stage. Pop `completed-stages[]` entries until target stage is current. Push popped stages back to front of `stages-queue`. Reset `current-stage = <stage>`, `status = in-progress`. Move stage-specific artifacts to `.archive/{ISO}/`. Backup `_state.md.bak.{ISO}`. |
+| `--reset-clarification` | Clear `clarification-notes` field (without rolling back stage). Useful when PM asked but user's answer was already captured elsewhere. |
+
+**Recognized stage values** (per CD-23 ModuleState enum): `ba`, `sa`, `designer`, `security`, `tech-lead`, `qa`, `reviewer`.
+
+**Detection logic** (Step 0.1, BEFORE Step 1):
+
+```
+IF --rerun-stage <target> present:
+  Read {features-root}/{feature-id}/_state.md
+  IF _state.md.status == "done":
+    REFUSE: "Feature is sealed (status=done). Use /close-feature --reopen first, then /resume-feature --rerun-stage."
+    EXIT
+  IF target NOT in completed-stages[].name:
+    REFUSE: "Stage {target} not in completed-stages. Available: {list}."
+    EXIT
+  
+  cp _state.md _state.md.bak.{ISO}
+  Move stage artifacts (e.g. {features-root}/{feature-id}/{target}/* → .archive/{ISO}/{target}/)
+  
+  popped = []
+  WHILE completed-stages[-1].name != target:
+    popped.push(completed-stages.pop())
+  popped.push(completed-stages.pop())  # also pop target itself
+  
+  stages-queue = popped.reverse() + stages-queue  # re-queue in order
+  current-stage = target
+  status = "in-progress"
+  Write _state.md
+  
+  Print: "✅ Rolled back to {target}. {N} stages re-queued. Artifacts archived at .archive/{ISO}/. Resume continues from {target}."
+  EXIT
+
+IF --reset-clarification present:
+  Read _state.md
+  IF clarification-notes empty: SKIP
+  cp _state.md _state.md.bak.{ISO}
+  clarification-notes = ""
+  Write _state.md
+  Print: "✅ Clarification notes cleared. Resume continues."
+  EXIT (user re-invokes without flag to continue)
+
+IF no flag → continue to Step 1 (normal flow)
+```
+
+**Quality regression guard**: `--rerun-stage` prints stages-being-discarded preview + asks confirmation if `rework-count[<target>] >= 2`:
+```
+⚠️ Stage {target} has rework-count={N}. Rolling back will lose {M} downstream stages. Confirm? (yes/no)
+```
+
+**Why skill-side state mutation, not MCP `update_state(op=stage_rollback)`**: Pending MCP backend primitive (T1-12 in audit-2026-05-06 roadmap). Skill-side mutation works today; will switch to MCP when primitive ships.
+
+---
+
 ## Step 1 — Receive input
 
 No arg → prompt user: `Nhập docs-path hoặc feature-id`.
@@ -38,13 +117,16 @@ Arg detection:
 - Partial path like `docs/features` (no feature-id) → reject: `cần feature-id cụ thể`
 - Else → treat as feature-id
 
-Resolution (stop on first match):
-1. `{arg}/_state.md` (explicit path)
-2. `docs/feature-map.yaml` → `features.{arg}.docs_path` → `{docs_path}/_state.md`
-3. `docs/features/{arg}/_state.md`
-4. `docs/hotfixes/{arg}/_state.md`
-5. `docs/generated/{arg}/_state.md`
-6. Glob `**/docs/features/{arg}/_state.md` (last resort — auto-update feature-map.yaml)
+Resolution via ai-kit CLI atomic resolve:
+
+```
+result = Bash("ai-kit sdlc resolve --workspace . --kind {feature|hotfix|module} --id {arg} --include-metadata")
+parse stdout JSON for { ok, data: { path, exists, resolved_via_alias, metadata } }
+```
+
+If `{arg}` is an explicit path ending with `_state.md`, treat as direct path (skip CLI lookup). Otherwise CLI reads `docs/intel/feature-map.yaml` and returns canonical path.
+
+**ai-kit CLI unavailable → BLOCK** per ADR-005 D3 (no Glob fallback). Pre-ADR-005 fallback paths (`docs/features/{arg}/_state.md`, `docs/hotfixes/{arg}/_state.md`, `docs/generated/{arg}/_state.md`, Glob last-resort) are FORBIDDEN.
 
 **Not found** with feature-map present: compute Levenshtein distance to all feature-ids, suggest top 3 matches with distance ≤ 3. Else: `Không tìm thấy. Dùng /new-feature hoặc /generate-docs.`
 
@@ -111,6 +193,13 @@ IF neither set: continue in main as before (legacy / solo flow).
 Reference: https://cursor.com/docs/configuration/worktrees
 
 **3a. Reconcile with feature-map.yaml (if both exist):**
+
+```
+Print: "♻ Pipeline state: reused (fresh, last-updated: {_state.md.last-updated}, current-stage: {_state.md.current-stage})"
+```
+
+(Per CD-10 #9 reuse-first mandate — surface to user that we are continuing a fresh pipeline rather than restarting.)
+
 Mismatch on `status` or `current-stage` → ask user:
 - A) Sync feature-map ← _state.md (default, recommended)
 - B) Sync _state.md ← feature-map (backup first to `.pre-reconcile.bak`)

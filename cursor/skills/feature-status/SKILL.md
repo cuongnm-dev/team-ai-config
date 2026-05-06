@@ -5,6 +5,26 @@ description: Xem trạng thái pipeline đang chạy và sức khỏe tổng th�
 
 # Pipeline Status
 
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+**READ-ONLY skill — MUST use `Bash("ai-kit sdlc resolve ...")` + `verify` instead of glob.** Per ADR-005 D3 (supersedes prior CD-8 v3 MCP wording).
+
+| Mode | Legacy approach | New ai-kit CLI command |
+|---|---|---|
+| `standup` | Glob `docs/features/*/_state.md` + `docs/hotfixes/*/_state.md` | Read `module-catalog.json` + `feature-catalog.json` (canonical sources); for each feature: `ai-kit sdlc resolve --kind feature --id F-NNN --include-metadata` returns path + status + stage |
+| `detail F-NNN` | Glob fallback if feature-map miss | `ai-kit sdlc resolve` only — no glob |
+| `health` | Manual KPI aggregation | Read frontmatter from each `_state.md`/`_feature.md` (paths from resolve) + aggregate |
+| `overview` | Walk filesystem | Read catalogs + verify findings: `ai-kit sdlc verify --scopes structure,id_uniqueness,freshness` |
+
+**Workspace health check**: Add `ai-kit sdlc verify --scopes all` summary at end of `standup`/`overview` mode — surfaces F-061-class issues + drift + completeness gaps to user.
+
+**Forbidden**:
+- ❌ Glob `docs/features/`/`docs/hotfixes/` for enumeration
+- ❌ Direct filesystem walk of `docs/modules/M-*/features/F-*/`
+
+**Reference**: ADR-003 D7/D8 + p0-mcp-tool-spec.md §3.7 + §3.10.
+
+---
+
 Absorbs: health-check, workspace-sync.
 Modes: `standup` | `detail` | `health` | `overview`.
 User-facing output: Vietnamese.
@@ -75,13 +95,16 @@ Không có pipeline nào đang hoạt động. Dùng /new-feature hoặc /hotfix
 
 ## Step 2B — Single Pipeline Detail
 
-Locate `_state.md` — resolution order:
-1. `docs/feature-map.yaml` → lookup `features.{id}.docs_path`
-2. `docs/features/{id}/_state.md`
-3. `docs/hotfixes/{id}/_state.md`
-4. Glob `**/docs/features/{id}/_state.md` (last resort)
+Locate `_state.md` via ai-kit CLI atomic resolve:
 
-Not found → stop with VN message.
+```
+result = Bash("ai-kit sdlc resolve --workspace . --kind {feature|hotfix|module} --id {feature-id} --include-metadata")
+parse stdout JSON for { ok, data: { path, exists, metadata } }
+```
+
+**ai-kit CLI unavailable → BLOCK** per ADR-005 D3 (no Glob fallback).
+
+Not found → stop with VN message: `Không tìm thấy pipeline {id}. Dùng /new-feature {id} để tạo mới hoặc /from-doc/from-code để khởi tạo.`
 
 Read full `_state.md`. List artifacts under `docs-path`.
 

@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Triển khai code theo đúng kế hoạch đã được duyệt (từ /plan-feature hoặc tech-lead). Dev chạy từng task trong plan, cập nhật test và tài liệu liên quan. Dùng cho task ad-hoc nằm ngoài pipeline; nếu đang trong pipeline đang chạy thì dùng /pm hoặc /resume-feature thay thế. Trigger - đã có plan-id từ /plan; cần thực thi 1 wave hoặc cả plan ngoài pipeline SDLC chính thức. Anti-trigger - chưa có plan thì /plan trước; có _state.md đang active thì /resume-feature; bug cần fix thì /code-change. Example - "/implement plan-id=plan-20260328-auth wave=1".
+description: Triển khai code theo đúng kế hoạch đã được duyệt (từ /plan hoặc tech-lead). Dev chạy từng task trong plan, cập nhật test và tài liệu liên quan. Dùng cho task ad-hoc nằm ngoài pipeline; nếu đang trong pipeline đang chạy thì dùng /pm hoặc /resume-feature thay thế. Trigger - đã có plan-id từ /plan; cần thực thi 1 wave hoặc cả plan ngoài pipeline SDLC chính thức. Anti-trigger - chưa có plan thì /plan trước; có _state.md đang active thì /resume-feature; bug cần fix thì /code-change. Example - "/implement plan-id=plan-20260328-auth wave=1".
 ---
 
 # Implement Feature
@@ -179,7 +179,7 @@ Stop if: (1) a task requires changes outside the defined scope — surface the s
 
 | Kết quả | Skill tiếp theo |
 |---|---|
-| Implementation complete | `/review-pr` — code review trước khi merge |
-| Cần test coverage | `/gen-tests` — generate test cases |
-| Phát hiện scope lớn hơn | `/update-feature` — điều chỉnh plan trước khi tiếp tục |
+| Implementation complete | `/quality review` — code review trước khi merge |
+| Cần test coverage | `/quality gen-tests` — generate test cases |
+| Phát hiện scope lớn hơn | `/new-feature {feature-id}` (UPDATE flow) — điều chỉnh plan trước khi tiếp tục |
 | Technical blocker | `/spike` — research giải pháp |

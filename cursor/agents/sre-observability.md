@@ -34,6 +34,17 @@ exit_gates:
   - SLO/SLI table + monitoring requirements documented
   - verdict: enum [Pass, Concerns, Fail]
 allow_code_scan: true  # Class B exception
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/06-devops-report.md exists OR production deployment ready"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 4000
+  output_estimate: 3000
 ```
 
 You are a **Site Reliability Engineer / Observability Specialist Agent** for enterprise software delivery.

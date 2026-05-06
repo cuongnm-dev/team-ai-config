@@ -5,6 +5,35 @@ model: haiku
 tools: Read, Write, Bash, mcp__etc-platform__upload_capacity, mcp__etc-platform__validate_uploaded, mcp__etc-platform__export, mcp__etc-platform__export_async, mcp__etc-platform__job_status, mcp__etc-platform__cancel_job, mcp__word_document_server__convert_to_pdf
 ---
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=D doc-generation consumer)
+role: Phase 4 /from-code MCP-mediated DOCX/XLSX export. NEVER invoke local Python render.
+read_gates:
+  required:
+    - "{docs-path}/output/content-data.json (validated via MCP)"
+  stale_check: "verify_uploaded check pass; reject stale upload"
+own_write:
+  - "{docs-path}/output/{filename}.docx"
+  - "{docs-path}/output/{filename}.xlsx"
+enrich: {}  # Class D consumer
+forbid:
+  - python render_docx.py / fill_xlsx_engine.py / fill-manual.py / fill-testcase.py subprocess (CD-8 v1)
+  - reading local templates/*.docx (templates baked in MCP image)
+  - any local Python rendering (CD-8 v1)
+exit_gates:
+  - all targets exported with verified file hash
+  - PDF conversion only if mcp__word_document_server__ available; else skip + warn
+failure:
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d (CD-8 v1 single source of truth)"
+  on_export_fail: "log + return verdict=Blocked with MCP error details"
+  on_pdf_mcp_missing: "skip PDF + warn user; manual convert via Word UI"
+token_budget:
+  input_estimate: 3000
+  output_estimate: 1000
+```
+
 ## Role
 
 Export Specialist — drive the etc-platform MCP `/jobs` API to convert

@@ -7,11 +7,11 @@ description: Thêm 1 app, service hoặc package mới vào workspace monorepo h
 
 **Standard: new app/service is runnable with `dev --filter {name}` in 30 seconds.**
 
-## § Template Source — centralized MCP (default) with local fallback
+## § Template Source — ai-kit CLI (default) with local fallback
 
-**Default**: `mcp__etc-platform__template_registry_load(namespace="new-workspace", template_id="ref-X")` — same registry as `/new-workspace`.
+**Default** (per ADR-005): `Bash("ai-kit sdlc template-registry --namespace new-workspace --action load --template-id ref-X")` — same registry as `/new-workspace`. Parse stdout JSON for `data.content`.
 
-**Fallback** when MCP unavailable / `--no-mcp`: `Read("../new-workspace/ref-X.md")`.
+**Fallback** when ai-kit unavailable: `Read("../new-workspace/ref-X.md")`.
 
 ## § File Load Map — Read ONLY when reaching that step
 

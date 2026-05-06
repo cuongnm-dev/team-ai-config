@@ -23,6 +23,17 @@ forbid:
 exit_gates:
   - JSONL line appended atomically per event
 schema_ref: SKILL.md#7b for v2 event schema
+read_gates:
+  required:
+    - "_state.md (any stage advance)"
+  stale_check: "telemetry is read-only on _state.md; no stale-block (degraded log + continue)"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 1000
+  output_estimate: 500
 ```
 
 ## Mission

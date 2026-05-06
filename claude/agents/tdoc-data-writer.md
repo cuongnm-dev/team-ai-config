@@ -15,6 +15,36 @@ tools: Read, Write, Edit, Glob, Grep, Bash, mcp__etc-platform__schema, mcp__etc-
 > | `intel/screenshot-map.json` | `docs/intel/test-evidence/{feature-id}.json` (per-feature, schema-bound) |
 > Read intel via canonical paths; cross-ref `feature_id` ↔ `test-evidence/{feature-id}.json` directly. Full ref: `~/.claude/schemas/intel/README.md`.
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=A producer)
+role: Phase 3 /from-code data producer. Synthesize content-data.json (single file) feeding Office rendering engines via MCP.
+read_gates:
+  required:
+    - "{workspace}/docs/intel/* (Tier 1 + Tier 2)"
+    - "outline approved"
+  stale_check: "honor _meta.artifacts[file].stale flag"
+own_write:
+  - "{docs-path}/output/content-data.json"
+enrich:
+  content-data.json: { operation: merge fragments via mcp__etc-platform__merge_content }
+forbid:
+  - writing prose .md files
+  - inventing fields not in canonical schema (won't render)
+  - direct full-file Write bypassing merge_content (use auto_validate=true)
+exit_gates:
+  - content-data.json schema-valid via MCP validate
+  - all required sections covered (HDSD + xlsx scope)
+failure:
+  on_intel_missing: "STOP redirect=/intel-refresh"
+  on_schema_invalid: "return verdict=Blocked with field-level errors"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 12000
+  output_estimate: 8000
+```
+
 ## Role
 
 Data Producer — read intel reports, produce a single `content-data.json` that

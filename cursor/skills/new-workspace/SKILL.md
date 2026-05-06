@@ -7,13 +7,19 @@ description: Tạo workspace mới cho dự án — chọn giữa mini-repo (1 s
 
 **Standard: `dev` works in 30 seconds without reading docs.**
 
-## § Template Source — centralized MCP (default) with local fallback
+> **Skill delegation** (audit-2026-05-06 T2-10; updated ADR-005 2026-05-06): Both `/new-workspace` and `/configure-workspace` ultimately call `Bash("ai-kit sdlc scaffold workspace --type {mini|mono} --mode {full|retrofit} ...")` for canonical scaffolding. Difference is `mode`:
+> - `mode='full'` → `/new-workspace` (this skill: greenfield empty dir; git init + starter code + intel + ADRs + scaffolds)
+> - `mode='retrofit'` → `/configure-workspace` (existing repo with code; ONLY add missing `.cursor/` + intel + ADRs; never touch source code)
+>
+> Phase 0 preflight detects workspace state and recommends `/configure-workspace` if directory has existing code (anti-trigger guard).
 
-**Default (Phase 2+)**: `mcp__etc-platform__template_registry_load(namespace="new-workspace", template_id="ref-X")`.
+## § Template Source — ai-kit CLI (default) with local fallback
 
-**Fallback** — when MCP unavailable OR `--no-mcp`/`ETC_USE_MCP=0`: `Read("ref-X.md")` from this skill dir.
+**Default** (per ADR-005 D3): `Bash("ai-kit sdlc template-registry --namespace new-workspace --action load --template-id ref-X")`. Parse stdout JSON for `data.content`.
 
-Skill must complete scaffold even if MCP fails — print warning, fall through silently.
+**Fallback** — when ai-kit unavailable OR `--no-ai-kit`/`ETC_USE_AI_KIT=0`: `Read("ref-X.md")` from this skill dir.
+
+Skill must complete scaffold even if ai-kit fails — print warning, fall through silently.
 
 ## § Reference tables (File Load Map + Stack ID Mapping)
 

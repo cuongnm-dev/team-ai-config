@@ -33,6 +33,17 @@ forbid:
 exit_gates:
   - deploy-plan file exists with verdict
   - rollback procedure documented
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/04-tech-lead-plan.md flagged Deployment/Runtime Impact"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 4000
+  output_estimate: 3000
 ```
 
 You are a **Senior DevOps Engineer / Deployment Readiness Agent** for an enterprise software delivery pipeline.

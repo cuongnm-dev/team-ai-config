@@ -75,6 +75,22 @@ Skills detect worktree via `$ROOT_WORKTREE_PATH` env var. Cursor sets this autom
 
 Reference: https://cursor.com/docs/configuration/worktrees
 
+## Dispatch Model Canonicalization (audit-2026-05-06 T2-11)
+
+**Canonical pattern**: all SDLC pipeline skills follow the **2026-05-04 thin-entry pattern** — Skill parses args + validates state + acquires lock + makes a SINGLE `Task(pm, mode=orchestrate)` call. PM drives pipeline end-to-end via per-stage `Task(specialist)` dispatches.
+
+**Skills following canonical pattern** (full PM-orchestrator dispatch):
+- `/new-feature`, `/resume-feature`, `/hotfix`, `/close-feature`, `/new-module`, `/resume-module`
+
+**Skills with documented exceptions** (direct sub-agent dispatch — historical, retained for now):
+- `/from-doc`, `/from-code` — own internal state machines (`_pipeline-state.json`); dispatch `doc-intel`, `code-harvester`, `code-intel` directly because phase logic is research-domain-specific (not SDLC)
+- `/intel-refresh` — invokes `from-doc` / `from-code` + `intel-merger` + `intel-validator` directly because it orchestrates producers, not stages
+- `/generate-docs` — 6-stage internal pipeline (Stage 0-6) with own dispatch logic; producer-agnostic per CD-10
+
+**Migration roadmap**: Currently keep both patterns; future refactor (T2-11 follow-up) may unify under single PM-orchestrator if specialists for research/intel/doc-generation can be classified as SDLC stages with PM judgment value-add. Until then, treat the two patterns as deliberate domain split: PM owns SDLC stages, skill-internal dispatchers own research/producer/doc-generation flows.
+
+---
+
 ## Entry Points — When to Use What
 
 | Scenario | Entry | Flow |
@@ -147,9 +163,29 @@ Three delivery paths. **PM selects path after BA completes** (dispatcher escalat
 
 ## etc-platform MCP (centralized shared state)
 
-Unified server at `localhost:8001/sse` (post-merge 2026-04-28; `:8000` back-compat alias active during migration). Tools: `template_registry_load`, `outline_load`, `kb_query/save`, `dedup_check/register`, `intel_cache_lookup/contribute` + render pipeline (`validate`, `export`, `job_status`, `merge_content`, ...). **Default ON** cho mọi agent/skill reference local KB / DEDUP / templates / outlines. Local file fallback khi MCP unavailable.
+Unified server at `localhost:8001/sse` (post-merge 2026-04-28; `:8000` back-compat alias active during migration). **35 tools** post-v3.2.0 = 24 existing (template_registry, outlines, KB, DEDUP, intel cache, render pipeline) + 11 NEW SDLC scaffolding (per ADR-003 D6/D7/D8/D11):
 
-**Single source of truth:** `~/.claude/schemas/intel/MCP-CONTRACT.md` (24 tools, topology, anonymization, CD-8 forbidden patterns, migration path).
+**SDLC tools** (call instead of Write/glob — CD-8 v3 enforcement):
+- Atomic create: `scaffold_workspace`, `scaffold_app_or_service`, `scaffold_module`, `scaffold_feature`, `scaffold_hotfix`
+- Refactor: `rename_module_slug` (atomic slug evolution)
+- Read: `resolve_path` (replace ALL glob fallback for `docs/{modules,features,hotfixes}/**`)
+- Repair: `autofix(fix_classes, dry_run, confirm_destructive)`
+- Mutate: `update_state(file, op)` — 5 ops via discriminator (field/progress/kpi/log/status)
+- Verify: `verify(scopes[], strict_mode)` — 8 scopes; catches F-061 namespace collision bug class
+- Templates: `template_registry(namespace, action)` — list+load consolidated
+
+**Default ON** cho mọi agent/skill reference local KB / DEDUP / templates / outlines. **MCP unavailable → BLOCK pipeline** per CLAUDE.md CD-8 v3 (no silent local fallback). User phải `docker compose up -d` từ `~/.ai-kit/team-ai-config/mcp/etc-platform/` trước khi retry.
+
+**Single source of truth:** `~/.claude/schemas/intel/MCP-CONTRACT.md` + ADR-003 (`D:\AI-Platform\maintainer-notes\adr\ADR-003-sdlc-2tier-module-feature.md`).
+
+**SDLC structure (locked per CD-22):** `docs/modules/M-NNN-{slug}/` + nested `features/F-NNN-{slug}/` + `docs/hotfixes/H-NNN-{slug}/`. Catalog files: `docs/intel/{module,feature}-catalog.json`. Map files MOVED INTO `docs/intel/{module,feature}-map.yaml` (per ADR-003 D9-4). Maps replace glob fallback.
+
+**Forbidden in agents** (CD-8 v3):
+- ❌ Write tool to scaffolding files (_state.md, _feature.md, briefs, schemas, catalogs, maps)
+- ❌ Bash mkdir for docs/{modules,features,hotfixes}/**
+- ❌ Glob docs/{modules,features,hotfixes}/** for resolution
+- ✅ Edit existing artifact files for in-place updates IF field NOT in `locked-fields[]`
+- ✅ Write code source files in apps/services/libs/{src,internal,cmd}/** (not affected)
 
 Anonymization mandate (`intel_cache_contribute`): `contributor_consent=True` required; server scan rejects PII / customer hints.
 

@@ -7,6 +7,28 @@ description: Đóng pipeline phát triển 1 tính năng đã hoàn thành. Ki�
 
 User-facing output: Vietnamese.
 
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+**Status seal MUST use `Bash("ai-kit sdlc state update --op status ...")` for atomic cross-file update.** Per ADR-005 D3 (supersedes prior CD-8 v3 MCP wording).
+
+| Legacy step | New ai-kit CLI command |
+|---|---|
+| Path resolution glob `docs/features/` + `docs/hotfixes/` | `ai-kit sdlc resolve --kind feature --id F-NNN` |
+| Update `_state.md` status + Update `feature-catalog.json` status | `ai-kit sdlc state update --file <path> --op status --entity-id F-NNN --status done --evidence '<json>'` — atomic 2-file write |
+| Update `feature-map.yaml` | Auto-updated by `ai-kit sdlc state update --op status` |
+| Append Stage Progress row "Closed" | `ai-kit sdlc state update --op progress --stage close --verdict Sealed --artifact close-report.md` |
+| Pre-close verify | `ai-kit sdlc verify --scopes completeness,cross_references,id_uniqueness --strict block` — hard-stop if HIGH severity findings |
+
+**Forbidden**:
+- ❌ Glob fallback for path resolution
+- ❌ Direct Write to feature-map.yaml or catalogs
+- ❌ Edit `_state.md` to seal — must use `ai-kit sdlc state update --op status`
+
+**ai-kit CLI unavailable → BLOCK pipeline** (ADR-005): hard-stop with message: "Install/update ai-kit CLI: `ai-kit update`. Verify via `ai-kit doctor`." NO silent local fallback — sealing without atomic CLI txn corrupts feature-catalog under concurrent close-feature runs.
+
+**Reference**: ADR-003 D8 + ADR-005 D3.
+
+---
+
 **LIFECYCLE CONTRACT** (machine-readable; `~/.claude/schemas/intel/LIFECYCLE.md` §5.5):
 
 ```yaml
@@ -53,11 +75,80 @@ failure_modes:
   - test-evidence schema validation fails: STOP
 ```
 
+## Step 0 — Flag handling (Resume Protocol Lockout escape — audit-2026-05-06 T1-8)
+
+**Purpose**: Allow user to UN-SEAL a closed feature when reviewer verdict was wrong or sealing was premature. Without `--reopen`, sealed features are irreversible at skill level (only `git revert` + manual edit works).
+
+**Recognized flag**:
+
+| Flag | Effect |
+|---|---|
+| `--reopen <feature-id>` | Reverse seal: `status: done → in-progress`, `current-stage: closed → reviewer`, restore archived sections from `.archive/`, push reviewer back to `stages-queue` front. Backup `_state.md.bak.{ISO}`. Optionally clear `intel-warning: qa-gate-bypassed` if user fixed gap. |
+
+**Detection logic** (Step 0.1, BEFORE Step 1):
+
+```
+IF --reopen <feature-id> present:
+  Resolve _state.md path via Bash("ai-kit sdlc resolve --kind feature --id <feature-id>")
+  Read _state.md
+  IF _state.md.status != "done":
+    REFUSE: "Feature {id} is not sealed (status={current}). --reopen only valid for status=done."
+    EXIT
+  
+  Confirm with user:
+  Print: "⚠️ Reopening sealed feature {id} (closed at {closed-at} by {closed-by}). 
+          This will:
+          - Set status: done → in-progress
+          - Set current-stage: closed → reviewer
+          - Push reviewer back to stages-queue front
+          - Restore .archive/{ISO}/ sections to {features-root}/{id}/
+          - Optionally clear intel-warning if user has addressed gap
+          Confirm? (yes/no/cancel)"
+  
+  IF confirmed:
+    cp _state.md _state.md.bak.{ISO}
+    
+    # Restore archived sections (if .archive/ exists)
+    IF {features-root}/{feature-id}/.archive/ exists:
+      latest_archive = ls .archive/ | sort | tail -1
+      Move .archive/{latest_archive}/* → {features-root}/{feature-id}/
+      Remove .archive/{latest_archive}/
+    
+    # State mutation
+    status = "in-progress"
+    current-stage = "reviewer"
+    stages-queue = ["reviewer"] + stages-queue
+    closed-by = null
+    closed-at = null
+    reopened-at = {ISO}
+    reopened-reason = AskUserQuestion: "Reason for reopen?" (free-text, recorded)
+    
+    # Optional: clear intel-warning
+    IF feature-catalog.features[id].intel-warning == "qa-gate-bypassed":
+      AskUserQuestion: "Clear intel-warning? (only if QA gap addressed) (yes/no)"
+      IF yes: feature-catalog.features[id].intel-warning = null
+    
+    Write _state.md
+    
+    Print: "✅ Feature {id} reopened. Run /resume-feature {id} to continue from reviewer stage."
+    EXIT
+  ELSE:
+    EXIT (no mutation)
+
+IF no flag → continue to Step 1 (normal close flow)
+```
+
+**Why skill-side state mutation, not MCP `update_state(op=status, status=in-progress)`**: Pending MCP backend support for "reopen" status transition (T1-12 in audit-2026-05-06 roadmap). Skill-side mutation works today; switch to MCP when primitive ships.
+
+**Audit trail**: every reopen records `reopened-at`, `reopened-by`, `reopened-reason` in `_state.md` frontmatter — searchable by reviewer in next intake (CD-10 #6.7 retrospective).
+
+---
+
 ## Step 1 — Identify the pipeline
 
 **If ID provided** → go to Step 2.
 
-**If no ID** → read `docs/feature-map.yaml` first (fast scan). If absent, fall back to globbing `docs/features/` and `docs/hotfixes/`.
+**If no ID** → call `Bash("ai-kit sdlc resolve --kind feature|hotfix")` then filter by `metadata.status` ≠ `done`. ai-kit CLI unavailable → BLOCK per ADR-005 D3. NO Glob fallback (audit-2026-05-06 T1-1).
 
 Show only pipelines where `status` ≠ `done`:
 
@@ -73,17 +164,27 @@ Which pipeline do you want to close?
 
 No active pipelines → stop: "No active pipelines found."
 
-## Step 2 — Locate `_state.md`
+## Step 2 — Locate `_state.md` via ai-kit CLI (audit-2026-05-06 T1-1; ADR-005)
 
-Resolution order (same as resume-feature):
-1. `docs/feature-map.yaml` → lookup `features.{id}.docs_path` → `{docs_path}/_state.md`
-2. `docs/features/{id}/_state.md`
-3. `docs/hotfixes/{id}/_state.md`
-4. Glob `**/docs/features/{id}/_state.md` (last resort)
+```
+result = Bash("ai-kit sdlc resolve \
+  --workspace . \
+  --kind {feature|hotfix|module} \
+  --id {feature-id} \
+  --include-metadata")
+parse stdout JSON for { ok, data: { path, exists, metadata } }
+```
 
-extract: `docs-path`, `feature-name`, `pipeline-type`, `status`, `current-stage`, reviewer verdict from completed-stages.
+Returns: `{path, status, current_stage, pipeline_type, verdict_history}`.
 
-Not found → stop: "No pipeline found for `{id}`."
+**MCP unavailable → BLOCK** per CD-8 v3: "Run `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` then retry." NO Glob fallback (forbidden patterns audit T1-1).
+
+**Not found** → stop: "No pipeline found for `{id}`. Run /resume-feature OR /new-feature {id} first."
+
+**Forbidden patterns** (audit T1-1 — replaced):
+- ❌ `Glob **/docs/features/{id}/_state.md` last-resort → `resolve_path(include_metadata=true)`
+- ❌ Read `docs/feature-map.yaml` direct → MCP reads it server-side via `resolve_path`
+- ❌ Read `_state.md` directly to extract fields → `resolve_path` returns metadata in same call
 
 ## Step 3 — Validate close condition
 
@@ -178,21 +279,66 @@ Check `{docs-path}/09-retrospective.md`. If exists → skip to Step 5.
 
 If missing → run automatically via Task(pm) to generate retrospective from KPI data.
 
-## Step 5 — Seal `_state.md`
+## Step 5 — Seal `_state.md` via ai-kit CLI atomic txn (audit-2026-05-06 T1-1; ADR-005)
 
-Update frontmatter:
-```yaml
-status: done
-current-stage: closed
-last-updated: {YYYY-MM-DD}
-closed-by: close-feature
-closed-at: {YYYY-MM-DD}
+**Replaced legacy direct frontmatter mutation with `ai-kit sdlc state update --op status` per ADR-005 D3.**
+
+```
+Bash("ai-kit sdlc state update \
+  --workspace . \
+  --file '{features-root}/{feature-id}/_state.md' \
+  --op status \
+  --entity-id '{feature-id}' \
+  --status done \
+  --evidence '<json: {closed-by, closed-at, final-verdict}>'")
+# CLI atomically: bumps _state.md status + feature-catalog.features[id].status='implemented'
+# + records implementation_evidence{}. Cascade fields below kept as comments for migration trace:
+legacy_cascade_block = {
+    feature-catalog: {
+      target_field: "status",
+      target_value: "implemented",
+      additional_fields: {
+        implementation_evidence: {
+          commits: ["{git log main..HEAD --pretty=%H}"],
+          test-files: ["{paths under tests/}"],
+          coverage-pct: {parsed from coverage report or null},
+          adrs: ["{docs/adr/* paths}"],
+          manual-qa-passed: {boolean from user prompt},
+          closed-at: "{ISO}"
+        },
+        test_evidence_ref: "docs/intel/test-evidence/{feature-id}.json" (if exists)
+      }
+    },
+    feature-map.yaml: {
+      target_field: "status", target_value: "done",
+      additional_fields: { current-stage: "closed", updated: "{YYYY-MM-DD}" }
+    },
+    _meta.json: {
+      operation: "provenance-update", producer: "close-feature"
+    }
+  }
+)
 ```
 
-Append final row to Stage Progress table:
+**MCP atomic guarantees**:
+- 4 files updated in single txn: `_state.md` + `feature-catalog.json` + `feature-map.yaml` + `_meta.json`
+- Schema validation inline (no drift between SDLC state + canonical intel)
+- Concurrent close-feature on different features safe (per-feature lock)
+- On any failure → rollback all writes; surface error
+
+**Forbidden patterns** (audit T1-1 — replaced):
+- ❌ Direct Edit `_state.md` frontmatter → use `update_state(op=status)`
+- ❌ Direct Write `feature-map.yaml` → cascade in `update_state`
+- ❌ Direct Write `feature-catalog.json` → cascade in `update_state`
+- ❌ `python ~/.claude/scripts/intel/meta_helper.py update` subprocess → cascade in `update_state`
+
+**Stage Progress table append** (still valid — small append, no race):
 ```
 | — | Pipeline Closed | — | Done | {date} |
 ```
+This MAY use direct Edit since `_state.md` body sections (below frontmatter) are append-only by close-feature only (P1 single-writer at this terminal stage).
+
+**MCP unavailable → BLOCK pipeline** per CD-8 v3 (no silent fallback — sealing without atomic txn corrupts feature-catalog).
 
 ### Step 5b — Compress historical sections (token saving for resume / status checks)
 
@@ -209,66 +355,70 @@ Skip compression IF:
 - Pipeline is `hotfix` (typically 1-2 stages, no benefit)
 - `output-mode: full` (full mode keeps everything for compliance audit)
 
-## Step 6 — Update `feature-map.yaml`
+## Step 6 + 6.5 — Merged into Step 5 atomic update_state (audit-2026-05-06 T1-1)
 
-Update the feature's entry:
-```yaml
-features:
-  {id}:
-    status: "done"
-    current-stage: "closed"
-    updated: "{YYYY-MM-DD}"
-```
+**Removed**: legacy Step 6 (`feature-map.yaml` direct write) + Step 6.5 (read+modify+write `feature-catalog.json` + `meta_helper.py` subprocess). Both operations now atomic in Step 5's `update_state(op=status, cascade=...)` MCP call.
 
-## Step 6.5 — Sync canonical intel layer (CD-10) — MANDATORY
+**Why merged**: Step 5 + 6 + 6.5 were 3 separate file mutations with race risk. CD-8 v3 mandates atomic txn — concurrent `/close-feature` on different features could corrupt `feature-catalog.json` if Step 6.5 ran with stale Read. MCP `update_state` cascade guarantees atomicity.
 
-`feature-map.yaml` and `_state.md` are SDLC-side state. `docs/intel/feature-catalog.json` is the cross-skill canonical truth. Both must be updated, otherwise `generate-docs` reads stale status.
+**Migration impact** (for legacy mode if MCP unavailable):
+- MCP-down → BLOCK per CD-8 v3 (no silent local fallback)
+- User runs `docker compose up -d` then retries
+- No skill-side fallback to legacy Read+Write+meta_helper subprocess
 
-```
-1. Read docs/intel/feature-catalog.json
-2. Locate features[].id == {feature-id}
-3. Update fields:
-   - status: "implemented"
-   - implementation_evidence:
-       commits: [list git commit shas in feature branch — `git log main..HEAD --pretty=%H`]
-       test-files: [paths globbed under tests/, __tests__/, *.spec.* relevant to feature]
-       coverage-pct: {parsed from latest coverage report if present, else null}
-       adrs: [paths to docs/adr/* created/modified during this feature]
-       manual-qa-passed: {ask user yes/no, default yes if reviewer verdict=Approved}
-       closed-at: {ISO timestamp}
-4. If test-evidence file exists at docs/intel/test-evidence/{feature-id}.json:
-   - Set features[].test_evidence_ref = "docs/intel/test-evidence/{feature-id}.json"
-   - Validate the file against test-evidence.schema.json — warn if invalid
-5. Write back feature-catalog.json
-6. Update _meta.json:
-   python ~/.claude/scripts/intel/meta_helper.py update docs/intel/ feature-catalog.json \
-     --producer close-feature --append-merged-from
-```
+## Step 6.6 — Validate test-evidence presence (assembly-not-testing per CD-10 #17)
 
-**Anti-pattern (FORBIDDEN):** sealing feature in `feature-map.yaml` without syncing `feature-catalog.json`. Drift between SDLC state and canonical intel = `generate-docs` later regenerates test cases for "in_development" features that are actually shipped.
+**Ownership** (audit-2026-05-06 T2-6 + CD-10 #16 atomic triple): test-evidence is the **QA stage's deliverable**, not close-feature's. QA agent in resume-feature MUST produce 3 artifacts atomically:
+- (a) `docs/intel/test-evidence/{feature-id}.json` (test_cases[] with execution status)
+- (b) `playwright/{id}.spec.ts` (re-runnable script)
+- (c) `screenshots/{id}-step-NN-{state}.png` (CD-4 naming, captured during Playwright)
 
-## Step 6.6 — Persist test-evidence (if QA stage produced artifacts)
+**close-feature ONLY validates presence** — does NOT consolidate, parse, or generate evidence. If QA didn't produce, that's a contract violation and should have been caught by Step 3b QA artifact gate (line 119+).
 
-QA stage in resume-feature should have written:
-- Playwright test files (e.g. `tests/e2e/{feature-id}/*.spec.ts`)
-- Test results (Playwright JSON reporter output)
-- Screenshots (typically in `playwright-report/` or `test-results/`)
-
-Consolidate into `docs/intel/test-evidence/{feature-id}.json` per `~/.claude/schemas/intel/test-evidence.schema.json`:
+**Validation logic**:
 
 ```
-1. Locate Playwright artifacts (search test-results/, playwright-report/, or paths from _state.md.qa-stage.outputs)
-2. Parse JSON reporter output → fill test_cases[].execution.{status, duration_ms, executed_at, failure_reason}
-3. Move/copy screenshots to docs/intel/screenshots/ with canonical naming: {feature-id}-step-NN-{state}.png
-   (rename from Playwright auto-generated names; map step order from test definition)
-4. Compute coverage:
-   - ac_covered = count of acceptance_criteria with ≥1 linked test case (idx tracked in test_cases[].linked_acceptance_criteria_idx)
-   - ac_coverage_pct = ac_covered / ac_total × 100
-5. Write docs/intel/test-evidence/{feature-id}.json
-6. Update _meta.json (producer: close-feature)
+test_evidence_path = docs/intel/test-evidence/{feature-id}.json
+
+IF test_evidence_path NOT exists:
+  Step 3b QA gate should have caught this — re-check:
+  IF feature.intel-warning == "qa-gate-bypassed":
+    OK — bypass was explicit; record `intel-warning: no-test-evidence` in summary
+  ELSE:
+    REFUSE close: "test-evidence missing despite Step 3b passed. QA stage contract violated. 
+                  Run /resume-feature {id} --rerun-stage qa to produce."
+    EXIT
+
+IF test_evidence_path exists:
+  Validate via Bash("ai-kit sdlc verify --workspace . --scopes schemas --strict warn") OR
+  Fall back: python ~/.claude/scripts/intel/validate.py {test_evidence_path} --schema test-evidence
+  
+  IF validation fails:
+    REFUSE close: "test-evidence schema invalid: {errors}. QA stage must fix before close.
+                  Run /resume-feature {id} --rerun-stage qa."
+    EXIT
+  
+  IF all test_cases[].execution.status populated AND ac_coverage_pct >= 80:
+    OK — proceed
+    Set features[].test_evidence_ref = "docs/intel/test-evidence/{feature-id}.json" (in feature-catalog Step 6.5)
+  ELSE:
+    REFUSE close: "test-evidence has gaps: {N} unexecuted TCs, AC coverage {pct}%. Re-run qa."
+    EXIT
 ```
 
-If QA stage did NOT produce evidence (skipped or pre-MVP feature) → skip this step but record `intel-warning: no-test-evidence` in summary.
+**Removed from this step** (delegated to QA stage as canonical producer per CD-10 #16):
+- ❌ Locating Playwright artifacts → QA stage knows its own outputs
+- ❌ Parsing JSON reporter output → QA stage produces structured test-evidence directly
+- ❌ Moving/renaming screenshots → QA captures with CD-4 naming during execution
+- ❌ Computing coverage → QA emits in test-evidence.coverage block
+- ❌ Writing test-evidence/{feature-id}.json → QA owns this path (P1 single-writer)
+
+**Forbidden patterns** (audit-2026-05-06 T2-6):
+- ❌ close-feature parsing Playwright JSON (was a workaround when QA didn't own evidence — now obsolete)
+- ❌ close-feature renaming screenshots (CD-4 naming is QA capture-time responsibility)
+- ❌ close-feature writing test-evidence (P1 violation — QA single-writer)
+
+**Why validation-only**: assembly-not-testing principle (CD-10 #17). close-feature is downstream consumer; if QA contract violated, fix at QA stage, not paper over here.
 
 ## Step 6.7 — Regenerate intel snapshot (Cursor Rule 24) — MANDATORY
 
@@ -306,7 +456,7 @@ Read `_state.md.frontmatter.intel-drift`:
 
 - IF `intel-drift: false | unset` → skip (snapshot regen ở Step 6.7 là đủ).
 
-## Step 6.7 — Populate `40-project-knowledge.mdc` (MANDATORY when lessons exist)
+## Step 6.8 — Populate `40-project-knowledge.mdc` (MANDATORY when lessons exist)
 
 This file is the team's living knowledge base — empty unless someone fills it. Before sealing, scan the retrospective + reviewer findings for transferable lessons and append at least one entry per applicable section in `~/.cursor/rules/40-project-knowledge.mdc`:
 
@@ -322,7 +472,7 @@ If a section truly has no new lesson this iteration, leave a comment line explai
 
 Verdict requires either ≥ 1 new entry OR an explicit "no-lesson" comment per applicable section. Reviewer audits this in next feature's intake.
 
-## Step 6.8 — Worktree handoff (Cursor 3+ native — only if `worktree-path` set in _state.md)
+## Step 6.9 — Worktree handoff (Cursor 3+ native — only if `worktree-path` set in _state.md)
 
 If feature ran inside a Cursor-managed worktree, surface next-steps for the user. **DO NOT** auto-merge or auto-delete — those are user-controlled Cursor slash commands (`/apply-worktree`, `/delete-worktree`).
 

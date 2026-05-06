@@ -6,6 +6,28 @@ disable-model-invocation: true
 
 # Hotfix Pipeline
 
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+**Hotfix scaffold MUST call `Bash("ai-kit sdlc scaffold hotfix ...")`** instead of direct `Write`/`mkdir`. Per ADR-005 D3 (supersedes prior CD-8 v3 MCP wording).
+
+| Legacy step | New ai-kit CLI command |
+|---|---|
+| mkdir `docs/hotfixes/{hotfix-id}/` + Write `_state.md` (skipped ba+sa) | `ai-kit sdlc scaffold hotfix --workspace . --id H-NNN --name "..." --slug ... --patch-summary "..." --affected-modules csv --severity high` — atomic |
+| ID allocation (legacy: scan + increment) | NEW: H-NNN canonical format (per CD-19); skill resolves next available H-NNN via `ai-kit sdlc verify --scopes id_uniqueness` before invoke |
+| Update root `feature-map.yaml` with hotfix entry | Hotfix-specific routing handled by `ai-kit sdlc resolve --kind hotfix --id H-NNN` walking filesystem |
+
+**Hotfix folder convention** (post-ADR-003 D8): `docs/hotfixes/H-NNN-{slug}/` (NEW prefix `H-`, separate from F-NNN namespace). Skipped stages: `[ba, sa, designer]`. Initial stage: `tech-lead`.
+
+**Forbidden**:
+- ❌ Write `_state.md` for hotfix directly
+- ❌ mkdir `docs/hotfixes/**`
+- ❌ Use `F-NNN` prefix for hotfix (must use `H-NNN`)
+
+**ai-kit unavailable → BLOCK pipeline** (ADR-005): hard-stop with message: "Install/update ai-kit CLI: `ai-kit update`. Verify via `ai-kit doctor`." NO silent local fallback — hotfix without atomic ai-kit scaffold races feature-catalog updates.
+
+**Reference**: ADR-003 D8 + ADR-005 D3.
+
+---
+
 User-facing output: Vietnamese. Artifact files and dispatcher prompts: English.
 
 ---
@@ -83,83 +105,57 @@ hotfix-investigation:
 
 When unclear → still continue to tech-lead with `candidate_locations: []` + note that semantic search returned no high-confidence match (tech-lead does deeper investigation).
 
-## Step 4 — Create `_state.md`
+## Step 4 + 5 — Scaffold via ai-kit CLI (atomic, replaces legacy Write/mkdir + 2-step intel sync)
 
-Create `docs/hotfixes/{hotfix-id}/_state.md`.
-
-Schema matches contract at `.cursor/skills/from-doc/SKILL.md`:
-
-```yaml
-feature-id: {hotfix-id}
-feature-name: "Hotfix — {short description}"
-pipeline-type: sdlc
-status: in-progress
-depends-on: []
-created: {YYYY-MM-DD}
-last-updated: {YYYY-MM-DD}
-current-stage: tech-lead
-output-mode: lean
-risk-score: 2
-pipeline-path: S
-repo-type: {mini | mono}
-repo-path: "."
-project: {app/service name | cross-cutting}
-project-path: {resolved — "." for mini/cross-cutting}
-docs-path: docs/hotfixes/{hotfix-id}
-stages-queue: [dev-wave-1, qa-wave-1, reviewer]
-completed-stages:
-  ba:
-    verdict: "Skipped — root cause known, no BA needed"
-    completed-at: "{YYYY-MM-DD}"
-  sa:
-    verdict: "Skipped — no new boundaries"
-    completed-at: "{YYYY-MM-DD}"
-feature-req: |
-  bug: {description}
-  Root cause: {specific file/function/behavior}
-  reproduction: {steps}
-  scope: {files/modules affected}
-  severity: {Critical|High|Medium}
-  constraints: fix scoped to root cause only, rollback must be possible
-kpi:
-  tokens-total: 0
-  cycle-time-start: {YYYY-MM-DD}
-  tokens-by-stage: {}
-rework-count: {}
+```
+# Skill resolves next H-NNN first via verify scope id_uniqueness, then:
+result = Bash("ai-kit sdlc scaffold hotfix \
+  --workspace {repo-path} \
+  --id H-NNN \
+  --name 'Hotfix — {short description}' \
+  --slug '{kebab-case derived from name}' \
+  --patch-summary '{1-line description}' \
+  --affected-modules '{csv module IDs}' \
+  --severity {critical|high|medium}")
+parse stdout JSON; legacy params below are ignored (kept as comments for migration trace):
+legacy_unused_block = {
+  pipeline_path = "S",                          # default for hotfix
+  feature_req = {
+    bug: "{description}",
+    root_cause: "{specific file/function/behavior}",
+    reproduction: ["{step 1}", "{step 2}", ...],
+    scope: ["{file/module 1}", ...],
+    constraints: "fix scoped to root cause only, rollback must be possible"
+  },
+  target_feature_id = "{F-NNN if hotfix targets existing feature, else null}",
+  scaffold_options = {
+    create_state_md: true,                      # docs/hotfixes/H-NNN-{slug}/_state.md per CD-23 HotfixState
+    skip_stages: ["ba", "sa", "designer"],      # hotfix flow per CD-23 discriminator
+    initial_stage: "tech-lead",
+    update_feature_catalog: true,                # if target_feature_id given: append tags + evidence; else: create with tags=["hotfix-initiated"], priority="critical"
+    update_feature_map_yaml: true,
+    update_meta_json: true
+  }
+)
 ```
 
-Body includes: Root Cause, Reproduction Steps, Scope, Stage Progress table (ba+sa marked Skipped), Active Blockers, Wave Tracker.
+**MCP atomic guarantees**:
+- `hotfix_id` allocated atomically as H-NNN (CD-19 namespace, separate from F-NNN)
+- 4 files updated in single txn: `_state.md`, `feature-catalog.json`, `feature-map.yaml`, `_meta.json`
+- _state.md schema: HotfixState variant per CD-23 oneOf discriminator (`pipeline-type: hotfix`, `severity`, `affected-modules`, `skipped-stages: [ba, sa, designer]`)
+- Returns: `{hotfix_id, paths: [...], catalog_action: "linked"|"created"|"none", errors: []}`
+- On failure → rollback all writes; surface error
 
-## Step 5 — Update feature-map.yaml + canonical intel (CD-10)
+**Forbidden patterns** (replaced):
+- ❌ `Bash mkdir docs/hotfixes/...` → `scaffold_hotfix.create_state_md`
+- ❌ `Write _state.md` directly → MCP scaffold
+- ❌ `Edit feature-map.yaml` → cascade in scaffold
+- ❌ `Read+modify+Write feature-catalog.json` → cascade in scaffold
+- ❌ `python ~/.claude/scripts/intel/meta_helper.py update` subprocess → cascade in scaffold
 
-**5a — feature-map.yaml** at workspace root:
+**MCP unavailable → BLOCK pipeline** per CD-8 v3 (no silent local fallback — hotfix without atomic MCP scaffold races feature-catalog updates).
 
-```yaml
-features:
-  {hotfix-id}:
-    name: "Hotfix — {short description}"
-    project: "{project}"
-    docs-path: "docs/hotfixes/{hotfix-id}"
-    status: "in-progress"
-    current-stage: "tech-lead"
-    created: "{YYYY-MM-DD}"
-    updated: "{YYYY-MM-DD}"
-    catalog-id: "{F-NNN if hotfix targets existing feature, else null}"
-    is-hotfix: true
-```
-
-**5b — Canonical intel: link or create entry in `docs/intel/feature-catalog.json`** (only when intel layer exists)
-
-Hotfix targets one of two cases:
-- **Existing feature** (hotfix fixing a bug in F-XXX): UPDATE `feature-catalog.features[F-XXX]`:
-  - Append to `tags[]`: `"hotfix-{hotfix-id}"`
-  - Append to `evidence[]`: `{ "kind": "hotfix", "file": "docs/hotfixes/{hotfix-id}/_state.md", "pattern": "hotfix initiated" }`
-  - Do NOT change `status` (still `implemented`); close-feature for hotfix will append to `implementation_evidence.commits[]`
-- **New micro-feature** (rare; hotfix introduces small new capability): CREATE entry as in `new-feature/notepads/new-flow.md` Step 4.5 but with `tags: ["hotfix-initiated"]` and `priority: critical`.
-
-After write: `python ~/.claude/scripts/intel/meta_helper.py update docs/intel/ feature-catalog.json --producer hotfix --append-merged-from`
-
-If intel layer absent: skip — hotfix uses `feature-map.yaml` only (legacy).
+Body sections (auto-generated by MCP scaffold engine): Root Cause, Reproduction Steps, Scope, Stage Progress table (ba+sa marked Skipped), Active Blockers, Wave Tracker.
 
 ## Step 6 — Hand off to PM (single Task call)
 

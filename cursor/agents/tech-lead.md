@@ -29,6 +29,17 @@ exit_gates:
   - plan file exists with verdict block
   - wave_count and task_count present
   - cited intel references for tasks touching role / route / entity
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/sa/00-lean-architecture.md exists with verdict=Ready, OR ba spec complete on Path S"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 5000
+  output_estimate: 4000
 ```
 
 # Technical Lead Agent

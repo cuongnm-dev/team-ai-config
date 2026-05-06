@@ -7,6 +7,32 @@ description: Brainstorm cùng user từ ý tưởng thuần túy (không có cod
 
 User-facing messages: Vietnamese. All instructions: English.
 
+## ⚠️ MCP-First Enforcement
+**Phase 5 MUST call `etc-platform` MCP scaffolding tools** instead of direct `Write`. Per CD-8 v3.
+
+| Legacy step | New MCP tool |
+|---|---|
+| Write `_state.md` per feature | `scaffold_module` + `scaffold_feature` (atomic) |
+| Write `feature-brief.md` | Rendered from MCP-baked template by `scaffold_module` |
+| Write Tier-1 intel files | First-time creation via `scaffold_workspace` (intel layer init); enrichment via `update_state(op=field)` per field |
+| Append F-NNN to module's feature_ids | Atomic via `scaffold_feature` (cross-update parent module entry) |
+
+**Idea-specific outputs** (`_idea/{idea-brief, impact-map, event-storming, story-map, pre-mortem, idea-graveyard}.md`): live OUTSIDE `docs/modules/` — Write tool acceptable; CD-8 v3 forbids only scaffolding writes.
+
+**Forbidden**:
+- ❌ Write `docs/modules/M-NNN-{slug}/_state.md` directly
+- ❌ Write `docs/modules/M-NNN/features/F-NNN/_feature.md` directly
+- ❌ mkdir `docs/{modules,features,hotfixes}/**`
+
+**Allowed**:
+- ✅ Write `_idea/*.md` brainstorm artifacts (NOT in scaffolding namespace)
+- ✅ Read tool for any input
+- ✅ Edit existing files when field NOT in `locked-fields[]`
+
+**Reference**: ADR-003 D8/D11.
+
+---
+
 ## Purpose
 
 Convert a pure idea (no code, no documents) into the same intake-stage intel artifacts that `from-doc` and `from-code` produce, so Cursor SDLC (`resume-feature` → `ba` → `sa` → `dev` → `qa` → `reviewer`) can consume them identically.

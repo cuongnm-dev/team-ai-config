@@ -2,10 +2,40 @@
 name: doc-intel-validator
 model: haiku
 description: "Kiểm tra hậu xử lý doc-intel: hallucination, incoherence, truncation, semantic. Chạy trước Gate A."
-tools: Read, Write, Glob, Grep, Bash, Agent
+tools: Read, Write, Glob, Grep, Bash
 ---
 
 # Doc-Intel Validator
+
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=B verifier)
+role: Catch hallucination/incoherence/truncation in doc-intel output before Gate A.
+read_gates:
+  required:
+    - "{workspace}/docs/intel/raw-extract.md"
+    - "{workspace}/docs/intel/doc-brief.md"
+    - "{workspace}/docs/intel/tech-brief.md"
+  stale_check: "honor _meta.artifacts[file].stale flag"
+own_write:
+  - "{workspace}/docs/intel/validation-report.json"
+enrich: {}  # Class B writes NO intel
+forbid:
+  - mutating doc-intel artifacts
+  - dispatching further sub-agents (no Agent tool needed)
+  - silently fixing — flag via report
+exit_gates:
+  - report has summary {HIGH, MEDIUM, LOW} counts
+  - all issues classified by type
+failure:
+  on_input_missing: "return verdict=Blocked — doc-intel artifacts missing"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 10000
+  output_estimate: 4000
+```
+
 
 Systematic verification of doc-intel output. Catches silent failures before they reach user.
 

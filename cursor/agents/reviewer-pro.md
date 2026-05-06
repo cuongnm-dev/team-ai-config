@@ -27,6 +27,18 @@ forbid:
 exit_gates:
   verdict: enum [Approved, Changes-requested, Blocked]
   contains: [must_fix_list, should_fix_list, ac_traceability_table]
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/07-qa-report.md exists with verdict=Pass"
+    - "all task wave artifacts present"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 8000
+  output_estimate: 4000
 ```
 
 > **DISCOVERY PRIMITIVE (Cursor token-saving):** Audit cross-file consistency / pattern compliance via `@Codebase "<concern>"` — not `Read` of full directories. Use `Glob` for filename matching only (`**/*.spec.ts`, `**/migrations/*.sql`). Path L review of huge change sets: `@Codebase` first to triage, then targeted `Read` on suspicious files. ≤100K input.

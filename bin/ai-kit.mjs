@@ -2,7 +2,10 @@
 // ai-kit — Team AI config manager (Node.js + Ink TUI)
 // One file MVP. Split into modules later as it grows.
 
+import { input, select, Separator } from '@inquirer/prompts';
+import boxen from 'boxen';
 import { execa, execaSync } from 'execa';
+import figlet from 'figlet';
 import { Box, render, Text, useApp } from 'ink';
 import Spinner from 'ink-spinner';
 import { marked } from 'marked';
@@ -13,16 +16,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import React, { useEffect, useReducer, useRef, useState } from 'react';
-import boxen from 'boxen';
-import figlet from 'figlet';
-import { select, input, Separator } from '@inquirer/prompts';
-import {
-  fmtN, fmtInt, fmtUsd, fmtPct,
-  parseSince, priceOf, costOf,
-  classifyError, suggestCommand,
-  vlen, padR, padL, sparkline, bar,
-} from './lib/util.mjs';
 import cursorCsv from './lib/telemetry/cursor-csv.mjs';
+import {
+    bar,
+    classifyError,
+    costOf,
+    fmtInt,
+    fmtN,
+    fmtPct,
+    fmtUsd,
+    padL,
+    padR,
+    parseSince,
+    sparkline,
+    suggestCommand,
+    vlen
+} from './lib/util.mjs';
 
 const _pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const VERSION = _pkg.version;
@@ -36,6 +45,7 @@ const MAINTAINER_COMMANDS = new Set(['pack', 'publish', 'diff', 'edit', 'reset']
 const REPO_DIR = path.join(AI_KIT_HOME, 'team-ai-config');
 const BIN_DIR = path.join(AI_KIT_HOME, 'bin');
 const UPDATE_CACHE = path.join(AI_KIT_HOME, '.update-check');
+const ACCESS_TOKEN_FILE = path.join(AI_KIT_HOME, '.access-token');
 
 // ─── Global flags (parsed early, stripped before dispatch) ─────────────
 const _rawArgs = process.argv.slice(2);
@@ -150,6 +160,57 @@ const ensureRepo = () => {
     console.error(`${_a('\x1b[31m')}  ✗ Run bootstrap: irm .../bootstrap.ps1 | iex (Windows) or curl ... | bash (Mac/Linux)${_a('\x1b[0m')}`);
     process.exit(1);
   }
+};
+
+// ─── Access token (private repo auth) ─────────────────────────────────
+// Token stored at ~/.ai-kit/.access-token — embedded into remote URL at runtime.
+// Never committed. Maintainer issues 1 token per member via GitHub Fine-grained PAT.
+const readAccessToken = () => {
+  try { return fs.readFileSync(ACCESS_TOKEN_FILE, 'utf8').trim() || null; } catch { return null; }
+};
+const saveAccessToken = (token) => {
+  fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+  fs.writeFileSync(ACCESS_TOKEN_FILE, token.trim(), {mode: 0o600});
+};
+const clearAccessToken = () => {
+  try { fs.unlinkSync(ACCESS_TOKEN_FILE); } catch {}
+};
+// Rewrite remote URL to embed token: https://<token>@github.com/...
+const applyTokenToRemote = (token) => {
+  const {stdout: raw} = shQuiet('git', ['-C', REPO_DIR, 'remote', 'get-url', 'origin']);
+  const clean = (raw || '').trim().replace(/https:\/\/[^@]+@/, 'https://');
+  const withToken = clean.replace('https://', `https://${token.trim()}@`);
+  shQuiet('git', ['-C', REPO_DIR, 'remote', 'set-url', 'origin', withToken]);
+};
+// Ensure git remote has valid credentials; interactively prompt for access key if missing.
+const ensureGitAuth = async () => {
+  const {stdout: rawUrl} = shQuiet('git', ['-C', REPO_DIR, 'remote', 'get-url', 'origin']);
+  const url = (rawUrl || '').trim();
+  // Already has embedded credentials — nothing to do.
+  if (/https:\/\/[^@]+@/.test(url)) return;
+  let token = readAccessToken();
+  if (!token) {
+    console.log('');
+    console.log(boxen(
+      `${C.yellow}Repo team-ai-config yêu cầu xác thực (đã chuyển sang private).${C.reset}\n` +
+      `${C.gray}Liên hệ maintainer để nhận access key của bạn.${C.reset}`,
+      {padding: 1, margin: {top: 0, bottom: 0, left: 2, right: 2},
+       borderColor: 'yellow', borderStyle: 'round', title: '🔑 Xác thực', titleAlignment: 'left'}
+    ));
+    token = (await input({message: 'Xin hãy điền access key:'})).trim();
+    if (!token) { err('Không có access key — huỷ.'); process.exit(1); }
+    // Validate before saving
+    const cleanUrl = url.replace(/https:\/\/[^@]+@/, 'https://');
+    const testUrl = cleanUrl.replace('https://', `https://${token}@`);
+    const probe = shQuiet('git', ['ls-remote', '--exit-code', testUrl, 'HEAD']);
+    if (probe.exitCode !== 0) {
+      err('Access key không hợp lệ hoặc không có quyền truy cập. Kiểm tra lại với maintainer.');
+      process.exit(1);
+    }
+    saveAccessToken(token);
+    ok('Access key hợp lệ — đã lưu tại ~/.ai-kit/.access-token');
+  }
+  applyTokenToRemote(token);
 };
 const cmdAvail = c => {
   try {
@@ -1557,6 +1618,7 @@ const runTasks = (steps) => new Promise((resolve, reject) => {
 // ─── update ────────────────────────────────────────────────────────────
 const cmdUpdate = async () => {
   ensureRepo();
+  await ensureGitAuth();
 
   let _snapName = '';
 
@@ -1582,7 +1644,18 @@ const cmdUpdate = async () => {
       id: 'git-pull',
       label: 'Pull team-ai-config mới nhất',
       run: async (c) => {
-        await streamShIntoStep('git', ['-C', REPO_DIR, 'pull', '--ff-only'], c);
+        const result = await streamShIntoStep('git', ['-C', REPO_DIR, 'pull', '--ff-only'], c);
+        if (result.exitCode !== 0) {
+          const out = ((result.stderr || '') + (result.stdout || '')).toLowerCase();
+          if (/authentication failed|could not read username|invalid username|403|401|remote: invalid/i.test(out)) {
+            clearAccessToken();
+            throw new Error(
+              'Access key không còn hiệu lực (đã bị thu hồi hoặc hết hạn).\n' +
+              'Chạy lại "ai-kit update" để nhập key mới.',
+            );
+          }
+          throw new Error(`git pull thất bại (exit ${result.exitCode})`);
+        }
         // Capture post-pull HEAD for changelog computation.
         try {
           const {stdout: newSha} = shQuiet('git', ['-C', REPO_DIR, 'rev-parse', 'HEAD']);
@@ -1738,6 +1811,22 @@ const cmdUpdate = async () => {
         await deploy('claude/skills', '.claude/skills');
         await deploy('cursor/agents', '.cursor/agents');
         await deploy('cursor/skills', '.cursor/skills');
+        // mcp.json — single-file deploy for Claude Code + Cursor (added 2026-05-XX).
+        // Source: claude/mcp.json → ~/.claude/mcp.json  (Claude Code CLI MCP server list)
+        //         cursor/mcp.json → ~/.cursor/mcp.json  (Cursor IDE MCP server list)
+        // MERGE strategy: if destination exists with user keys not in source, preserve them.
+        // For now: overwrite-only (team source is authoritative). User custom servers should
+        // be added to the source file and committed.
+        const deployMcpJson = (srcRel, dstRel) => {
+          const src = path.join(REPO_DIR, srcRel);
+          if (!exists(src)) return;
+          const dst = path.join(os.homedir(), dstRel);
+          fs.mkdirSync(path.dirname(dst), {recursive: true});
+          fs.copyFileSync(src, dst);
+          c.output(`→ ${dstRel}`);
+        };
+        deployMcpJson('claude/mcp.json', '.claude/mcp.json');
+        deployMcpJson('cursor/mcp.json', '.cursor/mcp.json');
         // Windsurf — added 2026-05-04. Repo flatten: windsurf/{skills,memories,workflows}/
         // Deploy maps: skills→.codeium/windsurf/skills, memories→.codeium/windsurf/memories,
         //              workflows→.codeium/windsurf/windsurf/workflows (Windsurf's nested path).
@@ -3890,6 +3979,12 @@ switch (resolved) {
   case 'edit':         cmdEdit(); break;
   case 'uninstall':    cmdUninstall(args); break;
   case 'install':      cmdInstall(); break;
+  case 'sdlc': {
+    // SDLC subcommands (ADR-005 D3-D5) — Node-native port of etc-platform sdlc/*_impl.
+    const { runSdlcCli } = await import('./lib/sdlc/cli.mjs');
+    await runSdlcCli(args);
+    break;
+  }
   default: {
     console.error(`${C.red}  ✗ Lệnh không xác định: ${cmd}${C.reset}`);
     const sugg = suggestForInput(cmd);

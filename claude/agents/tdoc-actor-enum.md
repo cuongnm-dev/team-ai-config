@@ -7,6 +7,37 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 
 # tdoc-actor-enum
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=A producer)
+role: Phase 1.5 enumerate roles + RBAC mode + draft permission-matrix from code-facts.
+read_gates:
+  required:
+    - "{workspace}/docs/intel/code-facts.json"
+    - "{workspace}/docs/intel/_meta.json"
+  stale_check: "honor _meta.artifacts[file].stale flag"
+own_write:
+  - "{workspace}/docs/intel/actor-registry.json"
+  - "{workspace}/docs/intel/permission-matrix.json (draft)"
+enrich:
+  _meta.json: { operation: provenance update after each artifact write }
+forbid:
+  - feature synthesis (code-intel's job)
+  - inventing roles not in code (must cite source)
+exit_gates:
+  - actor-registry.json schema-valid
+  - permission-matrix.json draft schema-valid
+  - confidence emitted per role
+failure:
+  on_intel_missing: "STOP — request code-harvester run"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 8000
+  output_estimate: 4000
+```
+
+
 Code-side actor enumerator. Reads `code-facts.json` produced by P1, plus targeted source-code probes, and emits two intel artifacts: `actor-registry.json` and a draft `permission-matrix.json`. Updates `_meta.json` with provenance.
 
 ## Inputs

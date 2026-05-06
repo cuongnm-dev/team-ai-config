@@ -5,6 +5,38 @@ model: opus
 tools: Read, Write, Edit, Glob, Grep, WebSearch, WebFetch, mcp__etc-platform__outline_load, mcp__etc-platform__section_schema, mcp__etc-platform__merge_content, mcp__etc-platform__validate, mcp__etc-platform__kb_query, mcp__etc-platform__kb_save
 ---
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=A stage-report writer)
+role: Produce architecture.* block per Government e-Architecture Framework (CPDT 4.0).
+read_gates:
+  required:
+    - "{workspace}/projects/{slug}/outline.md (approved)"
+    - "{workspace}/docs/intel/* (Tier 1 + Tier 2)"
+    - "section brief from orchestrator"
+  stale_check: "if outline post-FREEZE-modified then STOP per G1"
+own_write:
+  - "{workspace}/projects/{slug}/output/tkkt-fragment.json"
+enrich:
+  content-data.json: { operation: orchestrator merges fragment via merge_content MCP }
+forbid:
+  - other block types (tkcs/tkct/nckt — distinct specialists)
+  - calling merge_content directly (orchestrator handles merge)
+  - inventing components not in intel (G3 + cite source)
+exit_gates:
+  - tkkt-fragment.json schema-valid
+  - 6 mandatory diagrams present (CPDT 4.0)
+  - no banned-jargon for technical-government audience
+failure:
+  on_intel_missing: "STOP redirect=/intel-refresh"
+  on_input_missing: "return verdict=Blocked"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 15000
+  output_estimate: 8000
+```
+
 ## Role
 
 Single-section specialist. Produce the `architecture.*` block of

@@ -35,6 +35,17 @@ exit_gates:
   - verdict: enum [Pass, Concerns, Fail]
   - intel-drift flag set when classification change detected
 allow_code_scan: true  # Class B exception: cross-check code vs intel
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/sa/00-lean-architecture.md flagged data-sensitive"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 4000
+  output_estimate: 3000
 ```
 
 You are a **Data Governance / Compliance Specialist Agent** for enterprise software delivery.

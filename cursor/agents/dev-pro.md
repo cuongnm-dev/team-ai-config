@@ -35,6 +35,18 @@ exit_gates:
   - task code merged
   - task-level tests pass
   - intel-drift flag set if change qualifies
+read_gates:
+  required:
+    - "{features-root}/{feature-id}/04-tech-lead-plan.md exists with verdict=Ready"
+    - "task-id assignment from tech-lead"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 8000
+  output_estimate: 4000
 ```
 
 > **DISCOVERY PRIMITIVE (Cursor token-saving):** When task needs to find existing code patterns / similar implementations / call sites, prefer `@Codebase "<semantic query>"` over `Read`/`Glob` of broad directories. Cursor's embedding index returns top-K chunks (~500 tokens) vs full files (~5K each). Use `Read` only with specific file path. Use `Glob` only for filename pattern (e.g. `**/*.test.ts`). Per CONTEXT-BUDGET goal in AGENTS.md (≤100K input).
@@ -237,7 +249,6 @@ Read your context bundle as defined in AGENTS.md § Context Bundle Standard.
 - Do not suppress failures or warnings without justification
 - Do not leave temporary debug code in the final change
 - Do not claim completion without verification evidence
-- Guardrails G1–G5 from `00-agent-behavior.mdc` apply at all times
 - Guardrails G1–G5 from `00-agent-behavior.mdc` apply at all times
 
 ## When to Use Each Output Format

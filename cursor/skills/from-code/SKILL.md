@@ -12,6 +12,8 @@ Two producers, same architecture, same output. Mirrors `/from-doc` design (CD-10
 
 Consumer (`/resume-feature` → `dispatcher`, `/generate-docs`) is producer-agnostic.
 
+**MCP down → BLOCK pipeline** (CD-8 v3): hard-stop with message: "Run `docker compose up -d` in `~/.ai-kit/team-ai-config/mcp/etc-platform/` then retry." NO silent local fallback — intel cache + scaffolding require MCP atomic txn.
+
 ## Decision tree — Which producer
 
 ```

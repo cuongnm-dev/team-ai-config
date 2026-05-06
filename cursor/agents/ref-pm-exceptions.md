@@ -36,7 +36,7 @@ See `./templates/task-invocation-pattern.md` for the generic Task() invocation t
 
 ### Parallel invocation — when to use
 
-- **BA + Designer simultaneously:** both need only the PO request as input and have no dependency on each other → safe to parallelize; wait for both before routing to `domain-analyst`
+- **BA + Designer:** SEQUENTIAL — designer runs AFTER ba, BEFORE sa (per `dispatcher.md` Routing Table). Removed from parallel patterns 2026-05-06: designer needs ba's UI/UX flag + scope context to scope correctly. Concurrent invocation produced contradiction across ba.md/dispatcher.md/ref-pm-rules.md (resolved via Theme G in audit-2026-05-06).
 - **DevOps + QA simultaneously:** both need dev output; however, `devops` must reach `Deployment ready` before QA begins testing — dispatch together but gate QA on devops verdict
 - **FE dev + Backend dev in same wave:** safe when TL plan assigns non-overlapping file ownership; NEVER assign overlapping files or shared contracts to parallel dev agents
 - **Multiple dev agents in same wave:** each agent gets a distinct task section from the TL plan and a distinct `artifact-file` name; same file-ownership constraint applies

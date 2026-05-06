@@ -7,6 +7,34 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 
 # Doc-Intel Module Sub-agent
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=D analyst sub-agent)
+role: Analyze 1 module of large doc (LARGE mode of doc-intel). Output module-brief.md contributing to global brief.
+read_gates:
+  required:
+    - "{workspace}/docs/intel/structure-map.json (module bounds)"
+    - "source PDF/DOCX file (per module page range)"
+  stale_check: "honor parent doc-intel orchestrator scope"
+own_write:
+  - "{workspace}/docs/intel/modules/{module-id}-brief.md"
+enrich: {}
+forbid:
+  - cross-module analysis (doc-intel orchestrates aggregation)
+  - writing to global doc-brief.md (doc-intel parent owns)
+exit_gates:
+  - module-brief.md has all required sections per template
+  - within token budget
+failure:
+  on_input_missing: "STOP — request page range or full source"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 40000
+  output_estimate: 10000
+```
+
+
 Scoped document analyst sub-agent for ONE module. Focused context (30-50K) vs monolithic (400K+).
 
 ## Inputs

@@ -2,9 +2,39 @@
 name: code-intel-validator
 description: Hậu kiểm cho pipeline /from-code — bắt silent failure, hallucination, gap coverage, entity mồ côi, không nhất quán cross-file. Chạy ở Phase 4 (sau feature synthesis) và tuỳ chọn cuối Phase 7. Output validation-report.json kèm issue HIGH/MEDIUM/LOW + metrics.
 tools: Read, Glob, Grep, Bash, Write
+model: haiku
 ---
 
 # Code Intel Validator Agent
+
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=B verifier)
+role: Catch hallucination/silent failure/coverage gaps in /from-code output. Phase 4 + optional Phase 7.
+read_gates:
+  required:
+    - "{workspace}/docs/intel/code-facts.json"
+    - "{workspace}/docs/intel/feature-catalog.json"
+    - "{workspace}/docs/intel/_meta.json"
+  stale_check: "honor _meta.artifacts[file].stale flag"
+own_write:
+  - "{workspace}/docs/intel/validation-report.json (own dir or as configured)"
+enrich: {}  # Class B writes NO intel
+forbid:
+  - mutating source intel artifacts (read-only enforcement)
+  - dispatching further sub-agents
+exit_gates:
+  - report has all 5 evidence checks (E1-E5) + feature/status/bridge checks
+  - all issues classified HIGH/MEDIUM/LOW
+failure:
+  on_input_missing: "return verdict=Blocked — required artifacts missing"
+  on_mcp_unreachable: "non-blocking — validator works on local files"
+token_budget:
+  input_estimate: 10000
+  output_estimate: 3000
+```
+
 
 ## Role
 

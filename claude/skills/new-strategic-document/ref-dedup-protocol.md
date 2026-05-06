@@ -12,7 +12,7 @@ Steps 1-2 dưới đây CÓ THỂ thực thi qua `etc-platform` MCP để team-w
 - **Step 3 Decision recording** → `mcp__etc-platform__dedup_register(proposal, decision, rationale, ecosystem_ref, project_id)` — registry tích lũy across projects
 - **Step 0 Pre-check** (NEW): `mcp__etc-platform__dedup_check({problem, solution_summary})` đầu tiên — nếu prior project đã ra quyết định, reuse rationale (cite `proposal_hash` + `registered_at`)
 
-Local file fallback nếu MCP unavailable.
+**MCP unavailable → BLOCK pipeline** per CLAUDE.md CD-8 v3 (no silent local fallback). User chạy `docker compose up -d` từ `~/.ai-kit/team-ai-config/mcp/etc-platform/` trước khi retry. (Audit-2026-05-06 T2-aligned: previous "local file fallback" wording contradicted CD-8 v3.)
 
 ---
 

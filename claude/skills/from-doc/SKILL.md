@@ -7,6 +7,36 @@ description: Đọc tài liệu mô tả nghiệp vụ (PDF, Word, ảnh, file t
 
 User-facing messages: Vietnamese. All instructions: English.
 
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+**This skill MUST call `Bash("ai-kit sdlc ...")` commands for ALL workspace/module/feature scaffolding** instead of direct `Write`/`mkdir`/`glob`. Per ADR-005 D3 governance (supersedes prior CD-8 v3 MCP wording).
+
+**Replacements**:
+
+| Legacy step | New ai-kit CLI command |
+|---|---|
+| Step 4a workspace mkdir + AGENTS.md/CLAUDE.md Write | `ai-kit sdlc scaffold workspace --workspace . --type {mini|mono} --stack ...` |
+| Step 5b ID allocation algorithm (scan features-root + map) | `ai-kit sdlc scaffold module` allocates atomically, validates uniqueness via verify scope `id_uniqueness`. Caller passes target M-NNN; CLI rejects on collision. SUPERSEDES legacy "scan features-root for max NNN" algorithm — F-061 bug class fixed. |
+| Step 5d decompose modules → pipelines (then Write `_state.md`) | Loop: `ai-kit sdlc scaffold module --id M-NNN --name "..." --slug ... --depends-on csv` per module — atomic catalog + map + folder updates |
+| Step 5f.5 Write `feature-brief.md` | `ai-kit sdlc scaffold module` renders `module-brief.md` from JS template literal (bundled in ai-kit) |
+| Step 5g feature-map.yaml Write | `ai-kit sdlc scaffold feature` updates feature-map.yaml + module-catalog.feature_ids atomically |
+| Step 5h verify intel quality | `ai-kit sdlc verify --scopes all --strict block` |
+
+**Forbidden after migration**:
+- ❌ `Write` tool for `_state.md` / `_feature.md` / `module-brief.md` / `feature-brief.md` / catalogs / maps
+- ❌ `Bash mkdir` under `docs/{modules,features,hotfixes}/**`
+- ❌ `Glob {features-root}/F-*/` for ID allocation (replaced by MCP atomic)
+
+**Allowed**:
+- ✅ Skill orchestrates: read intel briefs, decide module/feature decomposition, build context dicts, then **call MCP tools**
+- ✅ `Read` tool for source docs in `docs/inputs/` (renamed from `docs/source/`)
+- ✅ `Edit` for in-place updates IF field NOT in `locked-fields[]`
+
+**MCP down → BLOCK**: hard-stop with clear error; user runs `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/`.
+
+**Reference**: `D:\AI-Platform\maintainer-notes\adr\ADR-003-sdlc-2tier-module-feature.md` D8/D11 + `plans/p0-mcp-tool-spec.md` §3.
+
+---
+
 ## Intel Layer Integration (CLAUDE.md CD-10)
 
 This skill is the doc-side producer for the shared Intel Layer at `{workspace}/docs/intel/`. See `INTEL_INTEGRATION.md` (sibling file) for full contract. Key changes vs legacy:
@@ -130,6 +160,60 @@ Every file write follows atomic-write pattern:
 ```
 
 Crash recovery: `.tmp` exists → interrupted write → re-generate on resume.
+
+---
+
+## Step 0 — Flag handling (Resume Protocol Lockout escape)
+
+**Purpose**: Allow user to redo confirmed gates / re-run completed steps when intel quality is unsatisfactory. Without these flags, user must hand-edit `_pipeline-state.json` (Resume Protocol Lockout — known issue).
+
+**Recognized flags**:
+
+| Flag | Effect |
+|---|---|
+| `--reset-gate <a\|b>` | Set `state.steps["gate-{x}"].confirmed = false`, `iterations = 0`, `current_step = "gate-{x}"`. Backup state to `_pipeline-state.json.bak.{ISO}`. Re-enter gate loop on next invocation. |
+| `--rerun-step <N>` | Reset all steps from N onwards: `steps.{N..end}.status = pending`, `current_step = "{N}"`. Move dependent artifacts (Step ≥ N) to `docs/intel/_history/{ISO}/`. Re-run from step N. |
+| `--reset-all` | Full reset: move `docs/intel/` → `docs/intel.bak.{ISO}/`, delete `_pipeline-state.json`. Preserves `docs/source/`. Re-run from Step 1. |
+
+**Detection logic** (Step 0.1, runs BEFORE Resume Protocol):
+
+```
+flags = parse CLI args
+IF --reset-gate {x} present:
+  Read _pipeline-state.json
+  cp _pipeline-state.json _pipeline-state.json.bak.{ISO-timestamp}
+  state.steps["gate-{x}"].confirmed = false
+  state.steps["gate-{x}"].iterations = 0
+  state.current_step = "gate-{x}"
+  Write _pipeline-state.json
+  IF state.steps["gate-{x}"].iterations > 0 (was previously refined):
+    Print warning: "⚠️ Resetting Gate {x} after {iter} iterations. Previous quality: features={N}, gaps={N}. This loses refinement work. Confirm? (yes/no)"
+    AskUserQuestion → if no, restore backup + EXIT
+  Print: "✅ Gate {x} reset. Backup at _pipeline-state.json.bak.{ISO}. Resume re-enters gate-{x}."
+  EXIT (user re-invokes /from-doc without flag to enter gate loop)
+
+IF --rerun-step {N} present:
+  Read _pipeline-state.json
+  cp _pipeline-state.json _pipeline-state.json.bak.{ISO}
+  Move docs/intel/ contents owned by step N+ to docs/intel/_history/{ISO}/
+  state.steps["{N}".."{end}"].status = pending
+  state.current_step = "{N}"
+  Write _pipeline-state.json
+  Print: "✅ Reset to step {N}. {M} artifacts archived to _history/{ISO}/. Resume runs from step {N}."
+  EXIT
+
+IF --reset-all present:
+  Move docs/intel/ → docs/intel.bak.{ISO}/
+  Delete _pipeline-state.json
+  Print: "✅ Full reset. docs/intel/ → .bak.{ISO}. Re-run /from-doc to start fresh."
+  EXIT
+
+IF no flag → continue to Step 1 (normal Resume Protocol)
+```
+
+**Why skill-side state mutation, not MCP `update_state(op=stage_rollback)`**: Pending MCP backend primitive (T1-12 in audit roadmap). Skill-side mutation works today; switch to MCP when primitive ships.
+
+**Quality regression guard**: confirmed-gate reset after iter > 0 prompts user with previous metrics — prevents accidental refinement loss.
 
 ---
 

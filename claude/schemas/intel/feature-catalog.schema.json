@@ -168,7 +168,28 @@
           },
           "uniqueItems": true
         },
-        "tags": { "type": "array", "items": { "type": "string" } }
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "readiness": {
+          "type": "object",
+          "description": "Three-aspect readiness status orthogonal to lifecycle status. Decouples doc-readiness, QA-readiness, release-readiness. Backward-compat: features without this field treated as documentation=missing, qa=missing, release=blocked.",
+          "properties": {
+            "documentation": {
+              "type": "string",
+              "enum": ["ready", "partial", "missing"],
+              "description": "Set by generate-docs based on output completeness: ready=all required docs generated; partial=fallback synthesis used; missing=not yet generated."
+            },
+            "qa": {
+              "type": "string",
+              "enum": ["ready", "partial", "missing"],
+              "description": "Set by resume-feature QA stage based on atomic triple + min_tc quota: ready=all conditions met; partial=executed but below quota; missing=no executed TCs."
+            },
+            "release": {
+              "type": "string",
+              "enum": ["ready", "blocked"],
+              "description": "Set by close-feature: ready iff documentation=ready AND qa=ready AND reviewer verdict=Approved."
+            }
+          }
+        }
       }
     }
   }

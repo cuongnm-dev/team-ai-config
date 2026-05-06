@@ -178,29 +178,35 @@ Tất cả `tdoc-*` agent prompts viết bằng tiếng Anh (machine-readable).
 Tiếng Việt CHỈ xuất hiện trong: output content examples, template field values, frontmatter description.
 
 ### CD-10: Intel Layer Contract
-Shared knowledge layer giữa `from-doc`, `from-code`, `generate-docs` (và SDLC tooling tương lai) đặt tại `{workspace}/docs/intel/`. JSON Schema draft-07 chuẩn hoá tại `~/.claude/schemas/intel/`.
+Shared knowledge layer between `from-doc`, `from-code`, `generate-docs` (and future SDLC tooling) at `{workspace}/docs/intel/`. JSON Schema draft-07 standardized at `~/.claude/schemas/intel/`.
 
-**Single source of truth — KHÔNG skill nào được tạo path khác:**
-- `_meta.json` — provenance, TTL, staleness, lock registry (arbiter cho reuse)
+**Single source of truth — NO skill may create alternate paths:**
+- `_meta.json` — provenance, TTL, staleness, lock registry (arbiter for reuse)
 - `actor-registry.json` — roles + auth + RBAC mode (NIST 800-162)
 - `permission-matrix.json` — Role × Resource × Action (Casbin/IAM pattern)
 - `sitemap.json` — navigation + routes + Playwright hints + workflow variants (absorb `frontend-report.json`)
-- `feature-catalog.json` — features với role-visibility tagging
-- `test-accounts.json` — test credentials per role (Playwright + manual QA bridge). MUST be in `.gitignore` khi `storage=inline`. FK `accounts[].role_slug` → `actor-registry.roles[].slug`.
-- `test-evidence/{feature-id}.json` — playwright test cases + execution results + screenshot map per feature. Producer chính: `resume-feature` QA stage. Consumer chính: `generate-docs` Stage 3a (capture) + Stage 4f (xlsx). FK `feature_id` → `feature-catalog.features[].id`.
+- `feature-catalog.json` — features with role-visibility tagging
+- `test-accounts.json` — test credentials per role (Playwright + manual QA bridge). MUST be in `.gitignore` when `storage=inline`. FK `accounts[].role_slug` → `actor-registry.roles[].slug`.
+- `test-evidence/{feature-id}.json` — playwright test cases + execution results + screenshot map per feature. Primary producer: `resume-feature` QA stage. Primary consumer: `generate-docs` Stage 3a (capture) + Stage 4f (xlsx). FK `feature_id` → `feature-catalog.features[].id`.
+- `data-model.json` — entities + relationships (DDD bounded context). Producer: `from-code`/`sa`. Consumer: `tdoc-arch-writer`, `tdoc-tkcs-writer`.
+- `integrations.json` — external services + API endpoints. Producer: `from-code`/`sa`. Consumer: `tdoc-arch-writer`.
+- `feature-map.yaml` — F-NNN → module + path resolver (single index file). Producer: `from-doc`/`from-code`/`new-feature`. Consumer: `resume-feature` dispatcher (path lookup).
+- `module-catalog.json` — M-NNN entries (NEW per ADR-003 D8). Producer: `from-doc`/`from-code`/`scaffold_module`. Consumer: `dispatcher`, `generate-docs`.
+- `module-map.yaml` — M-NNN → path resolver (NEW per ADR-003 D8). Producer: `scaffold_module`. Consumer: `resolve_path` MCP tool.
+- `id-aliases.json` — legacy ID renames + reservations (NEW per ADR-003 D8). Producer: `from-doc`/`from-code` (migration). Consumer: all path-resolving skills.
 
-**Quy tắc:**
-1. Mọi producer write intel artifact PHẢI: (a) validate theo schema, (b) update `_meta.json` (producer, produced_at, ttl_days, checksum_sources, source_evidence).
-2. Mọi consumer đọc intel artifact PHẢI check `_meta.artifacts[file].stale` trước khi tin.
-3. Mọi field user edit thủ công PHẢI được declare trong `_meta.artifacts[file].locked_fields[]` — producer subsequent KHÔNG ghi đè.
-4. Conflict giữa nhiều producer → `intel-merger` agent/script áp precedence (tham khảo `~/.claude/schemas/intel/README.md` § Conflict Resolution).
-5. Cross-reference integrity bắt buộc: permission.role ∈ actor-registry.roles[].slug; sitemap.routes ↔ feature-catalog.features[].routes; test-accounts.role_slug ∈ actor-registry.roles[].slug; vv. `intel-validator` enforce.
-6. Reuse mode default: `reuse_if_fresh` cho cùng workspace; vendor export qua `intel-export` (Phase 3).
+**Rules:**
+1. Every producer that writes an intel artifact MUST: (a) validate against schema, (b) update `_meta.json` (producer, produced_at, ttl_days, checksum_sources, source_evidence).
+2. Every consumer that reads an intel artifact MUST check `_meta.artifacts[file].stale` before trusting it.
+3. Every field manually edited by user MUST be declared in `_meta.artifacts[file].locked_fields[]` — subsequent producers MUST NOT overwrite.
+4. Conflicts between multiple producers → `intel-merger` agent/script applies precedence (see `~/.claude/schemas/intel/README.md` § Conflict Resolution).
+5. Cross-reference integrity is mandatory: permission.role ∈ actor-registry.roles[].slug; sitemap.routes ↔ feature-catalog.features[].routes; test-accounts.role_slug ∈ actor-registry.roles[].slug; etc. `intel-validator` enforces.
+6. Default reuse mode: `reuse_if_fresh` for the same workspace; vendor export via `intel-export` (Phase 3).
 7. **Block-if-missing contract**: Consumer skills (generate-docs, resume-feature, intel-refresh) MUST block when a REQUIRED artifact is missing instead of re-discovering. REQUIRED set = {actor-registry, permission-matrix, sitemap, feature-catalog}. test-accounts is OPTIONAL (separate block for HDSD/Playwright targets).
 8. **Cursor-side awareness**: `~/.cursor/skills/resume-feature` dispatcher MUST inject `intel-path` + `intel-contract` into FROZEN_HEADER (cache-safe; static text only) so every sub-agent implements code that matches intel from the start — preventing 3-way drift between from-doc → resume-feature → generate-docs.
 9. **Reuse-first mandate**: Consumer skills (generate-docs Stage 1-2-3a-4f) MUST reuse + print user-visible reuse summary when intel artifact is FRESH. Only override is `--rerun-stage N` flag. Silent skip is FORBIDDEN. Re-discovery when intel is fresh = anti-pattern (token waste + divergence).
 10. **Assembly-not-testing principle (generate-docs)**: `generate-docs` is an ASSEMBLY skill — it collects test cases + screenshots from `test-evidence/{feature-id}.json` (produced by `resume-feature` QA stage) into documents. Stage 3a runs Playwright fresh ONLY for features without evidence. Stage 4f reuses evidence test_cases[] as authoritative; only AUGMENTs (does not re-invent).
-11. **Quality gate upstream**: `from-code` Phase 8 MUST hard-stop if `feature-catalog.json` is missing or fields are thin (description < 200 chars, business_intent < 100, flow_summary < 150, acceptance_criteria < 3 items). Cursor SDLC is only accurate when intel input is rich — invest upstream, save downstream.
+11. **Quality gate upstream**: `from-code` Phase 8 MUST hard-stop if `feature-catalog.json` is missing or fields are thin (description < 200 chars, business_intent < 100, flow_summary < 150, acceptance_criteria < 3 items). Cursor SDLC is only accurate when intel input is rich — invest upstream, save downstream. **Exit ramp (mandatory)**: every CD-10 hard-stop MUST emit user-facing `next-action:` directive — `next-action: /intel-fill {feature_id}` for thin-field cases (interview-resumable), `next-action: /from-doc {source-path}` if `feature-catalog.json` missing entirely, `next-action: /from-idea` for greenfield no-doc-no-code. Bare STOP without `next-action` directive is forbidden — user MUST always have a next-step path. Same exit-ramp discipline applies to ALL CD-10 hard-stop rules (#7 block-if-missing, #11 quality gate, #14 test-evidence chain, #15 min_tc, #16 atomic triple).
 12. **Close-feature intel sync**: Cursor `close-feature` MUST update `feature-catalog.json` (status: implemented, implementation_evidence{}, test_evidence_ref) — not just `feature-map.yaml`. Bidirectional sync SDLC ↔ canonical intel.
 13. **Confidence-aware extraction**: All entry-level intel (`actor-registry.roles[]`, `permission-matrix.permissions[]`, `feature-catalog.features[]`, `sitemap.routes[]`) carries `confidence: high|medium|low|manual` + `evidence[]` + `source_producers[]`. Producers MUST emit confidence per signal-tier rules in `~/.claude/skills/generate-docs/notepads/confidence-routing.md`. Consumers (generate-docs Stage 4) MUST route by tier — never treat low-confidence claims as authoritative without `[CẦN BỔ SUNG]` markers. Stage 5b Pass 7 enforces aggregate stats (block if any `low_confidence_critical` entry, major if low ratio > 5%). Backwards compatible: unset confidence treated as informational, never blocks.
 
@@ -214,17 +220,222 @@ Shared knowledge layer giữa `from-doc`, `from-code`, `generate-docs` (và SDLC
 
 18. **Rich fallback for legacy/document-only projects**: When `test-evidence/{id}.json.test_cases[]` empty, generate-docs Stage 4f synthesizes via deterministic ISTQB techniques (Boundary Value Analysis, Equivalence Partition, Decision Table, State Transition, Error Guessing) PLUS VN gov mandatory dimensions (audit log assertion, PII masking, concurrent edit, Vietnamese diacritics, SLA timeout, session expire mid-workflow). Cross-pollinate from HDSD output (`services[].features[].{dialogs, error_cases, ui_elements, steps}`) when feature-catalog lacks these fields. All synthesized TCs tagged `source: "generate-docs/fallback-synthesized"`, `status: "proposed"`. xlsx MUST include warning sheet at top: "⚠ N TCs là PROPOSED, chưa execute — QA team review + execute trước sign-off". Same fallback discipline for screenshots (suffix `-doc-only` to distinguish from QA-captured).
 
-19. **Canonical ID convention**: Feature IDs across all skills (from-doc, from-code, from-idea, new-feature, generate-docs) MUST use the canonical format — `F-NNN` (mini-repo) or `{service}-F-NNN` (monorepo). Forbidden in ID: date stamps, source-prefix (BOTP/SRS/BRD), module names. ID is immutable after first commit. ID issuance: first producer issues, subsequent producers reuse via lookup against feature-catalog.json + feature-map.yaml + glob `{features-root}/F-*/`. Legacy IDs (`{PREFIX}-{YYYYMMDD}-{NNN}`) are migrated via `docs/intel/id-aliases.json` during transition. Cursor `resume-feature` accepts canonical IDs only; legacy IDs are resolved through aliases.
+    **Partial-coverage discriminator** (resolves CD-10 #10 vs #18 boundary): generate-docs Stage 4f mode selection:
+    - `len(test_cases) == 0` → **FALLBACK mode** (full synthesis per this rule)
+    - `0 < len(test_cases) < min_tc(feature) * 0.5` → **MIXED mode**: existing TCs preserved as-is + synthesized fill-in TCs tagged `source: "generate-docs/fallback-synthesized"`. xlsx warning: "⚠ Partial coverage — N existing + M synthesized fills"
+    - `len(test_cases) >= min_tc(feature) * 0.5` → **AUGMENT mode** per CD-10 #10 (existing TCs authoritative; only enrich missing fields like dialogs/error_cases — NO new TC creation). xlsx warns `⚠ TC count below min_tc target — QA team review for completeness`
+    - `len(test_cases) >= min_tc(feature)` → **ASSEMBLY mode** (CD-10 #10 healthy path; zero synthesis)
+
+    Boundary rule prevents partial-coverage features from sliding into either pure-assembly (insufficient coverage) or pure-fallback (over-synthesizes existing work).
+
+19. **Canonical ID convention** (post-ADR-003 D2/D8 — 2026-05-06): IDs across all skills MUST use canonical format. Three namespaces tách biệt:
+    - **`M-NNN`** — module (logical SDLC bounded context). Folder `docs/modules/M-NNN-{slug}/`.
+    - **`F-NNN`** (sub-suffix `[a-z]?` cho variants) — feature (business unit). Folder nested under module: `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/`.
+    - **`H-NNN`** — hotfix (skip ba+sa flow). Folder `docs/hotfixes/H-NNN-{slug}/`.
+
+    Slug: kebab-case ASCII (`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`). Slug CAN evolve via MCP `rename_module_slug` tool (atomic + alias entry). ID immutable after commit.
+
+    Forbidden trong ID: date stamps, source-prefix (BOTP/SRS/BRD), module names trong feature ID. Cross-cutting features tracked qua `feature.consumed_by_modules[]` field — KHÔNG duplicate feature ID across modules.
+
+    ID issuance qua MCP scaffold tools (CD-8 v3 below). Legacy IDs (taxpayer F-061..F-080 từ pre-refactor pipeline) migrate qua `docs/intel/id-aliases.json` theo Phase 4 plan trong ADR-003.
 
 20. **Unified _state.md schema**: All skills producing per-feature `_state.md` (from-doc Step 5f, from-code Phase 5, from-idea Phase 5, new-feature Step 4) emit IDENTICAL frontmatter (21 fields) + 6 body sections (Business Goal, Stage Progress table, Current Stage, Next Action, Active Blockers, Wave Tracker, Escalation Log). Schema reference: from-doc/SKILL.md §5f. Differences only at field-VALUE level (e.g. `source-type: SRS` vs `code-reverse-engineered` vs `user-input` vs `idea-brainstormed`). Resume-feature uniformly consumes any `_state.md` regardless of producer. `feature-req` MUST use structured format (`file:`/`canonical-fallback:`/`scope-modules:`/`scope-features:`/`dev-unit:`) — prose-form `feature-req` is forbidden (resume-feature Step 3.0 parser depends on the structured form).
 
+    **Scope clarifier**: This unified schema applies to LEGACY feature-level `_state.md` only (path `docs/features/F-NNN/_state.md` from pre-ADR-003 pipelines). Post-ADR-003 paths use CD-23 schema variants — see CD-23 § Cross-reference. Skills MUST detect schema variant via path prefix BEFORE parsing: `docs/modules/M-NNN/_state.md` → ModuleState (CD-23 sdlc); `docs/hotfixes/H-NNN/_state.md` → HotfixState (CD-23 hotfix); `docs/modules/M-NNN/features/F-NNN/_feature.md` → FeatureSpec (CD-23 separate schema); `docs/features/F-NNN/_state.md` → unified schema (this rule).
+
 21. **Production-line lifecycle contract**: All skills/agents that READ or WRITE intel artifacts MUST conform to a contract box defined in `~/.claude/schemas/intel/LIFECYCLE.md` §5. The contract enforces 9 principles (P1-P9): single-writer per field, read-validate-write, no re-discovery, no silent drift, stale-block, information sufficiency, anti-fishing, role refusal, context economy. Each contract box specifies ROLE, READ-GATES, OWN-WRITE, ENRICH, FORBID, EXIT-GATES, FAILURE, TOKEN-BUDGET. Stage agents (ba/sa/qa/dev/etc.) follow individual boxes (§5.1-§5.7); support agents follow class contracts (§5.8 Class A stage-report writers; §5.9 Class B verifiers; §5.10 Class C orchestrators; §5.11 Class D doc-generation consumers). Skill/agent edits PR that violate the contract are blocked. New skills MUST add a contract box before merge.
+
+## Pipeline Robustness Contracts
+
+### CD-12: Exit Ramp Mandatory
+
+Every hard-stop in the pipeline MUST emit a `next-action` directive — explicit skill/command to run next OR explicit data the user must provide. Bare STOP without `next-action` is forbidden across skills, agents, and dispatcher error paths.
+
+**Scope** (broader than CD-10 #11 which scopes only CD-10 hard-stops):
+- Skill STOP / HALT directives (preflight failures, validation errors, scope exits)
+- Dispatcher blocker JSON: BUDGET-001, ROUTE-001, ART-001, PARSE-001, NO-INVOKE-001, etc.
+- Agent verdict with `verdict: Fail` or `escalate_recommended: true`
+- MCP error responses (container down, validation reject, job timeout)
+
+**Format**: blocker JSON MUST include `next-action` field:
+
+```json
+{
+  "id": "BLOCKER-001",
+  "description": "...",
+  "impact": "...",
+  "next-action": "/skill-name args"
+}
+```
+
+The `next-action` value MUST be one of:
+- A runnable skill/command: `/intel-fill F-001`, `/from-idea`, `/intel-refresh --tier T1`
+- An explicit data request: `Provide source documents at docs/inputs/`
+- An infrastructure recovery command: `docker compose up -d in ~/.ai-kit/team-ai-config/mcp/etc-platform/`
+
+**Roll-out**: incremental. CD-10 #11 already implements this for CD-10 scope. Existing dispatcher blocker definitions retrofit `next-action` as maintainer touches them. New skill / agent edits MUST include `next-action` from creation.
+
+### CD-13: Readiness 3-Tier
+
+`feature-catalog.features[].readiness` is a 3-aspect status object orthogonal to existing `status` enum. Decouples doc-readiness from QA-readiness from release-readiness.
+
+**Schema** (additive to `feature-catalog.schema.json`):
+
+```json
+"readiness": {
+  "documentation": "ready | partial | missing",
+  "qa": "ready | partial | missing",
+  "release": "ready | blocked"
+}
+```
+
+**Owners**:
+- `documentation` — set by `generate-docs` based on output completeness: `ready` when all required docs generated and validated; `partial` when CD-10 #18 fallback synthesized portion of content; `missing` when generation skipped.
+- `qa` — set by `resume-feature` QA stage based on atomic triple (CD-10 #16) and `min_tc(feature)` quota (CD-10 #15): `ready` when all conditions met; `partial` when TCs executed but below quota; `missing` when no executed TCs.
+- `release` — set by `close-feature` ONLY when `documentation=ready` AND `qa=ready` AND reviewer verdict = Approved. Otherwise `blocked`.
+
+**Gate behavior**:
+- `close-feature` HARD-STOP if `readiness.release ≠ ready` when user requests `status: implemented`. Exit ramp (per CD-12) MUST direct user to the failing aspect: `/intel-fill {feature_id}` for missing docs; `/resume-feature {feature_id} qa` for missing QA; `reviewer rerun` for non-Approved verdict.
+- `generate-docs` xlsx fallback warning sheet (CD-10 #18) MUST include readiness state, e.g. `⚠ N features readiness.qa=missing — doc-ready only, NOT release-ready`.
+
+**Backward compat**: existing `status` enum (`proposed | in_design | in_development | implemented | deprecated`) unchanged. `readiness` is purely additive — features without `readiness` field treated as legacy: assume `documentation=missing`, `qa=missing`, `release=blocked`.
+
+**Use case** (legacy migration):
+- Project has 30 features `status=in_development`, no QA evidence.
+- Run `/generate-docs` → all set `readiness.documentation=ready` (via CD-10 #18 fallback for TCs).
+- `readiness.qa` stays `missing`.
+- `close-feature` blocked on `readiness.release=blocked` — user gets honest signal that release-readiness requires QA, not just docs.
+- Documentation deliverable is valid; release deliverable explicitly pending.
+
+## SDLC 2-tier Refactor (ADR-003)
+Enforcement rules for SDLC directory structure + namespace ID + MCP-first scaffolding.
+Single source of truth: `D:\AI-Platform\maintainer-notes\adr\ADR-003-sdlc-2tier-module-feature.md`.
+
+### CD-8 v3: MCP-first scaffolding (extends CD-8 Office routing)
+
+> **⚠ SUPERSEDED by ADR-005 (2026-05-06)** — `D:/AI-Platform/maintainer-notes/adr/ADR-005-cli-first-architecture.md`. Migration path: scaffolding/resolve_path/verify/update_state/autofix/rename via `etc-platform` CLI binary (executed through `Bash("ai-kit ...")`), not MCP. 11 SDLC tools removed from MCP server 2026-05-06; same logic exposed as Typer subcommands in `etc_platform/cli.py`. Office routing (CD-8 v1) **remains valid** — Office rendering still goes through cloud `/jobs` API, just transport changes from MCP to REST. This section retained for historical context until P6 cutoff (skill prompts rewrite).
+
+**Scope expansion**: CD-8 nguyên bản chỉ cover Office rendering. CD-8 v3 mở rộng sang scaffolding + path resolution + structure validation cho SDLC stack.
+
+**Single source of truth = etc-platform MCP cho:**
+1. Office rendering (CD-8 v1 — existing)
+2. Workspace/module/feature/hotfix scaffolding (NEW)
+3. Path resolution từ canonical maps (NEW)
+4. Structure validation (NEW)
+5. Verify family + autofix (NEW)
+
+**Skills MUST NOT** (forbidden patterns in SDLC scope):
+- ❌ Write tool cho ANY scaffolding file (`_state.md`, `_feature.md`, `module-brief.md`, `implementations.yaml`, `_meta.json`, catalogs, maps, schemas, outlines)
+- ❌ Bash mkdir / `New-Item -Directory` cho ANY dir under `{workspace}/docs/{modules,features,hotfixes}/**`
+- ❌ Glob `{workspace}/docs/{modules,features,hotfixes}/**` cho path resolution
+- ❌ Edit MCP-created file khi field thuộc `locked-fields[]` array
+- ❌ Local templates ngoài MCP image
+
+**Skills MAY**:
+- ✅ Call `mcp__etc-platform__scaffold_*` tools để create
+- ✅ Call `mcp__etc-platform__resolve_path` để find paths
+- ✅ Call `mcp__etc-platform__update_state` để mutate state
+- ✅ Call `mcp__etc-platform__verify` cho integrity checks
+- ✅ Read MCP-created files directly (Read tool OK)
+- ✅ Edit existing files cho UPDATE ops nếu field NOT trong `locked-fields[]`
+- ✅ Write code source files trong `apps/services/libs/{src,internal,cmd}/**` — không động
+
+**MCP tool surface SDLC** (11 NEW tools, post-v3.2.0):
+| Tier | Tool | Purpose |
+|---|---|---|
+| 1-create | `scaffold_workspace` | Bootstrap mini/mono workspace + intel layer |
+| 1-create | `scaffold_app_or_service` | Mono only — add 1 project (app/service/lib/package) |
+| 1-create | `scaffold_module` | Atomic M-NNN + catalog + map updates |
+| 1-create | `scaffold_feature` | Nested F-NNN + 3-file cross-update |
+| 1-create | `scaffold_hotfix` | H-NNN với skip ba+sa flow |
+| 1-refactor | `rename_module_slug` | Atomic slug evolution + alias entry |
+| 1-read | `resolve_path` | Map-based lookup (replaces glob fallback) |
+| 1-repair | `autofix` | Repair với safeguards (orphan-removal etc.) |
+| 2-consolidated | `update_state` | 5 ops via discriminator: field/progress/kpi/log/status |
+| 2-consolidated | `verify` | 8 scopes via discriminator (catches F-061 bug class) |
+| 3-consolidated | `template_registry` | List+load via action discriminator |
+
+**MCP down → BLOCK pipeline**: hard-stop với clear error; user phải `docker compose up -d` từ `~/.ai-kit/team-ai-config/mcp/etc-platform/`. Cùng pattern với CD-8 Office rule.
+
+### CD-22: SDLC structure locked
+
+All skills (from-doc/from-code/from-idea/new-feature/hotfix/configure-workspace) create the structure following this locked tree:
+
+```
+{workspace-root}/
+├── docs/
+│   ├── intel/                          # CD-10 intel layer
+│   │   ├── _meta.json _snapshot.md
+│   │   ├── feature-catalog.json        # F-NNN with module_id ref
+│   │   ├── module-catalog.json         # M-NNN (NEW per ADR-003 D8)
+│   │   ├── module-map.yaml             # M-NNN → path resolver
+│   │   ├── feature-map.yaml            # F-NNN → module + path
+│   │   ├── id-aliases.json             # legacy renames + reservations
+│   │   ├── actor-registry.json
+│   │   ├── permission-matrix.json
+│   │   └── sitemap.json
+│   ├── modules/M-NNN-{slug}/           # SDLC dispatch units
+│   │   ├── _state.md                   # state machine
+│   │   ├── module-brief.md             # scoped digest
+│   │   ├── implementations.yaml        # logical→physical map
+│   │   ├── ba/, sa/, designer/, security/, tech-lead/, qa/, reviewer/
+│   │   └── features/F-NNN-{slug}/      # nested feature artifacts
+│   │       ├── _feature.md
+│   │       ├── implementations.yaml
+│   │       ├── dev/, qa/
+│   │       └── test-evidence.json
+│   ├── hotfixes/H-NNN-{slug}/          # skip-ba-sa flow
+│   ├── inputs/                         # raw user-provided docs (renamed from source/)
+│   └── generated/                      # Office output
+├── apps/{name}/src/                    # Code (mono)
+├── services/{name}/                    # Code (mono)
+├── libs/{name}/src/                    # Shared libs (mono)
+├── packages/{name}/                    # Publishable (mono)
+├── tools/                              # Build/dev tools
+├── AGENTS.md, CLAUDE.md, .gitignore, .editorconfig
+└── docker-compose.yml, .env (optional)
+```
+
+**Mini-repo**: only `src/` + `docker-compose.yml`, without apps/services/libs/packages/. Docs structure same as mono.
+
+### CD-23: _state.md schema variants (replaces unified single schema)
+
+Per ADR-003 D8, `_state.md` frontmatter has 2 variants with `pipeline-type` discriminator:
+- `pipeline-type: sdlc` → ModuleState schema (M-NNN, current-stage, stages-queue 5-10 stages)
+- `pipeline-type: hotfix` → HotfixState schema (H-NNN, skipped-stages: [ba, sa, designer], severity, affected-modules)
+
+Schema baked at `<MCP image>/src/etc_platform/assets/schemas/intel/_state.md.schema.json` (oneOf discriminator). Validate via `verify(scopes=['schemas'])`.
+
+`_feature.md` (NEW per D8) has its own schema at `_feature.md.schema.json` — feature-level spec card with `module-id` reference (FK enforced).
+
+**Cross-reference with CD-10 #20**:
+
+| Path | Schema | Source rule |
+|---|---|---|
+| `docs/modules/M-NNN-{slug}/_state.md` | ModuleState (sdlc variant) | CD-23 |
+| `docs/hotfixes/H-NNN-{slug}/_state.md` | HotfixState (hotfix variant) | CD-23 |
+| `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/_feature.md` | FeatureSpec | CD-23 |
+| `docs/features/F-NNN-{slug}/_state.md` (legacy pre-ADR-003) | Unified 21-field | CD-10 #20 |
+
+**Parser routing**: skills MUST detect variant by path prefix BEFORE parsing frontmatter. Resume-feature dispatcher injects detected `pipeline-type` into FROZEN_HEADER (cache-safe, static text only).
+
+### CD-24: Cross-cutting feature tracking (D10-2)
+
+Features touching multiple modules → explicitly declared via `feature.consumed_by_modules[]` field in `feature-catalog.json`. NO duplicate feature folder across modules — nest under primary owner module, list secondary consumers in the field. `verify(scopes=['cross_references'])` enforces FK integrity.
+
+Example: F-084 VNeID owned by M-001 IAM, consumed by M-002 Taxpayer + M-005 Filing:
+```yaml
+# In feature-catalog.json
+- id: F-084
+  module_id: M-001        # primary owner
+  consumed_by_modules: [M-002, M-005]   # cross-cutting
+```
 
 ## etc-platform MCP Rules
 
 **Single source of truth:** `~/.claude/schemas/intel/MCP-CONTRACT.md`. Quy tắc tóm tắt:
 
-- **MCP-1:** Unified server tại `localhost:8001/sse` (FastMCP) + `localhost:8001` (HTTP API). 24 tools, prefix `mcp__etc-platform__*`. Container `etc-platform` (image `o0mrblack0o/etc-platform:latest`).
+- **MCP-1:** Unified server tại `localhost:8001/sse` (FastMCP) + `localhost:8001` (HTTP API). 35 tools (24 existing doc/KB/DEDUP + 11 NEW SDLC scaffolding from v3.2.0), prefix `mcp__etc-platform__*`. Container `etc-platform` (image `o0mrblack0o/etc-platform:latest`).
 - **MCP-2:** Default ON, opt-out `--no-mcp` / `ETC_USE_MCP=0`. Skills prefer MCP over local KB / DEDUP / templates / outlines khi session có MCP.
 - **MCP-3:** Bootstrap qua `docker compose up -d` trong `~/.ai-kit/team-ai-config/mcp/etc-platform/`.
 - **MCP-4:** Anonymization mandate cho `intel_cache_contribute` — `contributor_consent=True` + server-side PII scan default-deny.

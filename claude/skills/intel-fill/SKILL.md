@@ -5,6 +5,15 @@ description: Trợ lý phỏng vấn tương tác — hỏi user lần lượt c
 
 # Intel Fill — Interactive Interview Wizard
 
+## ⚠️ ai-kit CLI Enforcement (ADR-005)
+For NEW intel artifacts (Tier-1 SDLC scope), call `Bash("ai-kit sdlc state update --workspace . --file docs/intel/{name}.json --op field --path '{dotpath}' --value '{json-encoded value}'")` per field instead of raw `Write`. Atomic + version-tracked + schema-validated.
+
+T3 doc-only schemas listed below (business-context, nfr-catalog, security-design, etc.) are OUT of SDLC-only refactor scope per ADR-003 D8 narrowing — `Write` to `docs/intel/{name}.json` for these still permitted as legacy. Future enterprise-scope refactor extends ai-kit CLI coverage to T3.
+
+**Reference**: ADR-003 D8 + ADR-005 D3 (CLI-first replaces MCP-first).
+
+---
+
 Build content cho T3 doc-only schemas (business-context, nfr-catalog, security-design, infrastructure, cost-estimate, project-plan, handover-plan) qua interactive interview với user.
 
 **DAG-based ordering (D2 P1)**: thay vì hỏi linear theo schema field order, build dependency graph + ask topological order + skip fields đã filled.

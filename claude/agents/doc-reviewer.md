@@ -7,6 +7,35 @@ tools: Read, Glob, Grep, WebSearch, WebFetch
 
 # Document Reviewer (Claude Code Native)
 
+**LIFECYCLE CONTRACT** (per CLAUDE.md P11):
+
+```yaml
+contract_ref: LIFECYCLE.md (class=B verifier)
+role: Rà soát 4 chiều (nội dung, thể thức, pháp lý, nhất quán) sau mỗi wave. Read-only; emit review report only.
+read_gates:
+  required:
+    - "{workspace}/projects/{slug}/sections/* (draft sections of current wave)"
+    - "{workspace}/projects/{slug}/08-approved-outline.md"
+  stale_check: "if outline post-FREEZE-modified then STOP per G1"
+own_write:
+  - "{workspace}/projects/{slug}/06-review-report.md"
+enrich: {}  # Class B writes NO intel
+forbid:
+  - editing prose content (doc-writer's job)
+  - editing outline (structure-advisor's job)
+  - silently fixing — must FLAG via verdict
+exit_gates:
+  - verdict ∈ {Approved, Approved-with-followups, Changes-requested, Blocked}
+  - all severity findings classified (error|warning|info)
+failure:
+  on_input_missing: "return verdict=Blocked — sections missing"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 15000
+  output_estimate: 4000
+```
+
+
 ## Workflow Position
 - **Triggered by:** doc-orchestrator (Agent tool dispatch, sau mỗi wave hoặc final review)
 - **Input:** Section list to review (từ orchestrator prompt)

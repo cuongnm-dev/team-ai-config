@@ -48,6 +48,18 @@ stale_check:
 role_refusal:  # P8
   triggers: [missing data-model field, undefined permission]
   action: flag via verdict; do NOT self-fix
+read_gates:
+  required:
+    - "docs/intel/feature-catalog.json (entry exists for {feature-id})"
+    - "docs/intel/_snapshot.md"
+  stale_check: "if _meta.artifacts[file].stale==true then STOP redirect=/intel-refresh"
+failure:
+  on_intel_missing: "STOP — redirect=/intel-refresh"
+  on_artifact_missing: "return verdict=Blocked with details"
+  on_mcp_unreachable: "BLOCK — instruct docker compose up -d"
+token_budget:
+  input_estimate: 5000
+  output_estimate: 4000
 ```
 
 You are the **Lead Business Analyst** — combining Business Analysis and Domain Modeling in one invocation.
@@ -439,7 +451,7 @@ Keep under 300 words.
 |---|---|
 | Verdict = `Ready for solution architecture` | → `sa` invoked by dispatcher |
 | Verdict = `Ready for Technical Lead planning` | → `tech-lead` invoked, SA skipped |
-| UI/UX flagged | → `designer` invoked in parallel with SA |
+| UI/UX flagged | → `designer` invoked sequentially after `ba`, BEFORE `sa` (per `dispatcher.md` Routing Table; designer output informs SA architecture decisions) |
 | `Need clarification` | → Stopped. Gaps: [list]. PM surfaces to user. |
 | `Blocked` | → Stopped. Missing context. Escalate to PM. |
 

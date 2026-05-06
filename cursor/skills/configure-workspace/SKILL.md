@@ -7,6 +7,13 @@ description: Trang bị cấu hình pipeline `.cursor/` cho repo có sẵn, đ�
 
 **Standard: never touch existing code. Only add missing pipeline infrastructure.**
 
+> **Skill delegation** (audit-2026-05-06 T2-10; updated ADR-005 2026-05-06): Both `/new-workspace` and `/configure-workspace` ultimately call `Bash("ai-kit sdlc scaffold workspace --type {mini|mono} --mode {full|retrofit|sync} ...")` for canonical scaffolding. Difference is `mode`:
+> - `mode='full'` → `/new-workspace` (greenfield: git init + starter code + intel + ADRs + scaffolds)
+> - `mode='retrofit'` → `/configure-workspace` (this skill: existing repo, ONLY add missing `.cursor/` + intel + ADRs; never touch source code)
+> - `mode='sync'` → `/configure-workspace` Phase 2.5 (refresh agents/skills from master via Junctions)
+>
+> If you ran `/new-workspace` on an EMPTY directory and it filled in source code → user wanted `/configure-workspace` for the retrofit path. Both skills check workspace state in their preflight phase and recommend the other if mismatch detected.
+
 ## § File Load Map — Read ONLY when reaching that step
 
 | Step | File | Condition |
