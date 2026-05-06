@@ -158,12 +158,63 @@ if (USE_COLOR) marked.use({
 // ─── Helpers ───────────────────────────────────────────────────────────
 const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
 const ensureRepo = () => {
-  if (!exists(path.join(REPO_DIR, '.git'))) {
-    console.error(`${_a('\x1b[31m')}  ✗ ai-kit chưa cài đặt (không tìm thấy ${REPO_DIR})${_a('\x1b[0m')}`);
-    console.error(`${_a('\x1b[31m')}  ✗ Run bootstrap: irm .../bootstrap.ps1 | iex (Windows) or curl ... | bash (Mac/Linux)${_a('\x1b[0m')}`);
-    process.exit(1);
+  if (exists(path.join(REPO_DIR, '.git'))) return;
+
+  // Silent migrate from legacy folder name (pre-2026-05 distribution).
+  // String concat avoids release-ai-kit.ps1 rewriting `team-ai-config` → REPO_DIR's name.
+  // Transparent to member — không in notice, just rename.
+  const legacyFolder = 'team' + '-ai-config';
+  const legacyDir = path.join(AI_KIT_HOME, legacyFolder);
+  if (legacyDir !== REPO_DIR && exists(path.join(legacyDir, '.git'))) {
+    try { fs.renameSync(legacyDir, REPO_DIR); return; } catch {}
+  }
+
+  console.error(`${_a('\x1b[31m')}  ✗ ai-kit chưa cài đặt (không tìm thấy ${REPO_DIR})${_a('\x1b[0m')}`);
+  console.error(`${_a('\x1b[31m')}  ✗ Run bootstrap: irm .../bootstrap.ps1 | iex (Windows) or curl ... | bash (Mac/Linux)${_a('\x1b[0m')}`);
+  process.exit(1);
+};
+
+// Silent cleanup of legacy artifacts on member machines (pre-rebrand era).
+// Runs once on every invocation — idempotent + fast no-op when nothing to clean.
+// Maintainer's `ai-config-backup-*` (current snapshots from `ai-kit clean` flow)
+// preserved — gated by IS_MAINTAINER check.
+const cleanupLegacyArtifacts = () => {
+  if (IS_MAINTAINER) return;
+  const safeRm = (p, recursive = false) => {
+    try { fs.rmSync(p, {recursive, force: true}); } catch {}
+  };
+  // 1. Old snapshot folders (member's strict mode không tạo nữa, nhưng có thể tồn tại từ era cũ)
+  for (const parent of [
+    path.join(os.homedir(), '.claude'),
+    path.join(os.homedir(), '.cursor'),
+    path.join(os.homedir(), '.codeium', 'windsurf'),
+    path.join(os.homedir(), '.config', 'kilo'),
+  ]) {
+    if (!exists(parent)) continue;
+    try {
+      for (const e of fs.readdirSync(parent, {withFileTypes: true})) {
+        if (e.isDirectory() && /^ai-config-backup-/.test(e.name)) {
+          safeRm(path.join(parent, e.name), true);
+        }
+      }
+    } catch {}
+  }
+  // 2. Orphan launcher files (ai-kit < 0.30 fallback)
+  for (const f of ['ai-kit.legacy', 'ai-kit.legacy.ps1']) {
+    safeRm(path.join(BIN_DIR, f));
+  }
+  // 3. *.legacy-* folders trong ~/.ai-kit/ (renamed bởi bootstrap migration cũ)
+  if (exists(AI_KIT_HOME)) {
+    try {
+      for (const e of fs.readdirSync(AI_KIT_HOME, {withFileTypes: true})) {
+        if (e.isDirectory() && /\.legacy-/.test(e.name)) {
+          safeRm(path.join(AI_KIT_HOME, e.name), true);
+        }
+      }
+    } catch {}
   }
 };
+cleanupLegacyArtifacts();
 
 // ─── Access token (private repo auth) ─────────────────────────────────
 // Token stored at ~/.ai-kit/.access-token — embedded into remote URL at runtime.
