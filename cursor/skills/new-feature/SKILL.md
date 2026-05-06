@@ -238,7 +238,7 @@ Read-only display:
 ```
 ✓ ID allocated: F-{NNN}
 ✓ Slug: {slug}
-✓ Path: docs/modules/{parent_module_id}-{parent_slug}/features/F-{NNN}-{slug}/
+✓ Path: docs/modules/{parent_module_id}-{parent_slug}/_features/F-{NNN}-{slug}/
 ```
 
 User cannot edit ID/slug (Q1=A).
@@ -274,7 +274,7 @@ parse stdout JSON → if !ok: STOP with error
 ```
 
 CLI atomically:
-- Creates `docs/modules/{parent_module_id}-{slug}/features/F-NNN-{slug}/` with `_feature.md` (FeatureSpec per CD-23), `implementations.yaml`, `test-evidence.json`
+- Creates `docs/modules/{parent_module_id}-{slug}/_features/F-NNN-{slug}/` with `_feature.md` (FeatureSpec per CD-23), `implementations.yaml`, `test-evidence.json`
 - Updates `feature-catalog.json` (append entry with scaffold fields)
 - Updates `sitemap.json` (placeholder route, status: planned, confidence: low)
 - Updates `permission-matrix.json` (placeholder — empty until 7b.5 populates role_visibility)
@@ -337,7 +337,7 @@ Display result block + "Còn bổ sung gì?" prompt:
 Skill detects which pipeline driver is appropriate based on workspace structure:
 
 ```
-IF parent_module_id resolved AND scaffold path = docs/modules/M-NNN-*/features/F-NNN-*/:
+IF parent_module_id resolved AND scaffold path = docs/modules/M-NNN-*/_features/F-NNN-*/:
   # Post-ADR-003 nested — pipeline ở cấp module
   Print Vietnamese:
     "✅ Feature F-NNN-{slug} đã được tạo nested dưới {parent_module_id}.

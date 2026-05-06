@@ -96,7 +96,7 @@ Resolve paths:
 | mono — app | `src/apps/{name}` | `src/apps/{name}/docs/features` |
 | mono — service | `src/services/{name}` | `src/services/{name}/docs/features` |
 
-> **Note** (audit-2026-05-06 T1-1): legacy `docs/features/{id}/` paths shown above are PRE-CD-22. Actual MCP scaffold uses CD-22 nested path `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/` per ADR-003 D8. Determine `module_id` from sitemap.modules[] (read in Step 2.5) — if no module fits, prompt user to create new module via `/new-module` first.
+> **Note** (audit-2026-05-06 T1-1): legacy `docs/features/{id}/` paths shown above are PRE-CD-22. Actual MCP scaffold uses CD-22 nested path `docs/modules/M-NNN-{slug}/_features/F-NNN-{slug}/` per ADR-003 D8. Determine `module_id` from sitemap.modules[] (read in Step 2.5) — if no module fits, prompt user to create new module via `/new-module` first.
 
 ---
 

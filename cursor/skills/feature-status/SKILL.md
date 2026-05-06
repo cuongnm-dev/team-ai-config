@@ -19,7 +19,7 @@ description: Xem trạng thái pipeline đang chạy và sức khỏe tổng th�
 
 **Forbidden**:
 - ❌ Glob `docs/features/`/`docs/hotfixes/` for enumeration
-- ❌ Direct filesystem walk of `docs/modules/M-*/features/F-*/`
+- ❌ Direct filesystem walk of `docs/modules/M-*/_features/F-*/`
 
 **Reference**: ADR-003 D7/D8 + p0-mcp-tool-spec.md §3.7 + §3.10.
 

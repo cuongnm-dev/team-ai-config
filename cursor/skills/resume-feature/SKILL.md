@@ -16,7 +16,7 @@ User-facing: Vietnamese. Dispatcher prompts: English.
 | Step 3a feature-map.yaml read | `ai-kit sdlc resolve --kind feature --id F-NNN --include-metadata` returns path + metadata in 1 call |
 | Step 3.1a worktree backfill via Edit | `ai-kit sdlc state update --op field --path worktree-path --value '"<path>"'` |
 
-**SDLC 2-tier path** (post-ADR-003 D8): feature lives at `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/_feature.md`. Module-level state at `docs/modules/M-NNN-{slug}/_state.md`. Use `resolve_path` to get correct location.
+**SDLC 2-tier path** (post-ADR-003 D8): feature lives at `docs/modules/M-NNN-{slug}/_features/F-NNN-{slug}/_feature.md`. Module-level state at `docs/modules/M-NNN-{slug}/_state.md`. Use `resolve_path` to get correct location.
 
 **Wave task glob** (line 135 `glob 05-*-w{N}-*.md`): KEEP — this is per-feature enumeration within already-resolved feature folder, not cross-feature glob. Legitimate use.
 
@@ -138,7 +138,7 @@ If `{arg}` is an explicit path ending with `_state.md`, treat as direct path (sk
 resolved_path = result.data.path
 
 # Case A — feature nested under module (FeatureSpec, NO state machine — post-ADR-003)
-IF resolved_path matches `docs/modules/M-NNN-*/features/F-NNN-*/`
+IF resolved_path matches `docs/modules/M-NNN-*/_features/F-NNN-*/`
    AND `_feature.md` exists in resolved_path
    AND `_state.md` does NOT exist:
   parent_M = read `_feature.md` frontmatter → `module-id`

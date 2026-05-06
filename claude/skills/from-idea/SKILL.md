@@ -21,7 +21,7 @@ User-facing messages: Vietnamese. All instructions: English.
 
 **Forbidden**:
 - ❌ Write `docs/modules/M-NNN-{slug}/_state.md` directly
-- ❌ Write `docs/modules/M-NNN/features/F-NNN/_feature.md` directly
+- ❌ Write `docs/modules/M-NNN/_features/F-NNN/_feature.md` directly
 - ❌ mkdir `docs/{modules,features,hotfixes}/**`
 
 **Allowed**:

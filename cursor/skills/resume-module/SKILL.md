@@ -61,7 +61,7 @@ parse stdout JSON for { ok, data: { path, exists, resolved_via_alias, metadata }
 |---|---|
 | `ok=true, exists=true` | Continue Step 3 with `result.data.path` |
 | `result.data.resolved_via_alias = true` | Display alias info: legacy F-NNN → canonical M-NNN per `id-aliases.json` |
-| `error.code = MCP_E_NOT_FOUND` AND input matches `^F-\d+$` | Fallback: `Bash("ai-kit sdlc resolve --kind feature --id {input} --include-metadata")`. If found nested under M-NNN (path matches `docs/modules/M-NNN-*/features/`) → read `_feature.md` `module-id` → suggest `/resume-module {parent_M}` (do NOT auto-redirect — print and exit). If found legacy (`docs/features/F-NNN-*/`) → suggest `/resume-feature {input}`. Else fall through. |
+| `error.code = MCP_E_NOT_FOUND` AND input matches `^F-\d+$` | Fallback: `Bash("ai-kit sdlc resolve --kind feature --id {input} --include-metadata")`. If found nested under M-NNN (path matches `docs/modules/M-NNN-*/_features/`) → read `_feature.md` `module-id` → suggest `/resume-module {parent_M}` (do NOT auto-redirect — print and exit). If found legacy (`docs/features/F-NNN-*/`) → suggest `/resume-feature {input}`. Else fall through. |
 | `error.code = MCP_E_NOT_FOUND` AND input matches `^H-\d+$` | Fallback: input is a hotfix ID — suggest `/resume-feature {input}` (resume-module does not handle hotfix). Exit. |
 | `error.code = MCP_E_NOT_FOUND` (default) | Compute Levenshtein distance to all module IDs in catalog; suggest top 3 ≤ 3 distance. Else: "Module {id} not found. Use `/new-module` to create." |
 

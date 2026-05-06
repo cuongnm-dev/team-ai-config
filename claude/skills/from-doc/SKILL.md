@@ -1519,7 +1519,7 @@ After loop:
 - `sitemap.json` placeholders added per feature (status: planned, confidence: low)
 - `permission-matrix.json` placeholders per role_visibility (when set)
 - `feature-map.yaml` updated atomically (F-NNN → parent_module + path)
-- Each F-NNN folder created at `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/` with `_feature.md`, `implementations.yaml`, `test-evidence.json`
+- Each F-NNN folder created at `docs/modules/M-NNN-{slug}/_features/F-NNN-{slug}/` with `_feature.md`, `implementations.yaml`, `test-evidence.json`
 
 ### 5g.5. Emit business-context.json — MANDATORY (T3 primary producer per OUTLINE_COVERAGE.md § 5)
 

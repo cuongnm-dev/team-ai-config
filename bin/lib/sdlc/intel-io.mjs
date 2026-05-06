@@ -16,7 +16,8 @@ export const featureMapPath      = (ws) => join(intelDir(ws), 'feature-map.yaml'
 export const idAliasesPath       = (ws) => join(intelDir(ws), 'id-aliases.json');
 
 export const moduleDir   = (ws, mid, slug) => join(ws, 'docs', 'modules', `${mid}-${slug}`);
-export const featureDir  = (ws, mid, mslug, fid, fslug) => join(moduleDir(ws, mid, mslug), 'features', `${fid}-${fslug}`);
+// `_features/` (underscore prefix sorts to top in IDE file tree, tách biệt với folder agent tạo như ba/sa/dev/qa). Đổi tên từ 'features' 2026-05-07.
+export const featureDir  = (ws, mid, mslug, fid, fslug) => join(moduleDir(ws, mid, mslug), '_features', `${fid}-${fslug}`);
 export const hotfixDir   = (ws, hid, slug) => join(ws, 'docs', 'hotfixes', `${hid}-${slug}`);
 
 // ─── Read helpers (return canonical empty if file missing) ───

@@ -575,58 +575,58 @@ Subsequent processing treat resurrected idea như regular active candidate.
 
 ---
 
-## 11. SDLC 2-tier (post-ADR-003 — module-driven)
+## 11. SDLC 2 tầng (post-ADR-003 — pipeline ở cấp module)
 
-Refactor 2026-05-06 theo ADR-003 D8 đổi đơn vị pipeline từ **feature** sang **module**. Đọc kỹ section này nếu bạn đã quen pre-ADR-003 (ufh-rfid era) — workflow hiện tại khác.
+Tái cấu trúc 2026-05-06 theo ADR-003 D8 đổi đơn vị pipeline từ **feature** sang **module**. Đọc kỹ phần này nếu bạn đã quen pattern pre-ADR-003 (era ufh-rfid) — quy trình hiện tại khác.
 
-### 11.1 Module-driven vs feature-driven — khác biệt cốt lõi
+### 11.1 Pipeline cấp module vs cấp feature — khác biệt cốt lõi
 
-| Aspect | **Pre-ADR-003** (feature-driven) | **Post-ADR-003** (module-driven) |
+| Khía cạnh | **Pre-ADR-003** (cấp feature) | **Post-ADR-003** (cấp module) |
 |---|---|---|
-| Pipeline unit | Feature | Module |
+| Đơn vị pipeline | Feature | Module |
 | State machine | `docs/features/F-NNN/_state.md` | `docs/modules/M-NNN/_state.md` |
-| Stage outputs (ba/sa/designer/security/tech-lead/qa/reviewer) | AT feature folder | AT module folder — shared cross-feature |
-| Feature folder content | Full pipeline + `feature-brief.md` + `_state.md` | Spec card `_feature.md` + `dev/` + `qa/` + `implementations.yaml` + `test-evidence.json` |
-| Pipeline driver | `/resume-feature F-NNN` | `/resume-module M-NNN` |
-| Scale | 254 features = 254 pipelines | 254 features = ~20 module pipelines |
+| Output các stage (ba/sa/designer/security/tech-lead/qa/reviewer) | Tại folder feature | Tại folder module — dùng chung cho nhiều feature |
+| Nội dung folder feature | Toàn pipeline + `feature-brief.md` + `_state.md` | Thẻ spec `_feature.md` + `dev/` + `qa/` + `implementations.yaml` + `test-evidence.json` |
+| Lệnh chạy pipeline | `/resume-feature F-NNN` | `/resume-module M-NNN` |
+| Quy mô | 254 feature = 254 pipeline | 254 feature = ~20 pipeline cấp module |
 
-**Tại sao đổi?** Cluster overhead-bound stages (ba/sa/designer/reviewer) per business domain để giảm token cost ~12x; parallelize implementation-bound stages (dev/qa) per feature để giữ throughput.
+**Vì sao đổi?** Gom các stage tốn token (ba/sa/designer/reviewer) theo domain nghiệp vụ để giảm cost ~12 lần; song song hoá các stage thực thi (dev/qa) theo từng feature để giữ tốc độ.
 
-### 11.2 Cấu trúc module folder post-ADR-003
+### 11.2 Cấu trúc folder module post-ADR-003
 
 ```
-docs/modules/M-001-iam/                           # MODULE — pipeline driver
+docs/modules/M-001-iam/                           # MODULE — đơn vị pipeline
 ├── _state.md                                     # state machine (current-stage, stages-queue)
-├── module-brief.md                               # 1 brief / cluster nhiều features
+├── module-brief.md                               # 1 brief cho cả cluster nhiều feature
 ├── implementations.yaml
-├── ba/00-feature-spec.md                         # BA cover cả module
-├── sa/00-architecture-overview.md                # SA cover cả module
-├── designer/  ← chỉ tồn tại nếu screen_count > 0 (Issue 2b fix v0.32.1)
-├── security/  ← chỉ tồn tại nếu Path L hoặc PII (Issue 2b)
-├── tech-lead/04-tech-lead-plan.md                # decompose tasks per feature
+├── ba/00-feature-spec.md                         # BA bao quát toàn module
+├── sa/00-architecture-overview.md                # SA bao quát toàn module
+├── designer/  ← chỉ tồn tại nếu screen_count > 0 (Issue 2b sửa ở v0.32.1)
+├── security/  ← chỉ tồn tại nếu Path L hoặc có PII (Issue 2b)
+├── tech-lead/04-tech-lead-plan.md                # phân rã task theo từng feature
 ├── reviewer/08-review-report.md                  # review cả module 1 lần
 └── features/
     ├── F-001-citizen-account-pin-link/
     │   ├── _feature.md                           # FeatureSpec — KHÔNG phải state machine
     │   ├── implementations.yaml
     │   ├── test-evidence.json
-    │   ├── dev/05-dev-w1-tN.md                   # per-feature dev outputs
-    │   └── qa/07-qa-report.md                    # per-feature QA evidence
+    │   ├── dev/05-dev-w1-tN.md                   # output dev của riêng feature này
+    │   └── qa/07-qa-report.md                    # bằng chứng QA của riêng feature này
     ├── F-002-.../
     └── F-003-.../
 ```
 
-**Lưu ý active stage folders match risk_path** (Issue 2b fix v0.32.1):
-- Path S → 4 folders: ba, tech-lead, dev, reviewer
-- Path M → 6 folders: + sa, qa
-- Path L → 7 folders: + security
-- + designer if `agent_flags.designer.screen_count > 0`
+**Lưu ý folder các stage hoạt động khớp với risk_path** (Issue 2b sửa ở v0.32.1):
+- Path S → 4 folder: ba, tech-lead, dev, reviewer
+- Path M → 6 folder: + sa, qa
+- Path L → 7 folder: + security
+- + designer nếu `agent_flags.designer.screen_count > 0`
 
-→ Module Path S sẽ KHÔNG có sa/, designer/, security/, qa/ folder. Module Path L mới đủ 7.
+→ Module Path S sẽ KHÔNG có folder sa/, designer/, security/, qa/. Module Path L mới đủ 7.
 
-### 11.3 Khi nào /resume-module vs /resume-feature?
+### 11.3 Khi nào dùng /resume-module thay vì /resume-feature?
 
-**Nếu pipeline post-ADR-003 (module-driven)**: dùng `/resume-module M-NNN`. Gọi `/resume-feature F-NNN` trên feature nested → skill **Schema variant detection** sẽ redirect:
+**Project post-ADR-003 (pipeline cấp module)**: dùng `/resume-module M-NNN`. Gọi `/resume-feature F-NNN` trên feature nested → skill có cơ chế **Schema variant detection** tự chuyển hướng:
 
 ```
 $ /resume-feature F-001-citizen-account-pin-link
@@ -636,179 +636,179 @@ $ /resume-feature F-001-citizen-account-pin-link
 
   → Dùng /resume-module M-001 để tiếp tục.
 
-EXIT (no lock, no state mutation)
+EXIT (không tạo lock, không thay đổi state)
 ```
 
-**Nếu pipeline legacy (pre-ADR-003)**: `/resume-feature F-NNN` chạy bình thường (legacy F có state machine riêng tại `docs/features/F-NNN/_state.md`).
+**Project legacy (pre-ADR-003)**: `/resume-feature F-NNN` chạy bình thường (feature legacy có state machine riêng tại `docs/features/F-NNN/_state.md`).
 
-**Hotfix H-NNN**: `/resume-feature H-NNN` (hotfix có state machine riêng, không nested under module).
+**Hotfix H-NNN**: `/resume-feature H-NNN` (hotfix có state machine riêng, không nested dưới module).
 
-**Workspace mixed (legacy F + nested F)**: Schema variant detection auto-route theo path prefix.
+**Workspace lai (vừa có F legacy vừa có F nested)**: Schema variant detection tự định tuyến theo tiền tố đường dẫn.
 
 ### 11.4 `/new-module` + `/new-feature` interview-first (refactor v0.32.0)
 
-2 skill này đã refactor thành interview-first — không nhận tham số ID:
+Hai skill này đã refactor sang interview-first — không nhận tham số ID:
 
 ```bash
-/new-module              # Interactive — auto-allocate M-NNN + slug, dedup-check, dependency suggest, scaffold
-/new-feature             # Interactive — Step 1.5 chọn parent module trước, rest tương tự
+/new-module              # Tương tác — tự cấp M-NNN + slug, dedup-check, gợi ý dependency, scaffold
+/new-feature             # Tương tự — Bước 1.5 chọn module cha trước, các bước còn lại tương tự
 ```
 
 Đặc điểm:
-- **Auto-allocate ID + slug** (Q1=A): user không edit. ID = `max(catalog) + 1`, slug = transliterate Vietnamese name.
-- **Hard-stop dedup ≥ 0.85**: nếu trùng module/feature có sẵn → STOP, suggest `/update-{module|feature} {existing-ID}`.
-- **Partial dedup 0.60-0.85**: display top-3 candidates, user chọn `[u]` update / `[c]` cross-cutting reuse / `[n]` new with references / `[a]` abort.
-- **Không tự spawn /resume-***: skill kết thúc bằng "Còn bổ sung gì?" prompt rồi suggest user gõ `/resume-module M-NNN`.
-- **Claude port** (~/.claude/skills/new-{module,feature}/): dùng Opus 4.7 cho interview/dedup chất lượng cao. Cursor port (~/.cursor/skills/new-{module,feature}/): inherit model main agent.
+- **Tự cấp ID + slug** (Q1=A): user không sửa được. ID = `max(catalog) + 1`, slug = chuyển thể tên Việt sang ASCII.
+- **Hard-stop nếu dedup ≥ 0.85**: nếu trùng module/feature có sẵn → STOP, gợi ý `/update-{module|feature} {existing-ID}`.
+- **Dedup một phần 0.60-0.85**: hiển thị top 3 ứng viên, user chọn `[u]` update / `[c]` dùng chung cross-cutting / `[n]` tạo mới có tham chiếu / `[a]` huỷ.
+- **Không tự gọi /resume-***: skill kết thúc bằng câu hỏi "Còn bổ sung gì?" rồi gợi ý user tự gõ `/resume-module M-NNN`.
+- **Bản port cho Claude** (`~/.claude/skills/new-{module,feature}/`): dùng Opus 4.7 cho phỏng vấn/dedup chất lượng cao. Bản Cursor (`~/.cursor/skills/new-{module,feature}/`): kế thừa model của main agent.
 
-Chi tiết: `ai-kit doc workflows/new-feature` hoặc đọc SKILL.md trực tiếp.
+Chi tiết: `ai-kit doc workflows/new-feature` hoặc đọc trực tiếp SKILL.md.
 
 ### 11.5 `/update-module` + `/update-feature` (skill mới v0.32.0)
 
-Pre-refactor: UPDATE flow gắn vào `/new-feature` (legacy era). Post-refactor: tách 2 skill riêng:
+Trước refactor: luồng UPDATE gắn vào `/new-feature` (era legacy). Sau refactor: tách thành 2 skill riêng:
 
 ```bash
-/update-module M-NNN                            # Update module-level CR
+/update-module M-NNN                            # Update change request cấp module
 /update-module M-NNN --change-feature F-NNN     # Update 1 feature trong module (sub-flow)
-/update-feature F-NNN                           # Variant-aware:
-                                                 #   post-ADR-003 → redirect /update-module --change-feature
-                                                 #   legacy → in-place update flow
+/update-feature F-NNN                           # Tự nhận diện variant:
+                                                 #   post-ADR-003 → chuyển hướng /update-module --change-feature
+                                                 #   legacy → luồng update tại chỗ
 ```
 
-Workflow update-module:
-1. Validate arg + resolve M-NNN
-2. Pre-flight gates: sealed re-open prompt; in-progress feature conflict check; lock check
-3. Interview change request (5 câu: change-type, description ≥80 chars, AC change, constraints, risk delta)
-4. Active CR check (merge or new)
-5. Triage starting stage (per change-type → ba/sa/tech-lead)
-6. Risk re-evaluation (jump ≥2 levels → ASK extended roles)
-7. Ripple analysis (consumed_by_modules, downstream features, auth/data heuristic)
-8. Backup + atomic state reset (CD-12 next-action mandatory)
-9. Post-reset review prompt
-10. Suggest `/resume-module M-NNN`
+Quy trình `/update-module`:
+1. Validate tham số + resolve M-NNN
+2. Cổng tiền kiểm: hỏi mở lại nếu module đã sealed; phát hiện feature đang chạy dở; kiểm tra lock
+3. Phỏng vấn change request (5 câu: loại thay đổi, mô tả ≥80 ký tự, thay đổi AC, ràng buộc, độ tăng risk)
+4. Kiểm tra change request đang mở (gộp hoặc tạo mới)
+5. Phân loại stage bắt đầu (theo loại thay đổi → ba/sa/tech-lead)
+6. Đánh giá lại risk (nhảy ≥2 cấp → HỎI thêm vai trò mở rộng)
+7. Phân tích lan truyền (consumed_by_modules, feature phụ thuộc, heuristic auth/data)
+8. Sao lưu + reset state nguyên tử (CD-12 bắt buộc next-action)
+9. Hỏi review sau khi reset
+10. Gợi ý `/resume-module M-NNN`
 
-Atomic backup tại `_state.md.bak.{ISO}` + `change-impact-report.md` cho audit trail.
+Sao lưu nguyên tử tại `_state.md.bak.{ISO}` + `change-impact-report.md` cho audit trail.
 
 ---
 
-## 12. `/from-doc` Refinement modes (v0.33.0)
+## 12. Các mode tinh chỉnh của `/from-doc` (v0.33.0)
 
-Sau khi `/from-doc` chạy xong initial extraction, real-world cần refinement: deeper extraction, supplemental inputs, targeted re-extraction, decomposition rework, rollback. 5 mode mới (Step 0.5 trong from-doc/SKILL.md).
+Sau khi `/from-doc` chạy xong lần đầu, thực tế cần tinh chỉnh: trích xuất sâu hơn, bổ sung tài liệu, trích xuất lại có chủ đích, tổ chức lại module, hoàn tác. 5 mode mới (Bước 0.5 trong `from-doc/SKILL.md`).
 
-### 12.1 9 case từ thực tế dùng `/from-doc`
+### 12.1 9 tình huống thực tế dùng `/from-doc`
 
-| # | Case | Tần suất | Flag/Action |
+| # | Tình huống | Tần suất | Lệnh / Hành động |
 |---|---|---|---|
-| A | Extraction chưa đủ sâu — same inputs, muốn LLM đào kỹ hơn | ★★★ rất thường | `/from-doc {ws} --deepen [--focus area]` |
-| B | Bổ sung document mới vào `docs/inputs/` | ★★★ rất thường | `/from-doc {ws} --add-input <file>` |
-| C | Replace document cũ bằng v2 | ★★ thỉnh thoảng | `/from-doc {ws} --reextract <file>` |
-| D | Re-organize modules (split/merge) | ★ thỉnh thoảng | `/from-doc {ws} --redecompose` HOẶC `/update-module --split` |
-| E | Patch input doc trực tiếp (user sửa file đầu vào) | ★★ | `/from-doc {ws} --reextract <file>` (auto-detect mtime + sha256) |
-| F | Manual enrichment sau /from-doc — không muốn bị overwrite | ★★★ | CD-10 #3 `locked_fields[]` enforcement (mọi mode honor) |
-| G | Comparative re-run (so sánh 2 extraction) | ★ hiếm | Out-of-scope skill — dùng git branch |
-| H | Rollback — extraction lần này tệ hơn lần trước | ★★ | `/from-doc {ws} --rollback [--to {ISO}]` |
-| I | Targeted re-extract chỉ 1 module | ★★ | `/from-doc {ws} --reextract --module M-NNN` |
+| A | Trích xuất chưa đủ sâu — cùng input, muốn LLM đào kỹ hơn | ★★★ rất thường | `/from-doc {ws} --deepen [--focus area]` |
+| B | Bổ sung tài liệu mới vào `docs/inputs/` | ★★★ rất thường | `/from-doc {ws} --add-input <file>` |
+| C | Thay tài liệu cũ bằng phiên bản v2 | ★★ thỉnh thoảng | `/from-doc {ws} --reextract <file>` |
+| D | Tổ chức lại module (tách / gộp) | ★ thỉnh thoảng | `/from-doc {ws} --redecompose` HOẶC `/update-module --split` |
+| E | Sửa trực tiếp file input (user vá lại tài liệu đầu vào) | ★★ | `/from-doc {ws} --reextract <file>` (tự nhận diện qua mtime + sha256) |
+| F | Bổ sung thủ công sau /from-doc — không muốn bị ghi đè | ★★★ | CD-10 #3 `locked_fields[]` (mọi mode đều tôn trọng) |
+| G | Chạy lại để so sánh 2 lần trích xuất | ★ hiếm | Ngoài phạm vi skill — dùng git branch |
+| H | Hoàn tác — lần trích xuất này tệ hơn lần trước | ★★ | `/from-doc {ws} --rollback [--to {ISO}]` |
+| I | Trích xuất lại có chủ đích chỉ 1 module | ★★ | `/from-doc {ws} --reextract --module M-NNN` |
 
-Mọi mode tự backup với rotation N=5 + honor `locked_fields[]` + log lineage.
+Mọi mode đều tự sao lưu (giữ 5 bản gần nhất) + tôn trọng `locked_fields[]` + ghi log lineage.
 
-### 12.2 `--deepen` — re-extract sâu hơn
+### 12.2 `--deepen` — trích xuất sâu hơn
 
 ```bash
 /from-doc {workspace} --deepen
-/from-doc {workspace} --deepen --focus PII        # narrow lens (PII | security | integration | NFR | ...)
+/from-doc {workspace} --deepen --focus PII        # ống kính hẹp (PII | security | integration | NFR | ...)
 ```
 
-Behavior:
-1. Verify state.steps.3.status == done (else error)
-2. Backup intel + state (rotation N=5)
-3. Re-run Step 3 với enriched system prompt: "DEEPEN MODE — đã có doc-brief.md trước. Tìm missing edge cases, exception flows, gaps, ambiguities. Append/enrich, don't override locked_fields."
-4. Validate output: nếu coverage giảm → reject as regression, restore backup
-5. Reset Step 5 → "pending" (downstream cần rerun với deeper data)
-6. User re-run `/from-doc` để populate downstream
+Cơ chế:
+1. Kiểm tra `state.steps.3.status == done` (chưa thì báo lỗi)
+2. Sao lưu intel + state (giữ 5 bản gần nhất)
+3. Chạy lại Bước 3 với system prompt được tăng cường: "DEEPEN MODE — đã có doc-brief.md trước. Tìm các edge case bị bỏ sót, luồng exception, gap, ambiguity. Bổ sung / làm giàu, không ghi đè locked_fields."
+4. Validate output: nếu coverage giảm → coi là regression, khôi phục backup
+5. Reset Bước 5 → "pending" (downstream cần chạy lại với data sâu hơn)
+6. User chạy lại `/from-doc` để populate downstream
 
-Use case điển hình: SRS có 254 features nhưng doc-brief chỉ extract 170 explicit names → `--deepen --focus "feature granularity"` để LLM dig out 84 implied features.
+Tình huống điển hình: SRS có 254 feature nhưng doc-brief chỉ trích được 170 tên cụ thể → `--deepen --focus "feature granularity"` để LLM đào ra 84 feature ngầm còn lại.
 
-### 12.3 `--add-input` — bổ sung file mới
+### 12.3 `--add-input` — bổ sung tài liệu mới
 
 ```bash
 /from-doc {workspace} --add-input docs/inputs/15_new_addendum.md
 ```
 
-Behavior:
-1. Validate file exists + chưa trong `state.config.input_files`
-2. Backup intel
-3. Add file vào config, extract fragment chỉ file mới
-4. Diff fragment vs existing doc-brief → classify mỗi entry:
-   - **NEW**: append (safe)
-   - **COMPATIBLE**: refines existing → propose merge
-   - **CONFLICT**: contradicts existing → require user resolution
-5. Per-conflict interactive: `[k]eep-old / [k]eep-new / [m]erge / [s]kip` — log decisions vào `_meta.json.artifacts.doc-brief.conflict_log[]`
-6. Apply merged result + reset Step 5h pending
+Cơ chế:
+1. Validate file tồn tại + chưa nằm trong `state.config.input_files`
+2. Sao lưu intel
+3. Thêm file vào config, trích xuất fragment chỉ từ file mới
+4. So sánh fragment với doc-brief hiện có → phân loại mỗi entry:
+   - **NEW**: append (an toàn)
+   - **COMPATIBLE**: làm rõ thêm cho entry cũ → đề xuất gộp
+   - **CONFLICT**: mâu thuẫn với entry cũ → cần user quyết định
+5. Tương tác từng conflict: `[k]eep-old / [k]eep-new / [m]erge / [s]kip` — ghi quyết định vào `_meta.json.artifacts.doc-brief.conflict_log[]`
+6. Áp dụng kết quả gộp + reset Bước 5h pending
 
-Use case điển hình: User nhận thêm 1 phụ lục Q&A từ stakeholder → `--add-input` để skill merge incremental thay vì re-extract toàn bộ corpus.
+Tình huống điển hình: user nhận thêm 1 phụ lục Q&A từ stakeholder → `--add-input` để skill gộp tăng dần thay vì trích xuất lại toàn bộ corpus.
 
-### 12.4 `--reextract` — replace + re-extract
+### 12.4 `--reextract` — thay thế + trích xuất lại
 
 ```bash
-# By file:
+# Theo file:
 /from-doc {workspace} --reextract docs/inputs/03_business_capability_v2.md
 
-# By module:
+# Theo module:
 /from-doc {workspace} --reextract --module M-005
 ```
 
-Behavior:
-- **By file**: invalidate intel entries có lineage = file (qua `_meta.json.artifacts[*].source_lineage`), re-extract chỉ file đó, replace invalidated entries (preserve locked_fields)
-- **By module**: identify input sections relevant M-NNN (heuristic name-match), re-extract focus module này, replace M-NNN-related entries trong feature-catalog
+Cơ chế:
+- **Theo file**: vô hiệu hoá các entry intel có lineage = file (qua `_meta.json.artifacts[*].source_lineage`), trích xuất lại chỉ file đó, thay thế các entry vừa vô hiệu hoá (giữ nguyên locked_fields)
+- **Theo module**: xác định các phần input liên quan M-NNN (heuristic so khớp tên), trích xuất lại tập trung vào module này, thay thế các entry liên quan trong feature-catalog
 
-Use case:
-- File: stakeholder cập nhật v2 của 1 spec doc → re-extract chỉ phần liên quan
-- Module: phát hiện M-005 Filing thiếu nhiều ACs → targeted re-extract focus module
+Tình huống:
+- Theo file: stakeholder cập nhật v2 của 1 spec doc → trích xuất lại chỉ phần liên quan
+- Theo module: phát hiện M-005 Filing thiếu nhiều AC → trích xuất lại có chủ đích
 
-### 12.5 `--redecompose` — re-run module decomposition
+### 12.5 `--redecompose` — chạy lại phân rã module
 
 ```bash
 /from-doc {workspace} --redecompose
 ```
 
-Behavior:
-1. Backup intel + modules
-2. Re-run Step 5d (decompose modules) từ existing doc-brief
-3. Show diff: Added / Removed / Renamed / Merged / Split modules
-4. User chọn `[a]pply / [c]ancel / [s]elective` (per-change confirm)
-5. If apply: wipe docs/modules/, scaffold new modules, reset Step 5h+ pending
+Cơ chế:
+1. Sao lưu intel + modules
+2. Chạy lại Bước 5d (phân rã module) từ doc-brief hiện có
+3. Hiển thị diff: Thêm / Xoá / Đổi tên / Gộp / Tách module
+4. User chọn `[a]pply / [c]ancel / [s]elective` (xác nhận từng thay đổi)
+5. Nếu apply: xoá `docs/modules/`, scaffold module mới, reset Bước 5h+ pending
 
-Use case: Sau khi /from-doc chạy, user thấy 20 modules decomposition không hợp lý (vd. M-005 Filing nên tách thành 2 sub-modules) → `--redecompose` để LLM thử lại.
+Tình huống: sau khi /from-doc chạy xong, user thấy phân rã 20 module không hợp lý (vd. M-005 Filing nên tách thành 2 sub-module) → `--redecompose` để LLM thử lại.
 
-### 12.6 `--rollback` — atomic restore
+### 12.6 `--rollback` — phục hồi nguyên tử
 
 ```bash
-/from-doc {workspace} --rollback                  # most recent backup
+/from-doc {workspace} --rollback                  # backup gần nhất
 /from-doc {workspace} --rollback --to 2026-05-07T00-33-26
 ```
 
-Behavior:
-1. List 5 backup gần nhất với metadata (current_step, modules count, features count, age)
-2. User pick (default: most recent) HOẶC explicit `--to {ISO}`
-3. Show what will be restored: intel + modules + state
-4. **Pre-rollback snapshot**: tự backup current state để rollback chính nó reversible
-5. Confirmation phrase: "CONFIRM ROLLBACK"
-6. Atomic restore: intel JSONs + `_pipeline-state.json` + `docs/modules/` + catalogs + maps
+Cơ chế:
+1. Liệt kê 5 backup gần nhất kèm metadata (current_step, số module, số feature, thời gian)
+2. User chọn (mặc định: gần nhất) HOẶC `--to {ISO}` cụ thể
+3. Hiển thị nội dung sẽ được phục hồi: intel + modules + state
+4. **Snapshot trước rollback**: tự sao lưu state hiện tại để chính rollback cũng có thể đảo ngược lại
+5. Cụm xác nhận: "CONFIRM ROLLBACK"
+6. Phục hồi nguyên tử: intel JSON + `_pipeline-state.json` + `docs/modules/` + catalog + map
 
-Use case: User chạy `--deepen` nhưng kết quả tệ hơn lần trước → `--rollback` về backup pre-deepen.
+Tình huống: user chạy `--deepen` nhưng kết quả tệ hơn lần trước → `--rollback` về backup trước khi deepen.
 
-### 12.7 Backup retention (Q4 = N=5)
+### 12.7 Lưu giữ backup (Q4 = giữ 5 bản)
 
-Mỗi mode auto-rotate backup:
-- `_pipeline-state.json.bak.{ISO}` — keep 5 most recent
-- `docs/intel/.bak/{ISO}/` — keep 5 most recent
-- `docs/modules/.bak/{ISO}/` — keep 5 most recent
+Mỗi mode tự xoay vòng backup:
+- `_pipeline-state.json.bak.{ISO}` — giữ 5 bản gần nhất
+- `docs/intel/.bak/{ISO}/` — giữ 5 bản gần nhất
+- `docs/modules/.bak/{ISO}/` — giữ 5 bản gần nhất
 
-Older backups auto-prune. **All-time history** preserve qua `git commit` — khuyến nghị commit trước mỗi refinement run.
+Backup cũ tự xoá. **Lịch sử dài hạn** giữ qua `git commit` — khuyến nghị commit trước mỗi lần tinh chỉnh.
 
-### 12.8 Locked fields (CD-10 #3)
+### 12.8 Field đã khoá (CD-10 #3)
 
-Manual user edits trong feature-catalog/business-context/doc-brief KHÔNG bị overwrite bởi mọi mode. Đánh dấu trong `_meta.json.artifacts[file].locked_fields[]`:
+Chỉnh sửa thủ công của user trong `feature-catalog`/`business-context`/`doc-brief` KHÔNG bị ghi đè bởi mọi mode. Đánh dấu trong `_meta.json.artifacts[file].locked_fields[]`:
 
 ```json
 {
@@ -821,326 +821,326 @@ Manual user edits trong feature-catalog/business-context/doc-brief KHÔNG bị o
 }
 ```
 
-Mọi refinement mode (`--deepen`, `--add-input`, `--reextract`, `--redecompose`) check `locked_fields[]` trước khi mutate → nếu conflict, surface user `[k]eep-locked / [u]nlock-and-update`. Lý do: BA-level enrichment manual (vd. user sửa `business_intent` cho rich hơn) phải được tôn trọng qua mọi rerun.
+Mọi mode tinh chỉnh (`--deepen`, `--add-input`, `--reextract`, `--redecompose`) đều kiểm tra `locked_fields[]` trước khi thay đổi → nếu xung đột, hỏi user `[k]eep-locked / [u]nlock-and-update`. Lý do: phần làm giàu thủ công ở cấp BA (vd. user sửa `business_intent` cho dày hơn) phải được tôn trọng qua mọi lần chạy lại.
 
 ---
 
-## 13. Edge cases + use case nâng cao
+## 13. Tình huống nâng cao + edge case
 
-Tổng hợp 18 tình huống ít gặp nhưng critical khi xảy ra. Đa số đã được skill handle, một số cần manual workflow.
+Tổng hợp 18 tình huống ít gặp nhưng then chốt khi xảy ra. Đa số đã được skill xử lý sẵn, một số cần quy trình thủ công.
 
-### 13.1 Tôi có project pre-ADR-003 (legacy `docs/features/F-NNN/`) — migrate sang post-ADR-003 thế nào?
+### 13.1 Project pre-ADR-003 (legacy `docs/features/F-NNN/`) — chuyển sang post-ADR-003 thế nào?
 
-**Nguyên tắc**: legacy projects KHÔNG bắt buộc migrate — `/resume-feature` vẫn drive được legacy. Nhưng nếu muốn tận dụng module-driven (cluster BA/SA, parallel dev waves), có 2 path:
+**Nguyên tắc**: project legacy KHÔNG bắt buộc chuyển — `/resume-feature` vẫn chạy được legacy. Nhưng nếu muốn tận dụng pipeline cấp module (gom BA/SA, song song dev wave), có 2 hướng:
 
-**Path A — Migrate dần (recommend)**: 
-- Giữ legacy F-NNN active, scaffold thêm module mới cho features thêm vào
-- Workspace mixed: skill tự handle (Schema variant detection)
-- Khi tất cả legacy features done + sealed → có thể xóa `docs/features/`
+**Hướng A — Chuyển dần (khuyến nghị)**:
+- Giữ F-NNN legacy đang chạy, scaffold module mới cho các feature thêm vào sau
+- Workspace lai: skill tự xử lý qua Schema variant detection
+- Khi tất cả feature legacy đã done + sealed → có thể xoá `docs/features/`
 
-**Path B — Full migrate (chỉ khi project chưa active dev)**:
-1. `/from-doc {workspace} --rollback --to {pre-feature-state-iso}` (nếu có) hoặc backup manual
-2. Tạo `module-catalog.json` từ feature-catalog grouping logic
-3. `/from-doc {workspace} --redecompose` để LLM propose module decomposition
-4. Manually move `docs/features/F-NNN/` → `docs/modules/M-NNN/features/F-NNN/` per mapping
-5. Convert `_state.md` per feature → 1 `_state.md` per module + `_feature.md` per feature
+**Hướng B — Chuyển toàn bộ (chỉ khi project chưa active dev)**:
+1. `/from-doc {workspace} --rollback --to {pre-feature-state-iso}` (nếu có) hoặc backup thủ công
+2. Tạo `module-catalog.json` từ logic gom feature-catalog theo nhóm
+3. `/from-doc {workspace} --redecompose` để LLM đề xuất phân rã module
+4. Di chuyển thủ công `docs/features/F-NNN/` → `docs/modules/M-NNN/_features/F-NNN/` theo ánh xạ
+5. Chuyển đổi mỗi `_state.md` per feature → 1 `_state.md` per module + `_feature.md` per feature
 
-Effort cao — chỉ làm khi value/scale cao và team có bandwidth migrate.
+Effort cao — chỉ làm khi giá trị/quy mô lớn và team có thời gian chuyển đổi.
 
-### 13.2 2 dev cùng chạy `/resume-module M-001` — race condition?
+### 13.2 Hai dev cùng chạy `/resume-module M-001` — tranh chấp?
 
-**Resume-module có advisory lock** (`{module_path}/.resume-lock` với session_id + timestamp). Nếu lock < 10min old → ask user A "wait or force-takeover". Nếu force-takeover → user B's PM session sẽ collision khi update `_state.md` sau.
+**`/resume-module` có advisory lock** (`{module_path}/.resume-lock` chứa session_id + timestamp). Nếu lock < 10 phút tuổi → hỏi user A "đợi hay chiếm quyền". Nếu chiếm quyền → phiên PM của user B sẽ đụng độ khi cập nhật `_state.md` sau đó.
 
-**Recommend**:
-- Coordinate qua chat: 1 dev driver, others observer
-- Nếu cần parallel: split module thành 2 modules với `/from-doc --redecompose` HOẶC mỗi dev chạy 1 module khác nhau
+**Khuyến nghị**:
+- Phối hợp qua chat: 1 dev điều khiển, người khác quan sát
+- Nếu cần song song: tách module thành 2 module qua `/from-doc --redecompose` HOẶC mỗi dev chạy 1 module khác nhau
 - KHÔNG nên `/resume-module` cùng module đồng thời
 
-**Cross-module parallel an toàn**: dev A `/resume-module M-001` + dev B `/resume-module M-002` cùng lúc → OK nếu M-001 và M-002 không có cross-cutting features active.
+**Song song module khác nhau là an toàn**: dev A `/resume-module M-001` + dev B `/resume-module M-002` cùng lúc → OK nếu M-001 và M-002 không chia sẻ feature cross-cutting đang chạy.
 
-### 13.3 Tôi resume project sau 7+ ngày — context có còn không?
+### 13.3 Tôi quay lại project sau 7+ ngày — context có còn không?
 
-**Có** — intel artifacts persistent on disk. Skill `/from-doc` resumable qua `_pipeline-state.json`:
+**Còn** — intel artifact lưu trên đĩa. Skill `/from-doc` resume được qua `_pipeline-state.json`:
 - Đọc `current_step` → biết đang ở đâu
-- Đọc `doc-brief.md`, `tech-brief.md`, `actor-registry.json`, `business-context.json` (đã extract trước đó)
-- Skip Steps đã done
+- Đọc `doc-brief.md`, `tech-brief.md`, `actor-registry.json`, `business-context.json` (đã trích xuất trước đó)
+- Bỏ qua các bước đã done
 
-**Recommend trước khi resume**:
-1. `git log --oneline -20` xem commit gần nhất của project
-2. `cat docs/intel/_meta.json | jq '.artifacts[].produced_at'` — check freshness của từng artifact
-3. Nếu `stale: true` ở artifact nào → `/intel-refresh --tier T1` trước
-4. Đọc `recap_ledger[-1]` (nếu có — Luồng C có) để cold-start nhanh
+**Khuyến nghị trước khi resume**:
+1. `git log --oneline -20` xem commit gần nhất
+2. `cat docs/intel/_meta.json | jq '.artifacts[].produced_at'` — kiểm tra độ tươi của từng artifact
+3. Nếu artifact nào `stale: true` → chạy `/intel-refresh --tier T1` trước
+4. Đọc `recap_ledger[-1]` (nếu là Luồng C có) để khôi phục context nhanh
 
 `/from-idea` đặc biệt có "time-aware recap" tự động:
-- < 24h: light recap
-- 24h–7d: full recap
-- > 7d: mandatory vision-check
+- < 24h: recap nhẹ
+- 24h–7d: recap đầy đủ
+- > 7d: bắt buộc xác nhận lại vision
 
 ### 13.4 Project có cả tài liệu (SRS) lẫn code đã start — dùng `/from-doc` hay `/from-code`?
 
-**Cả hai theo thứ tự**:
+**Dùng cả hai theo thứ tự**:
 
 ```bash
-1. /from-doc D:/Projects/myproj         # Extract intel từ SRS first (business intent layer)
-2. /from-code D:/Projects/myproj        # Merge code-grounded fields (routes, entities, integrations actual)
+1. /from-doc D:/Projects/myproj         # Trích intel từ SRS trước (lớp business intent)
+2. /from-code D:/Projects/myproj        # Gộp các field grounded từ code (route, entity, integration thực tế)
 ```
 
-Skill chia sẻ canonical intel layer — `/from-code` đọc existing intel từ `/from-doc`, **append/refine** không overwrite. Kết quả: catalog có cả business prose (from doc) lẫn code-grounded specifics (from code).
+Hai skill chia sẻ chung canonical intel layer — `/from-code` đọc intel có sẵn từ `/from-doc`, **append/làm giàu** chứ không ghi đè. Kết quả: catalog có cả prose nghiệp vụ (từ doc) lẫn chi tiết grounded từ code.
 
-**Conflict giữa 2 sources** (vd. doc nói feature X có 5 ACs, code show 7 endpoints implemented):
-- `/from-code` flag conflict trong `_meta.json.artifacts.feature-catalog.cross_validation[]`
-- User review qua `/intel-refresh --validate` rồi resolve manually
+**Xung đột giữa 2 nguồn** (vd. doc nói feature X có 5 AC, code show 7 endpoint đã implement):
+- `/from-code` ghi nhận xung đột vào `_meta.json.artifacts.feature-catalog.cross_validation[]`
+- User review qua `/intel-refresh --validate` rồi giải quyết thủ công
 
-**Anti-pattern**: chạy `/from-code` trước `/from-doc` khi có SRS — thiếu business intent layer, code-only catalog sẽ thiếu "vì sao".
+**Anti-pattern**: chạy `/from-code` trước `/from-doc` khi có SRS — thiếu lớp business intent, catalog từ code sẽ thiếu phần "vì sao".
 
-### 13.5 Module quá lớn (50 features) hoặc quá nhỏ (1 feature) — xử lý sao?
+### 13.5 Module quá lớn (50 feature) hoặc quá nhỏ (1 feature) — xử lý sao?
 
-**Module > 30 features**: BA stage sẽ blow token budget, tech-lead plan phức tạp. Split:
+**Module > 30 feature**: BA stage sẽ vượt token budget, kế hoạch tech-lead phức tạp. Tách:
 
 ```bash
-/from-doc {workspace} --redecompose                  # LLM tự propose split
-# HOẶC manual:
-/update-module M-005 --split-into M-021              # CHƯA implement — workaround manual:
-# 1. Edit module-catalog.json: copy M-005 entry → M-021, split feature_ids[]
-# 2. Move docs/modules/M-005/features/F-NNN-... vào M-021/features/ theo mapping
-# 3. Update feature-catalog.features[].module_id của moved features
+/from-doc {workspace} --redecompose                  # LLM tự đề xuất tách
+# HOẶC thủ công:
+/update-module M-005 --split-into M-021              # CHƯA implement — quy trình thủ công:
+# 1. Sửa module-catalog.json: copy entry M-005 → M-021, tách feature_ids[]
+# 2. Di chuyển docs/modules/M-005/_features/F-NNN-... sang M-021/_features/ theo ánh xạ
+# 3. Cập nhật feature-catalog.features[].module_id của các feature vừa di chuyển
 # 4. ai-kit sdlc verify --scopes cross_references --strict block
 ```
 
-**Module = 1 feature**: overhead BA/SA cho 1 feature lãng phí. Merge với module liên quan:
+**Module = 1 feature**: chi phí BA/SA cho 1 feature lãng phí. Gộp với module liên quan:
 
 ```bash
-# Manual workflow:
-# 1. Edit feature-catalog.features[F-NNN].module_id = M-target
-# 2. Move docs/modules/M-NNN-orphan/features/F-NNN/ → M-target/features/F-NNN/
-# 3. Delete M-NNN-orphan từ module-catalog.json
+# Quy trình thủ công:
+# 1. Sửa feature-catalog.features[F-NNN].module_id = M-target
+# 2. Di chuyển docs/modules/M-NNN-orphan/_features/F-NNN/ → M-target/_features/F-NNN/
+# 3. Xoá M-NNN-orphan khỏi module-catalog.json
 # 4. Verify: ai-kit sdlc verify --scopes structure,cross_references --strict block
 ```
 
-Sweet spot: 5-15 features/module.
+Điểm cân bằng: 5-15 feature mỗi module.
 
-### 13.6 Cross-cutting feature lan ra 5+ modules — CD-24 enforcement
+### 13.6 Feature cross-cutting lan ra 5+ module — CD-24 enforce thế nào?
 
-Vd. F-084 SSO VNeID owned by M-001 IAM, consumed by M-002 + M-003 + M-004 + M-005:
+Vd. F-084 SSO VNeID owned by M-001 IAM, được dùng bởi M-002 + M-003 + M-004 + M-005:
 
 ```yaml
 # feature-catalog.features[F-084]:
-module_id: M-001                              # primary owner
-consumed_by_modules: [M-002, M-003, M-004, M-005]  # downstream consumers
+module_id: M-001                              # owner chính
+consumed_by_modules: [M-002, M-003, M-004, M-005]  # các module dùng
 ```
 
 **Khi `/resume-module M-002` chạy** (vd. M-002 dùng F-084):
-- Step 3c.2 (resume-module 2026-05-06 fix) reverse-lookup feature-catalog cho `consumed_by_modules ∋ M-002`
-- Nếu F-084.status != "implemented" → ASK/BLOCK depending on stage:
-  - BA/SA/Designer: WARN + continue
-  - Tech-lead: ASK
-  - Dev/QA/Reviewer: BLOCK + suggest `/resume-module M-001` trước
+- Bước 3c.2 (resume-module fix 2026-05-06) đảo chiều tra feature-catalog tìm `consumed_by_modules ∋ M-002`
+- Nếu `F-084.status != "implemented"` → HỎI/CHẶN tuỳ stage:
+  - BA / SA / Designer: WARN + tiếp tục
+  - Tech-lead: HỎI
+  - Dev / QA / Reviewer: CHẶN + gợi ý chạy `/resume-module M-001` trước
 
-User override → log `_state.md.sync-warnings[]`, reviewer stage refuse Approved nếu F-084 vẫn chưa implemented tại review time.
+User chọn override → ghi log vào `_state.md.sync-warnings[]`, stage reviewer sẽ từ chối Approved nếu F-084 vẫn chưa implemented tại thời điểm review.
 
-→ CD-24 enforcement đảm bảo cross-cutting integrity. Chi tiết: `~/.claude/CLAUDE.md#CD-24`.
+→ CD-24 enforcement đảm bảo tính toàn vẹn cross-cutting. Chi tiết: `~/.claude/CLAUDE.md#CD-24`.
 
-### 13.7 Tôi nghi LLM hallucinated content trong intel — audit thế nào?
+### 13.7 Nghi ngờ LLM bịa nội dung trong intel — kiểm tra thế nào?
 
-**Confidence-aware extraction** (CD-10 #13): mọi entry trong intel có `confidence: high|medium|low|manual` + `evidence[]` + `source_producers[]`.
+**Trích xuất có confidence** (CD-10 #13): mọi entry intel đều có `confidence: high|medium|low|manual` + `evidence[]` + `source_producers[]`.
 
 ```bash
-# Check overall confidence stats:
+# Xem thống kê confidence chung:
 cat docs/intel/feature-catalog.json | jq '[.features[].confidence] | group_by(.) | map({(.[0]): length}) | add'
-# Expected: {"high": 80%, "medium": 15%, "low": 5%}
+# Mong đợi: {"high": 80%, "medium": 15%, "low": 5%}
 
-# List low-confidence entries:
+# Liệt kê entry confidence thấp:
 cat docs/intel/feature-catalog.json | jq '.features[] | select(.confidence == "low")'
 
-# Audit evidence per suspect entry:
+# Kiểm tra evidence của entry nghi ngờ:
 cat docs/intel/feature-catalog.json | jq '.features[] | select(.id == "F-XXX") | .evidence'
 ```
 
-**Action**:
-- Low confidence + critical feature → manually verify against source docs, fix bằng `/intel-fill` hoặc edit + mark `confidence: manual`
-- High low-confidence ratio (> 5%) → `/from-doc --deepen` để LLM re-pass với rich context
-- Suspicious specific field → check `_meta.json.artifacts[file].locked_fields[]` để lock manual fix
+**Xử lý**:
+- Confidence thấp + feature quan trọng → đối chiếu thủ công với tài liệu nguồn, sửa qua `/intel-fill` hoặc edit trực tiếp + đánh dấu `confidence: manual`
+- Tỉ lệ low quá cao (> 5%) → `/from-doc --deepen` để LLM duyệt lại với context đầy đủ hơn
+- Field cụ thể đáng nghi → đưa vào `_meta.json.artifacts[file].locked_fields[]` để khoá phần sửa thủ công
 
-Generate-docs Stage 5b enforce: block nếu có `low_confidence_critical` entry.
+`generate-docs` Bước 5b chặn nếu có entry `low_confidence_critical`.
 
-### 13.8 Tôi muốn /from-doc chạy trong CI/CD pipeline (automation)?
+### 13.8 Muốn `/from-doc` chạy trong CI/CD pipeline (tự động hoá)?
 
-**Currently NOT recommended** — /from-doc có interactive gates (Gate A confirm, Gate B confirm, partial dedup choice...) cần user input. CI sẽ block.
+**Hiện tại KHÔNG khuyến nghị** — `/from-doc` có các gate tương tác (xác nhận Gate A, Gate B, lựa chọn dedup một phần...) cần input của user. CI sẽ bị treo.
 
-**Workaround partial automation**:
+**Tự động hoá một phần**:
 ```bash
-# Pre-extract layer (auto-run trong CI):
-ai-kit sdlc verify --scopes structure,cross_references --strict warn   # validate only
+# Lớp tiền-trích-xuất (chạy được trong CI):
+ai-kit sdlc verify --scopes structure,cross_references --strict warn   # chỉ validate
 
-# /from-doc full pipeline: chạy local trên dev machine
-# Output commit qua git → CI consume kết quả
+# Pipeline /from-doc đầy đủ: chạy local trên máy dev
+# Output commit qua git → CI tiêu thụ kết quả
 ```
 
-Future feature: `/from-doc --non-interactive` mode với defaults preset. Track ở `~/.claude/CLAUDE.md#TODO`.
+Tính năng tương lai: `/from-doc --non-interactive` với defaults preset. Đang track tại `~/.claude/CLAUDE.md#TODO`.
 
-### 13.9 Document đa ngôn ngữ (VN + EN mix) — extract thế nào?
+### 13.9 Tài liệu đa ngôn ngữ (Việt + Anh trộn lẫn) — trích xuất thế nào?
 
-`/from-doc` doc-intel agent handle song ngữ tự nhiên (Opus 4.7 + tốt với VN/EN switching). Tip:
-- Tên feature/module Vietnamese → slug auto-transliterate (`unidecode`) thành kebab-case ASCII
-- Field `name` (Vietnamese) + optional `name_en` (English) trong feature-catalog
-- Business intent prose: giữ nguyên ngôn ngữ gốc, agents downstream xử lý hỗn hợp
-- Tham chiếu pháp lý VN: trích dẫn full Vietnamese (vd. "Nghị định số 30/2020/NĐ-CP")
+`/from-doc` agent doc-intel xử lý song ngữ tự nhiên (Opus 4.7 chuyển ngữ tốt). Mẹo:
+- Tên feature/module Việt → slug tự chuyển thể (`unidecode`) sang kebab-case ASCII
+- Field `name` (Việt) + tuỳ chọn `name_en` (Anh) trong feature-catalog
+- Prose business intent: giữ nguyên ngôn ngữ gốc, agent downstream xử lý hỗn hợp được
+- Trích dẫn pháp lý Việt: trích nguyên văn (vd. "Nghị định số 30/2020/NĐ-CP")
 
-**Edge case**: doc 100% English nhưng team Vietnamese → từ-doc vẫn extract OK, nhưng:
-- `name_vn` có thể empty → BA stage sẽ enrich
-- User có thể `/from-doc --deepen --focus "Vietnamese localization"` để LLM gen `name_vn` cho catalog entries
+**Edge case**: tài liệu 100% tiếng Anh nhưng team Việt → `/from-doc` vẫn trích xuất OK, nhưng:
+- `name_vn` có thể rỗng → BA stage sẽ làm giàu thêm
+- User có thể `/from-doc --deepen --focus "Vietnamese localization"` để LLM sinh `name_vn` cho các entry catalog
 
-### 13.10 SRS scanned PDF (image-based, không OCR) — xử lý sao?
+### 13.10 SRS dạng PDF scan (ảnh, không OCR) — xử lý sao?
 
-Doc-intel agent đọc PDF qua text layer. Scanned PDF không có text layer → extract empty.
+Agent doc-intel đọc PDF qua text layer. PDF scan không có text layer → trích ra rỗng.
 
-**Pre-processing required**:
+**Cần tiền xử lý OCR**:
 ```bash
 # Tesseract OCR (offline):
 tesseract input.pdf output -l vie+eng pdf
-# Output: output.pdf with text layer
+# Output: output.pdf đã có text layer
 
-# HOẶC dùng Adobe Acrobat OCR (commercial)
-# HOẶC convert qua Google Drive (upload → re-download as Google Doc → export PDF có OCR)
+# HOẶC dùng Adobe Acrobat OCR (thương mại)
+# HOẶC convert qua Google Drive (upload → tải lại dạng Google Doc → export PDF có OCR)
 
-# Then run /from-doc:
-/from-doc {workspace}                        # docs/inputs/output.pdf — OCR'd
+# Sau đó chạy /from-doc:
+/from-doc {workspace}                        # docs/inputs/output.pdf — đã OCR
 ```
 
-**OCR quality affect extraction**:
-- VN diacritics đôi khi sai (ô → o, ặ → a) → manual fix critical fields after Step 3
-- Tables OCR không đáng tin → LLM có thể hallucinate cell values
-- Recommend: OCR review pass trước /from-doc, hoặc `--deepen --focus tables` sau
+**Chất lượng OCR ảnh hưởng trích xuất**:
+- Dấu tiếng Việt đôi khi sai (ô → o, ặ → a) → sửa thủ công field quan trọng sau Bước 3
+- Bảng OCR không đáng tin → LLM có thể bịa giá trị cell
+- Khuyến nghị: review OCR trước khi chạy `/from-doc`, hoặc `--deepen --focus tables` sau
 
-### 13.11 `/resume-module` stuck ở 1 stage (vd. ba) — debug
+### 13.11 `/resume-module` kẹt ở 1 stage (vd. ba) — debug thế nào?
 
-Triệu chứng: PM dispatch ba agent → ba agent return verdict nhưng `_state.md.completed-stages.ba` không update.
+Triệu chứng: PM gọi BA agent → BA trả verdict nhưng `_state.md.completed-stages.ba` không update.
 
-**Diagnose**:
-1. Đọc `{module_path}/ba/00-feature-spec.md` — xem ba agent có write file không
-2. Đọc `_state.md.kpi.tokens-by-stage.ba` — agent có chạy và spend tokens không
-3. Đọc PM verdict JSON từ Task() result — xem có blocker hay không
-4. `tail -50 docs/intel/_meta.json` — check stale flags
+**Chẩn đoán**:
+1. Đọc `{module_path}/ba/00-feature-spec.md` — xem BA có ghi file không
+2. Đọc `_state.md.kpi.tokens-by-stage.ba` — agent có chạy và spend token không
+3. Đọc verdict JSON của PM từ kết quả Task() — có blocker không
+4. `tail -50 docs/intel/_meta.json` — kiểm tra cờ stale
 
-**Common causes**:
-- Intel artifact stale → STOP `next-action: /intel-refresh` (đọc skill output kỹ)
-- Atomic state update CLI fail → check `ai-kit doctor` 
-- BA agent loop max-iter (200) → manual edit `_state.md` để pop stage rồi retry
-- Lock conflict (>10min old) → `rm {module_path}/.resume-lock` rồi retry
+**Nguyên nhân thường gặp**:
+- Intel artifact stale → STOP `next-action: /intel-refresh` (đọc kỹ output skill)
+- CLI cập nhật state nguyên tử bị lỗi → kiểm tra `ai-kit doctor`
+- BA agent loop max-iter (200) → sửa thủ công `_state.md` để pop stage rồi retry
+- Lock conflict (>10 phút tuổi) → `rm {module_path}/.resume-lock` rồi retry
 
-**Recovery**:
+**Khôi phục**:
 ```bash
-# Hard reset cụ thể stage:
+# Reset cứng stage cụ thể:
 ai-kit sdlc state update --kind module --id M-NNN --op stage_rollback --to-stage ba
 /resume-module M-NNN
 ```
 
-### 13.12 dev wave parallel agents conflict — file tranh chấp
+### 13.12 Dev wave song song xung đột — tranh chấp file
 
-PM dispatch 4 dev agents parallel trong dev-wave-1. Nếu 2 agents cùng touch 1 file → race.
+PM gọi 4 dev agent song song trong dev-wave-1. Nếu 2 agent cùng đụng 1 file → tranh chấp.
 
-**Tech-lead phải plan tasks orthogonal** (mỗi task touch khác file/module). Nếu plan có overlap → tech-lead lỗi, PM hold dev wave + escalate.
+**Tech-lead phải lập kế hoạch task không giao nhau** (mỗi task chạm file/module khác nhau). Nếu kế hoạch overlap → tech-lead sai, PM giữ dev wave + escalate.
 
-**Recovery**:
-1. Read `04-tech-lead-plan.md` — verify task isolation
-2. Nếu overlap → user edit plan, split tasks
-3. PM `--rerun-stage tech-lead` rồi resume dev wave
+**Khôi phục**:
+1. Đọc `04-tech-lead-plan.md` — verify task có cô lập không
+2. Nếu có overlap → user sửa kế hoạch, tách task
+3. PM `--rerun-stage tech-lead` rồi tiếp tục dev wave
 
-**CD-10 Q.13 confidence-aware**: nếu tech-lead `low_confidence` về task isolation → mark `[NEEDS-VALIDATION]`, PM block dev wave cho đến user review.
+**CD-10 #13 confidence**: nếu tech-lead `low_confidence` về việc cô lập task → đánh dấu `[NEEDS-VALIDATION]`, PM chặn dev wave cho đến khi user xem lại.
 
-### 13.13 Handoff project cho dev/team mới — cần gì?
+### 13.13 Bàn giao project cho dev/team mới — cần gì?
 
-**Onboarding path (recommended order)**:
+**Lộ trình onboarding (thứ tự khuyến nghị)**:
 1. Clone workspace + `ai-kit update`
 2. `ai-kit doctor` — verify môi trường
-3. Đọc `docs/intel/_snapshot.md` — compressed view ~5-7K tokens, cover 95% orientation
-4. Đọc `docs/modules/*/module-brief.md` — list modules + scope
-5. `cat docs/intel/_pipeline-state.json` — current state pipeline
-6. `git log --oneline --all -50` — recent activity
-7. `/feature-status --module M-NNN` per module quan tâm
-8. Skill specific tutorials: `ai-kit doc workflows/{from-doc|resume-feature|generate-docs}`
+3. Đọc `docs/intel/_snapshot.md` — bản nén ~5-7K token, cover 95% nội dung định hướng
+4. Đọc `docs/modules/*/module-brief.md` — danh sách module + scope
+5. `cat docs/intel/_pipeline-state.json` — trạng thái pipeline hiện tại
+6. `git log --oneline --all -50` — hoạt động gần đây
+7. `/feature-status --module M-NNN` cho từng module quan tâm
+8. Tutorial từng skill: `ai-kit doc workflows/{from-doc|resume-feature|generate-docs}`
 
-**Maintainer khi handoff**:
-- Commit + push tất cả intel artifacts
-- Clean up `.bak/` orphans
-- Document decisions trong `docs/intel/decisions.md` hoặc `_meta.json.decisions[]`
-- Tag commit `handoff-{date}` cho rollback point
+**Maintainer khi bàn giao**:
+- Commit + push tất cả intel artifact
+- Dọn các backup `.bak/` mồ côi
+- Ghi quyết định vào `docs/intel/decisions.md` hoặc `_meta.json.decisions[]`
+- Tag commit `handoff-{date}` làm điểm rollback
 
-### 13.14 Cần "snapshot read-only cho stakeholder review" — không cho phép edit?
+### 13.14 Cần "snapshot chỉ-đọc cho stakeholder review" — không cho phép sửa?
 
-**Snapshot pattern**:
+**Mẫu snapshot**:
 ```bash
-# Tạo branch read-only:
+# Tạo branch chỉ-đọc:
 git checkout -b stakeholder-review-2026-05-15
 git push origin stakeholder-review-2026-05-15
 
-# Hoặc generate compact bundle:
+# Hoặc tạo bundle gọn:
 ai-kit zip-disk --output stakeholder-pkg-2026-05-15.zip
-# Bundle: docs/intel/_snapshot.md + docs/modules/*/module-brief.md + 
-#         docs/generated/*.docx (nếu có) + README.md hướng dẫn xem
+# Bundle gồm: docs/intel/_snapshot.md + docs/modules/*/module-brief.md +
+#            docs/generated/*.docx (nếu có) + README.md hướng dẫn xem
 
 # Stakeholder review qua:
-# - Read-only git branch trên GitHub
-# - HOẶC zip file extract local
+# - Branch chỉ-đọc trên GitHub
+# - HOẶC zip giải nén local
 ```
 
-→ Stakeholder không có ai-kit installed vẫn xem được markdown + docx. Feedback qua issues / comments.
+→ Stakeholder không cần cài ai-kit vẫn xem được markdown + docx. Phản hồi qua issue / comment.
 
-### 13.15 Intel JSON schema bumped sau ai-kit update — migration?
+### 13.15 Schema intel JSON bị bump sau `ai-kit update` — chuyển đổi thế nào?
 
-ai-kit có `schema_version` trong mỗi intel JSON. Khi update bump schema:
+ai-kit có `schema_version` trong từng intel JSON. Khi update bump schema:
 ```bash
-ai-kit update                                          # Pull new version
-ai-kit doctor                                          # Detect schema mismatch warning
-ai-kit sdlc verify --scopes schemas --strict warn      # List drift
+ai-kit update                                          # Pull bản mới
+ai-kit doctor                                          # Phát hiện cảnh báo schema mismatch
+ai-kit sdlc verify --scopes schemas --strict warn      # Liệt kê drift
 
-# Auto-migrate:
-ai-kit sdlc autofix --scope schema-migration           # Apply known migrations
+# Tự động chuyển đổi:
+ai-kit sdlc autofix --scope schema-migration           # Áp dụng các migration đã biết
 ```
 
-**Manual migration** (khi auto fail):
-- Read `~/.claude/schemas/intel/CHANGELOG.md` cho version delta
+**Chuyển đổi thủ công** (khi auto fail):
+- Đọc `~/.claude/schemas/intel/CHANGELOG.md` xem delta giữa các phiên bản
 - Backup `cp -r docs/intel/ docs/intel.bak/`
-- Edit intel JSON theo new schema (vd. CD-23 thêm `module_id` field cho feature-catalog post-ADR-003)
+- Sửa intel JSON theo schema mới (vd. CD-23 thêm field `module_id` cho feature-catalog post-ADR-003)
 - `ai-kit sdlc verify --scopes schemas --strict block` — verify
 
-Future feature: full auto migration via `ai-kit migrate intel --from {old-version} --to {new-version}`.
+Tương lai: `ai-kit migrate intel --from {old-version} --to {new-version}` chuyển đổi tự động đầy đủ.
 
-### 13.16 Token budget exceeded mid-run — graceful resume?
+### 13.16 Vượt token budget giữa lúc chạy — resume êm thuận thế nào?
 
-Triệu chứng: Claude báo "context limit reached" hoặc API throttle giữa Step 5g loop.
+Triệu chứng: Claude báo "context limit reached" hoặc API throttle giữa lúc chạy Bước 5g loop.
 
-**Skill design auto-checkpoint**: mỗi sub-step (5a, 5b, ..., 5g) write state ngay sau hoàn thành. Nếu interrupt:
-- `_pipeline-state.json.steps.5.sub_state` ghi nhận sub-step cuối cùng done
-- Re-run `/from-doc` → resume từ sub-step kế tiếp
+**Skill thiết kế auto-checkpoint**: mỗi sub-step (5a, 5b, ..., 5g) ghi state ngay sau khi xong. Nếu interrupt:
+- `_pipeline-state.json.steps.5.sub_state` ghi sub-step cuối cùng đã done
+- Chạy lại `/from-doc` → resume từ sub-step kế tiếp
 
-**Token-saving strategies**:
-- `output-mode: lean` (default) — agents write minimal artifacts vs `full`
-- Split module thành nhiều smaller modules (10-15 features each)
-- Defer "estimated" features (chọn option 2 trong scaffold prompt) thay vì full 254
-- `/from-doc --deepen --focus area` thay vì full re-extract
+**Cách giảm token**:
+- `output-mode: lean` (mặc định) — agent ghi artifact tối thiểu thay vì `full`
+- Tách module thành nhiều module nhỏ hơn (10-15 feature mỗi module)
+- Trì hoãn các feature "ước lượng" (chọn option 2 ở scaffold prompt) thay vì full 254
+- `/from-doc --deepen --focus area` thay vì re-extract toàn bộ
 
-**Cost monitoring** (Cursor): `ai-kit telemetry` show token usage per stage.
+**Theo dõi chi phí** (Cursor): `ai-kit telemetry` xem token usage theo từng stage.
 
-### 13.17 ai-kit version mismatch (skill v0.32 nhưng project intel v0.31) — backward compat?
+### 13.17 ai-kit version lệch (skill v0.32 nhưng intel project v0.31) — tương thích ngược?
 
-Skill prose CD-10 #1 mandate: producers MUST validate against schema before write. Old intel may have:
-- Missing fields (added in v0.32) → skill treat as default/empty
-- Removed fields (v0.31 had, v0.32 dropped) → skill ignore
-- Renamed fields → migration needed (Q13.15)
+CD-10 #1 yêu cầu producer phải validate trước khi ghi. Intel cũ có thể có:
+- Field thiếu (mới thêm ở v0.32) → skill coi là default/empty
+- Field bị xoá (v0.31 có, v0.32 bỏ) → skill bỏ qua
+- Field đổi tên → cần migration (xem 13.15)
 
-**Detection**: `ai-kit sdlc verify --scopes schemas` cảnh báo cụ thể.
+**Phát hiện**: `ai-kit sdlc verify --scopes schemas` cảnh báo cụ thể.
 
-**Recommendation**:
-- Forward-compat: skill v0.32 OK đọc v0.31 intel (graceful degradation)
-- Backward-compat: skill v0.31 KHÔNG đảm bảo đọc v0.32 intel (new required fields)
-- Always update ai-kit + intel schema together: `ai-kit update && ai-kit sdlc autofix --scope schema-migration`
+**Khuyến nghị**:
+- Tương thích xuôi: skill v0.32 OK đọc được intel v0.31 (graceful degradation)
+- Tương thích ngược: skill v0.31 KHÔNG đảm bảo đọc được intel v0.32 (có field bắt buộc mới)
+- Luôn update ai-kit + intel schema cùng lúc: `ai-kit update && ai-kit sdlc autofix --scope schema-migration`
 
-### 13.18 Tôi chỉ muốn estimate scope (số features, modules, complexity) — không scaffold?
+### 13.18 Chỉ muốn ước lượng quy mô (số feature, module, độ phức tạp) — không scaffold?
 
-**Light extraction mode** (chưa có flag, manual workflow):
+**Chế độ trích xuất nhẹ** (chưa có flag, quy trình thủ công):
 ```bash
-# Spawn doc-intel agent only (no Step 4 scaffold, no Step 5):
+# Gọi agent doc-intel only (không Bước 4 scaffold, không Bước 5):
 @doc-intel "Read docs/inputs/*.md and produce metrics-only summary:
             - Total features count
             - Modules count + decomposition proposal
@@ -1149,12 +1149,12 @@ Skill prose CD-10 #1 mandate: producers MUST validate against schema before writ
             - Potential blocking gaps
             Output: docs/intel/scope-estimate.md (markdown table only, no full doc-brief)"
 
-# Review scope-estimate.md → quyết định proceed full /from-doc hay không
+# Review scope-estimate.md → quyết định có chạy `/from-doc` đầy đủ hay không
 ```
 
-Future feature: `/from-doc {workspace} --estimate-only` — Step 1-3 ngắn, output 1 markdown table, không scaffold workspace, không emit full intel.
+Tính năng tương lai: `/from-doc {workspace} --estimate-only` — Bước 1-3 ngắn, output 1 bảng markdown, không scaffold workspace, không emit intel đầy đủ.
 
-Use case: project quote/estimate trước khi commit pipeline; budget planning; decide split-monorepo trước.
+Tình huống: báo giá/ước lượng project trước khi commit pipeline; lập kế hoạch ngân sách; quyết định tách monorepo trước.
 
 ---
 

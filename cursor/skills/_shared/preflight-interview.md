@@ -277,7 +277,7 @@ Display full preview block:
   ID:          {new_id}
   Name:        {name}
   Slug:        {slug}
-  Path:        docs/{modules | modules/M-NNN/features}/{new_id}-{slug}/
+  Path:        docs/{modules | modules/M-NNN/_features}/{new_id}-{slug}/
 
   Business goal: {Q1 trimmed to 200 chars}
   Scope:         {Q4}

@@ -27,34 +27,73 @@ Phân biệt rõ trước khi chọn skill. Xem README §Hai luồng công việ
 
 ## Decision matrix — 🅰 Luồng SDLC
 
-| Tình huống bạn đang gặp | Skill primary | Skill follow-up |
+Sắp xếp theo vòng đời dự án để dễ tra cứu.
+
+### A. Khởi tạo dự án (Bootstrap)
+
+| Tình huống | Skill chính | Skill kế tiếp |
 |---|---|---|
-| Có SRS/BRD docx, project chưa có code | `/from-doc` | `/resume-feature` cho từng F-NNN, rồi `/generate-docs` |
-| Có codebase đã ship, cần tài liệu nghiệm thu | `/from-code` | `/intel-fill` (T3 fields) → `/generate-docs` |
-| Đã có cả SRS + code, cần verify alignment | `/from-code` rồi `/from-doc` (verify mode) | Review `drift-report.json` |
-| Greenfield: chỉ có ý tưởng, chưa có doc/code (Luồng C) | `/from-idea` | `/resume-feature` cho từng F-NNN, rồi `/generate-docs` |
-| Thêm 1 feature mới vào project có sẵn | `/new-feature` | `/resume-feature F-NNN` |
-| Pipeline đang dở dang, tiếp tục | `/resume-feature F-NNN` | Lặp đến reviewer Pass |
-| Feature đã reviewer Pass | `/close-feature F-NNN` | (sau đó `/generate-docs` nếu cần Office) |
-| Code thay đổi auth/RBAC/route → intel stale | `/intel-refresh` | Check `_meta.json.stale` |
-| Cần fill ATTT/NFR/dự toán (chỉ con người biết) | `/intel-fill` | (interactive interview) |
-| Bug nghiêm trọng cần ship gấp (root cause đã biết) | `/hotfix` | `/quality review` post-merge |
-| Bug chưa rõ root cause, scope ≤3 files | `/code-change fix` | `/quality review` |
-| Refactor scoped, không đổi public API | `/code-change refactor` | `/quality review` |
-| Có plan đã duyệt, cần triển khai ad-hoc | `/implement` | `/quality review` |
+| Khởi tạo workspace mới hoàn toàn | `/new-workspace` | `/from-{doc,code,idea}` để seed intel |
+| Thêm app/service vào monorepo có sẵn | `/new-project` | `/new-feature` |
+| Repo có code nhưng thiếu `.cursor/AGENTS.md` | `/configure-workspace` | (cấu hình tương tác) |
+| Có SRS/BRD docx, project chưa có code | `/from-doc` | `/resume-module M-NNN`, rồi `/generate-docs` |
+| Có codebase đã ship, cần tài liệu nghiệm thu | `/from-code` | `/intel-fill` (field T3) → `/generate-docs` |
+| Có cả SRS + code, cần verify alignment | `/from-code` rồi `/from-doc` (chế độ verify) | Review `drift-report.json` |
+| Greenfield: chỉ có ý tưởng (Luồng C) | `/from-idea` | `/resume-module M-NNN`, rồi `/generate-docs` |
+
+### B. Vòng đời module (post-ADR-003 — đơn vị pipeline)
+
+| Tình huống | Skill chính | Skill kế tiếp |
+|---|---|---|
+| Tạo module mới (interview-first, không tham số ID) | `/new-module` | `/resume-module M-NNN` |
+| Update module (change request, mở lại nếu sealed) | `/update-module M-NNN` | `/resume-module M-NNN` |
+| Update 1 feature trong module hiện có | `/update-module M-NNN --change-feature F-NNN` | `/resume-module M-NNN` |
+| Tiếp tục pipeline module đang dở | `/resume-module M-NNN` | `/close-feature` cho từng F-NNN trong module |
+
+### C. Vòng đời feature
+
+| Tình huống | Skill chính | Skill kế tiếp |
+|---|---|---|
+| Thêm feature mới vào module có sẵn (interview-first) | `/new-feature` | `/resume-module M-parent` (post-ADR-003) |
+| Update feature (tự nhận diện variant) | `/update-feature F-NNN` | post-ADR-003 chuyển hướng `/update-module --change-feature`; legacy chạy tại chỗ |
+| Tiếp tục pipeline feature legacy | `/resume-feature F-NNN` | post-ADR-003 chuyển hướng `/resume-module M-parent`; legacy chạy bình thường |
+| Feature đã reviewer Pass — niêm phong | `/close-feature F-NNN` | `/generate-docs` nếu cần xuất Office |
+
+### D. Bảo trì intel
+
+| Tình huống | Skill chính | Skill kế tiếp |
+|---|---|---|
+| Code thay đổi auth/RBAC/route → intel stale | `/intel-refresh` | Kiểm tra `_meta.json.stale` |
+| Fill ATTT/NFR/dự toán (chỉ con người biết) | `/intel-fill` | (phỏng vấn tương tác) |
+
+### E. Code work scoped
+
+| Tình huống | Skill chính | Skill kế tiếp |
+|---|---|---|
+| Bug ≤ 3 file chưa rõ root cause | `/code-change fix` | `/quality review` |
+| Refactor có giới hạn, không đổi public API | `/code-change refactor` | `/quality review` |
+| Có plan đã duyệt, triển khai ad-hoc | `/implement` | `/quality review` |
 | Review PR / sinh test / OWASP / GDPR / CVE | `/quality {mode}` | — |
-| Khảo sát kiến trúc tổng thể, build tech-debt backlog | `/arch-review` | `/adr` cho quyết định mới |
-| Quyết định kiến trúc mới cần ghi nhận | `/adr` | (link vào tech-lead plan) |
-| Điều tra spike trước khi quyết hướng đi | `/spike` | `/adr` ghi nhận quyết định |
-| Postmortem sự cố P0/P1 | `/incident` | `/runbook` để cập nhật quy trình |
-| Sự cố production đang xảy ra | `/incident respond` | `/hotfix` nếu code-related |
+| Khảo sát kiến trúc + lập backlog tech-debt | `/arch-review` | `/adr` cho quyết định mới |
+| Quyết định kiến trúc lớn cần ghi nhận | `/adr` | (link vào tech-lead plan) |
+| Spike điều tra trước khi quyết hướng | `/spike` | `/adr` ghi nhận quyết định |
+
+### F. Vận hành (Ops)
+
+| Tình huống | Skill chính | Skill kế tiếp |
+|---|---|---|
+| Bug nghiêm trọng cần ship gấp (đã biết root cause) | `/hotfix` | `/quality review` post-merge |
+| Sự cố production đang xảy ra | `/incident respond` | `/hotfix` nếu liên quan code |
+| Postmortem sự cố P0/P1 | `/incident` | `/runbook` cập nhật quy trình |
 | Tạo runbook vận hành cho service mới | `/runbook` | — |
 | Quản lý phát hành phiên bản | `/release {prepare\|go-nogo\|rollback}` | — |
-| Khởi tạo workspace mới hoàn toàn | `/new-workspace` | `/new-feature` để bắt đầu |
-| Thêm app/service vào monorepo | `/new-project` | `/new-feature` |
-| Repo có code, thiếu .cursor/AGENTS.md | `/configure-workspace` | (interactive setup) |
-| Quét cache discipline trước publish | `/cache-lint` | (auto-fix nếu cần) |
-| Đóng gói deliverable ZIP cho khách | `/zip-disk` | (sau `/generate-docs`) |
+
+### G. Hỗ trợ workspace
+
+| Tình huống | Skill chính | Skill kế tiếp |
+|---|---|---|
+| Quét cache discipline trước khi publish | `/cache-lint` | (tự sửa nếu cần) |
+| Đóng gói ZIP bàn giao cho khách | `/zip-disk` | (sau `/generate-docs`) |
 
 ---
 

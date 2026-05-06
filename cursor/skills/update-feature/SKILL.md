@@ -55,7 +55,7 @@ resolved_path = result.data.path
 parent_M = result.data.metadata.module_id
 
 # CD-23 path-prefix routing
-IF resolved_path matches `docs/modules/M-NNN-*/features/F-NNN-*/`
+IF resolved_path matches `docs/modules/M-NNN-*/_features/F-NNN-*/`
    AND `_feature.md` exists in resolved_path
    AND `_state.md` does NOT exist:
   variant = "post-ADR-003-nested"

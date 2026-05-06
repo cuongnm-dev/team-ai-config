@@ -10,7 +10,7 @@ description: Sinh trọn bộ tài liệu kỹ thuật ETC từ mã nguồn dự
 
 | Legacy path | New path (post-ADR-003) |
 |---|---|
-| `docs/features/F-NNN/_state.md` | `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/_feature.md` |
+| `docs/features/F-NNN/_state.md` | `docs/modules/M-NNN-{slug}/_features/F-NNN-{slug}/_feature.md` |
 | `docs/features/F-NNN/feature-brief.md` | `docs/modules/M-NNN-{slug}/module-brief.md` (module-level scoped digest) |
 | Glob `docs/features/F-*/test-evidence.json` | `Bash("ai-kit sdlc resolve --kind feature --id F-NNN")` returns canonical path (parse stdout JSON) |
 

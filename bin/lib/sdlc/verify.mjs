@@ -137,7 +137,7 @@ function checkModuleSubstructure(ws, moduleDir) {
     }
   }
 
-  const featuresDir = join(moduleDir, 'features');
+  const featuresDir = join(moduleDir, '_features');
   if (existsSync(featuresDir) && statSync(featuresDir).isDirectory()) {
     for (const child of readdirSync(featuresDir)) {
       const childPath = join(featuresDir, child);
@@ -335,7 +335,7 @@ async function checkIdUniqueness(ws) {
       if (statSync(cp).isDirectory()) {
         const m = /^(M-\d+)-/.exec(child);
         if (m) addSrc('filesystem-modules', m[1]);
-        const featuresDir = join(cp, 'features');
+        const featuresDir = join(cp, '_features');
         if (existsSync(featuresDir)) {
           for (const fc of readdirSync(featuresDir)) {
             const fcPath = join(featuresDir, fc);

@@ -192,7 +192,7 @@ Per Step F shared notepad. Display:
 ```
 ✓ ID allocated: F-{NNN}
 ✓ Slug: {slug}
-✓ Path: docs/modules/{parent_module_id}-{parent_slug}/features/F-{NNN}-{slug}/
+✓ Path: docs/modules/{parent_module_id}-{parent_slug}/_features/F-{NNN}-{slug}/
 ```
 
 LOCKED (Q1=A).
@@ -269,7 +269,7 @@ Print Vietnamese:
 ## Step 8 — Final guidance (Q2 + schema variant aware)
 
 ```
-IF scaffold path = docs/modules/M-NNN-*/features/F-NNN-*/:
+IF scaffold path = docs/modules/M-NNN-*/_features/F-NNN-*/:
   # Post-ADR-003 nested
   Print Vietnamese:
     "✅ Feature F-NNN-{slug} đã được tạo nested dưới {parent_module_id}.

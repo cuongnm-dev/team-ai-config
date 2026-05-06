@@ -230,7 +230,7 @@ Shared knowledge layer between `from-doc`, `from-code`, `generate-docs` (and fut
 
 19. **Canonical ID convention** (post-ADR-003 D2/D8 — 2026-05-06): IDs across all skills MUST use canonical format. Three namespaces tách biệt:
     - **`M-NNN`** — module (logical SDLC bounded context). Folder `docs/modules/M-NNN-{slug}/`.
-    - **`F-NNN`** (sub-suffix `[a-z]?` cho variants) — feature (business unit). Folder nested under module: `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/`.
+    - **`F-NNN`** (sub-suffix `[a-z]?` cho variants) — feature (business unit). Folder nested under module: `docs/modules/M-NNN-{slug}/_features/F-NNN-{slug}/`.
     - **`H-NNN`** — hotfix (skip ba+sa flow). Folder `docs/hotfixes/H-NNN-{slug}/`.
 
     Slug: kebab-case ASCII (`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`). Slug CAN evolve via MCP `rename_module_slug` tool (atomic + alias entry). ID immutable after commit.
@@ -241,7 +241,7 @@ Shared knowledge layer between `from-doc`, `from-code`, `generate-docs` (and fut
 
 20. **Unified _state.md schema**: All skills producing per-feature `_state.md` (from-doc Step 5f, from-code Phase 5, from-idea Phase 5, new-feature Step 4) emit IDENTICAL frontmatter (21 fields) + 6 body sections (Business Goal, Stage Progress table, Current Stage, Next Action, Active Blockers, Wave Tracker, Escalation Log). Schema reference: from-doc/SKILL.md §5f. Differences only at field-VALUE level (e.g. `source-type: SRS` vs `code-reverse-engineered` vs `user-input` vs `idea-brainstormed`). Resume-feature uniformly consumes any `_state.md` regardless of producer. `feature-req` MUST use structured format (`file:`/`canonical-fallback:`/`scope-modules:`/`scope-features:`/`dev-unit:`) — prose-form `feature-req` is forbidden (resume-feature Step 3.0 parser depends on the structured form).
 
-    **Scope clarifier**: This unified schema applies to LEGACY feature-level `_state.md` only (path `docs/features/F-NNN/_state.md` from pre-ADR-003 pipelines). Post-ADR-003 paths use CD-23 schema variants — see CD-23 § Cross-reference. Skills MUST detect schema variant via path prefix BEFORE parsing: `docs/modules/M-NNN/_state.md` → ModuleState (CD-23 sdlc); `docs/hotfixes/H-NNN/_state.md` → HotfixState (CD-23 hotfix); `docs/modules/M-NNN/features/F-NNN/_feature.md` → FeatureSpec (CD-23 separate schema); `docs/features/F-NNN/_state.md` → unified schema (this rule).
+    **Scope clarifier**: This unified schema applies to LEGACY feature-level `_state.md` only (path `docs/features/F-NNN/_state.md` from pre-ADR-003 pipelines). Post-ADR-003 paths use CD-23 schema variants — see CD-23 § Cross-reference. Skills MUST detect schema variant via path prefix BEFORE parsing: `docs/modules/M-NNN/_state.md` → ModuleState (CD-23 sdlc); `docs/hotfixes/H-NNN/_state.md` → HotfixState (CD-23 hotfix); `docs/modules/M-NNN/_features/F-NNN/_feature.md` → FeatureSpec (CD-23 separate schema); `docs/features/F-NNN/_state.md` → unified schema (this rule).
 
 21. **Production-line lifecycle contract**: All skills/agents that READ or WRITE intel artifacts MUST conform to a contract box defined in `~/.claude/schemas/intel/LIFECYCLE.md` §5. The contract enforces 9 principles (P1-P9): single-writer per field, read-validate-write, no re-discovery, no silent drift, stale-block, information sufficiency, anti-fishing, role refusal, context economy. Each contract box specifies ROLE, READ-GATES, OWN-WRITE, ENRICH, FORBID, EXIT-GATES, FAILURE, TOKEN-BUDGET. Stage agents (ba/sa/qa/dev/etc.) follow individual boxes (§5.1-§5.7); support agents follow class contracts (§5.8 Class A stage-report writers; §5.9 Class B verifiers; §5.10 Class C orchestrators; §5.11 Class D doc-generation consumers). Skill/agent edits PR that violate the contract are blocked. New skills MUST add a contract box before merge.
 
@@ -414,7 +414,7 @@ Schema baked at `<MCP image>/src/etc_platform/assets/schemas/intel/_state.md.sch
 |---|---|---|
 | `docs/modules/M-NNN-{slug}/_state.md` | ModuleState (sdlc variant) | CD-23 |
 | `docs/hotfixes/H-NNN-{slug}/_state.md` | HotfixState (hotfix variant) | CD-23 |
-| `docs/modules/M-NNN-{slug}/features/F-NNN-{slug}/_feature.md` | FeatureSpec | CD-23 |
+| `docs/modules/M-NNN-{slug}/_features/F-NNN-{slug}/_feature.md` | FeatureSpec | CD-23 |
 | `docs/features/F-NNN-{slug}/_state.md` (legacy pre-ADR-003) | Unified 21-field | CD-10 #20 |
 
 **Parser routing**: skills MUST detect variant by path prefix BEFORE parsing frontmatter. Resume-feature dispatcher injects detected `pipeline-type` into FROZEN_HEADER (cache-safe, static text only).
