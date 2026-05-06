@@ -1332,7 +1332,12 @@ const bgUpdateCheck = () => {
   let cached = null;
   try { cached = JSON.parse(fs.readFileSync(UPDATE_CACHE, 'utf8')); } catch {}
   if (cached?.ahead > 0) {
-    process.stdout.write(`\n  ${gradient('⬆ update available', [[255,200,0],[255,120,0]])}  ${_a('\x1b[90m')}${cached.ahead} commit(s) behind — ai-kit update${_a('\x1b[0m')}\n`);
+    // Maintainer: technical "N commit(s) behind". Member: friendlier "có bản cập nhật mới".
+    const banner = gradient('⬆ Có bản cập nhật mới', [[255,200,0],[255,120,0]]);
+    const detail = IS_MAINTAINER
+      ? `${cached.ahead} commit(s) behind — ai-kit update`
+      : `chạy ai-kit update để cập nhật`;
+    process.stdout.write(`\n  ${banner}  ${_a('\x1b[90m')}${detail}${_a('\x1b[0m')}\n`);
   }
   const now = Date.now();
   if (cached?.ts && now - cached.ts < 3_600_000) return; // 1h TTL
@@ -1941,58 +1946,67 @@ const buildUpdateCompletionMessage = (ctx) => {
     lines.push(`${C.gray}Phiên bản: ${C.reset}${C.cyan}v${version}${C.reset}`);
   }
 
-  // Compute changelog if we captured both SHAs around the pull. Skip if no
-  // change, or if SHAs missing (capture failed earlier in pipeline).
+  // Compute changelog if we captured both SHAs around the pull.
   if (ctx && ctx.oldSha && ctx.newSha && ctx.oldSha !== ctx.newSha) {
-    let log = '';
-    try {
-      const r = shQuiet('git', ['-C', REPO_DIR, 'log', '--pretty=%h|%s',
-        `${ctx.oldSha}..${ctx.newSha}`]);
-      log = r.stdout || '';
-    } catch {}
-    const commits = log.trim().split('\n').filter(Boolean).map((line) => {
-      const idx = line.indexOf('|');
-      return {sha: line.slice(0, idx), subject: line.slice(idx + 1)};
-    });
-    if (commits.length > 0) {
-      // Group by conventional-commit type. Subject pattern: `type(scope): msg`
-      // or `type: msg`. Anything not matching → 'other'.
-      const groups = {feat: [], fix: [], docs: [], chore: [], other: []};
-      const re = /^(feat|fix|docs|chore|refactor|perf|test|build|ci|style)(\([^)]+\))?!?:\s*(.+)$/i;
-      for (const c of commits) {
-        const m = re.exec(c.subject);
-        if (m) {
-          const type = m[1].toLowerCase();
-          const bucket = (type === 'feat' || type === 'fix' || type === 'docs') ? type : 'chore';
-          groups[bucket].push({sha: c.sha, msg: c.subject});
-        } else {
-          groups.other.push({sha: c.sha, msg: c.subject});
+    if (IS_MAINTAINER) {
+      // Maintainer: full categorized changelog (feat/fix/docs/chore/other).
+      let log = '';
+      try {
+        const r = shQuiet('git', ['-C', REPO_DIR, 'log', '--pretty=%h|%s',
+          `${ctx.oldSha}..${ctx.newSha}`]);
+        log = r.stdout || '';
+      } catch {}
+      const commits = log.trim().split('\n').filter(Boolean).map((line) => {
+        const idx = line.indexOf('|');
+        return {sha: line.slice(0, idx), subject: line.slice(idx + 1)};
+      });
+      if (commits.length > 0) {
+        const groups = {feat: [], fix: [], docs: [], chore: [], other: []};
+        const re = /^(feat|fix|docs|chore|refactor|perf|test|build|ci|style)(\([^)]+\))?!?:\s*(.+)$/i;
+        for (const c of commits) {
+          const m = re.exec(c.subject);
+          if (m) {
+            const type = m[1].toLowerCase();
+            const bucket = (type === 'feat' || type === 'fix' || type === 'docs') ? type : 'chore';
+            groups[bucket].push({sha: c.sha, msg: c.subject});
+          } else {
+            groups.other.push({sha: c.sha, msg: c.subject});
+          }
+        }
+        const counts = [];
+        if (groups.feat.length)  counts.push(`${groups.feat.length} feat`);
+        if (groups.fix.length)   counts.push(`${groups.fix.length} fix`);
+        if (groups.docs.length)  counts.push(`${groups.docs.length} docs`);
+        if (groups.chore.length) counts.push(`${groups.chore.length} chore`);
+        if (groups.other.length) counts.push(`${groups.other.length} other`);
+        lines.push(`${C.gray}${commits.length} commit mới${counts.length ? ` (${counts.join(', ')})` : ''}:${C.reset}`);
+
+        const ordered = [...groups.feat, ...groups.fix, ...groups.docs, ...groups.chore, ...groups.other];
+        const SHOW = 8;
+        const truncate = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+        for (const c of ordered.slice(0, SHOW)) {
+          lines.push(`  ${C.gray}•${C.reset} ${truncate(c.msg, 72)}`);
+        }
+        if (ordered.length > SHOW) {
+          lines.push(`  ${C.gray}… và ${ordered.length - SHOW} commit khác (xem ${C.reset}ai-kit doc decision-log${C.gray})${C.reset}`);
         }
       }
-      const counts = [];
-      if (groups.feat.length)  counts.push(`${groups.feat.length} feat`);
-      if (groups.fix.length)   counts.push(`${groups.fix.length} fix`);
-      if (groups.docs.length)  counts.push(`${groups.docs.length} docs`);
-      if (groups.chore.length) counts.push(`${groups.chore.length} chore`);
-      if (groups.other.length) counts.push(`${groups.other.length} other`);
-      lines.push(`${C.gray}${commits.length} commit mới${counts.length ? ` (${counts.join(', ')})` : ''}:${C.reset}`);
-
-      // Render up to 8 commits, prioritized by impact (feat > fix > docs > chore > other).
-      const ordered = [...groups.feat, ...groups.fix, ...groups.docs, ...groups.chore, ...groups.other];
-      const SHOW = 8;
-      const truncate = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
-      for (const c of ordered.slice(0, SHOW)) {
-        lines.push(`  ${C.gray}•${C.reset} ${truncate(c.msg, 72)}`);
-      }
-      if (ordered.length > SHOW) {
-        lines.push(`  ${C.gray}… và ${ordered.length - SHOW} commit khác (xem ${C.reset}ai-kit doc decision-log${C.gray})${C.reset}`);
+    } else {
+      // Member: simple count, không expose source commit messages technical.
+      let count = 0;
+      try {
+        const r = shQuiet('git', ['-C', REPO_DIR, 'rev-list', '--count', `${ctx.oldSha}..${ctx.newSha}`]);
+        count = parseInt((r.stdout || '').trim(), 10) || 0;
+      } catch {}
+      if (count > 0) {
+        lines.push(`${C.gray}Đã áp dụng ${count} bản cập nhật mới.${C.reset}`);
       }
     }
   } else if (ctx && ctx.oldSha && ctx.newSha && ctx.oldSha === ctx.newSha) {
-    lines.push(`${C.gray}Đã ở phiên bản mới nhất — không có commit nào thêm.${C.reset}`);
+    lines.push(`${C.gray}Đã ở phiên bản mới nhất — không có cập nhật nào thêm.${C.reset}`);
   }
 
-  lines.push(`${C.gray}Repo + CLI + agents/skills + MCP image đã sẵn sàng${C.reset}`);
+  lines.push(`${C.gray}Agents + skills + MCP image đã sẵn sàng${C.reset}`);
   return lines.join('\n');
 };
 

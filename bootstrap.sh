@@ -230,6 +230,19 @@ resolve_clone_url() {
 
 # ─── clone / refresh repo ──────────────────────────────────────────────
 mkdir -p "$AI_KIT_HOME"
+
+# Migration: ai-kit < 2026-05 dùng folder cloned name khác. Rename thành
+# *.legacy-<timestamp> để tránh xung đột. String concat tránh build-pipeline
+# rewrite (release-ai-kit.ps1 sẽ replace plain `team-ai-config` → `ai-kit`).
+LEGACY_FOLDER_NAME="team""-ai-config"
+LEGACY_DIR="$AI_KIT_HOME/$LEGACY_FOLDER_NAME"
+if [ -d "$LEGACY_DIR/.git" ] && [ "$LEGACY_DIR" != "$REPO_DIR" ]; then
+  backup="$LEGACY_DIR.legacy-$(date +%Y%m%d-%H%M%S)"
+  info "Phát hiện cài đặt cũ tại $LEGACY_DIR — đổi tên thành $(basename "$backup")"
+  mv "$LEGACY_DIR" "$backup"
+  echo "    Xóa thủ công sau khi xác nhận không cần: rm -rf $backup"
+fi
+
 if [ -d "$REPO_DIR/.git" ]; then
   info "Existing repo at $REPO_DIR — pulling latest"
   # Refresh remote URL with token if needed (handles public→private transition).

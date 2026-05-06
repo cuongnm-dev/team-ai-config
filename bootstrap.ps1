@@ -199,6 +199,19 @@ function Resolve-CloneUrl {
 
 # Clone or update
 New-Item -ItemType Directory -Path $AiKitHome -Force | Out-Null
+
+# Migration: ai-kit < 2026-05 dùng folder cloned name khác. Đổi tên thành
+# *.legacy-<timestamp> để tránh xung đột (member có thể xóa thủ công sau).
+# String concat tránh build-pipeline rewrite lúc release-ai-kit.ps1 chạy.
+$LegacyFolderName = 'team' + '-ai-config'
+$LegacyDir = Join-Path $AiKitHome $LegacyFolderName
+if ((Test-Path (Join-Path $LegacyDir '.git')) -and ($LegacyDir -ne $RepoDir)) {
+  $backup = "$LegacyDir.legacy-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+  Write-Info "Phát hiện cài đặt cũ tại $LegacyDir — đổi tên thành $(Split-Path $backup -Leaf)"
+  Move-Item -Path $LegacyDir -Destination $backup -Force
+  Write-Host "    Xóa thủ công sau khi xác nhận không cần: Remove-Item -Recurse $backup" -ForegroundColor DarkGray
+}
+
 if (Test-Path (Join-Path $RepoDir '.git')) {
   Write-Info "Existing repo at $RepoDir — pulling latest"
   Resolve-DirtyRepo -Path $RepoDir
