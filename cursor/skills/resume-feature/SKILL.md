@@ -20,7 +20,7 @@ User-facing: Vietnamese. Dispatcher prompts: English.
 
 **Wave task glob** (line 135 `glob 05-*-w{N}-*.md`): KEEP — this is per-feature enumeration within already-resolved feature folder, not cross-feature glob. Legitimate use.
 
-**MCP down → BLOCK pipeline** (CD-8 v3): hard-stop with message: "Run `docker compose up -d` in `~/.ai-kit/team-ai-config/mcp/etc-platform/` then retry." NO silent fallback to glob — Step 2 line 6 last-resort glob is FORBIDDEN. If `resolve_path` fails, surface error to user, do not mutate workspace.
+**MCP down → BLOCK pipeline** (CD-8 v3): hard-stop with message: "Run `docker compose up -d` in `~/.ai-kit/ai-kit/mcp/etc-platform/` then retry." NO silent fallback to glob — Step 2 line 6 last-resort glob is FORBIDDEN. If `resolve_path` fails, surface error to user, do not mutate workspace.
 
 **Reference**: ADR-003 D8 + p0-mcp-tool-spec.md §3.7.
 

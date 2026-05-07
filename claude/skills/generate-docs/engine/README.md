@@ -62,7 +62,7 @@ rendering fallback — that path was deprecated to enforce single-source-of-trut
 
 ```bash
 # To start MCP if not running:
-cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d
+cd ~/.ai-kit/ai-kit/mcp/etc-platform && docker compose up -d
 ```
 
 ## Cursor SDLC integration (from-doc, resume-feature, close-feature)

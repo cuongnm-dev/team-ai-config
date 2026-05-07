@@ -346,7 +346,7 @@ Writer sub-agents read these via `Read` tool when prompted.
 ```bash
 docker ps | grep etc-platform-mcp-server
 # Nếu chưa chạy:
-cd ~/.ai-kit/team-ai-config/mcp/etc-platform && docker compose up -d
+cd ~/.ai-kit/ai-kit/mcp/etc-platform && docker compose up -d
 ```
 
 `~/.claude/mcp.json` configured separately.

@@ -41,7 +41,7 @@ Per `~/.codeium/windsurf/mcp_config.json`:
 
 ## Bootstrap
 
-If MCP unavailable → `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/`.
+If MCP unavailable → `docker compose up -d` from `~/.ai-kit/ai-kit/mcp/etc-platform/`.
 
 ## Forbidden patterns (CD-8)
 

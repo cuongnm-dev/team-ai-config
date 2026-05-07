@@ -31,7 +31,7 @@ User-facing messages: Vietnamese. All instructions: English.
 - ✅ `Read` tool for source docs in `docs/inputs/` (renamed from `docs/source/`)
 - ✅ `Edit` for in-place updates IF field NOT in `locked-fields[]`
 
-**MCP down → BLOCK**: hard-stop with clear error; user runs `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/`.
+**MCP down → BLOCK**: hard-stop with clear error; user runs `docker compose up -d` from `~/.ai-kit/ai-kit/mcp/etc-platform/`.
 
 **Reference**: `D:\AI-Platform\maintainer-notes\adr\ADR-003-sdlc-2tier-module-feature.md` D8/D11 + `plans/p0-mcp-tool-spec.md` §3.
 

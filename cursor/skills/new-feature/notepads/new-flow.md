@@ -157,7 +157,7 @@ unused_legacy_options_block = {
 - Returns: `{feature_id, paths: [...], errors: []}`
 - On any failure → rollback ALL writes; surface error
 
-**MCP unavailable → BLOCK pipeline** (CD-8 v3): `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` then retry. NO silent local fallback.
+**MCP unavailable → BLOCK pipeline** (CD-8 v3): `docker compose up -d` from `~/.ai-kit/ai-kit/mcp/etc-platform/` then retry. NO silent local fallback.
 
 **Forbidden patterns** (audit-2026-05-06 T1-1 — replaced):
 - ❌ `Write _state.md` directly → use `scaffold_feature.create_state_md`

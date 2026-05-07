@@ -155,7 +155,7 @@ Sau đó chạy `/generate-docs` để render TKKT/TKCS/TKCT với content mới
 | Conflict unresolvable | Surface user với conflict report; ask manual resolution |
 | Validator T1 errors | STOP; do NOT clear `intel-drift` |
 | Snapshot regen fails | WARN nhưng không block (snapshot là optimization, not correctness) |
-| **MCP server unreachable** | **BLOCK pipeline** (CD-8 v3) — hard-stop with: "Run `docker compose up -d` in `~/.ai-kit/team-ai-config/mcp/etc-platform/` then retry." Do NOT clear `intel-drift: true`. NO silent local fallback. |
+| **MCP server unreachable** | **BLOCK pipeline** (CD-8 v3) — hard-stop with: "Run `docker compose up -d` in `~/.ai-kit/ai-kit/mcp/etc-platform/` then retry." Do NOT clear `intel-drift: true`. NO silent local fallback. |
 
 ## When to escalate to Claude Code
 

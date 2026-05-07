@@ -48,7 +48,7 @@ description: MCP × Agent mapping. Which role skill uses which MCP server tools.
 
 ## Bootstrap
 
-If MCP server not running → `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/`.
+If MCP server not running → `docker compose up -d` from `~/.ai-kit/ai-kit/mcp/etc-platform/`.
 
 ## Forbidden patterns (CD-8)
 

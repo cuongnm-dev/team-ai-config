@@ -1716,9 +1716,16 @@ const cmdUpdate = async () => {
       id: 'git-pull',
       label: 'Pull ai-kit mới nhất',
       run: async (c) => {
-        const result = await streamShIntoStep('git', ['-C', REPO_DIR, 'pull', '--ff-only'], c);
-        if (result.exitCode !== 0) {
-          const out = ((result.stderr || '') + (result.stdout || '')).toLowerCase();
+        // ─── Self-healing pull (transparent for members) ───────────────────
+        // Auto-handle: branch rename on remote, force-push divergence, stale local refs.
+        // Member never needs to know about git internals.
+
+        // 1) Always fetch first + prune stale remote refs
+        const fetchResult = await streamShIntoStep(
+          'git', ['-C', REPO_DIR, 'fetch', 'origin', '--prune'], c,
+        );
+        if (fetchResult.exitCode !== 0) {
+          const out = ((fetchResult.stderr || '') + (fetchResult.stdout || '')).toLowerCase();
           if (/authentication failed|could not read username|invalid username|403|401|remote: invalid/i.test(out)) {
             clearAccessToken();
             throw new Error(
@@ -1726,14 +1733,81 @@ const cmdUpdate = async () => {
               'Chạy lại "ai-kit update" để nhập key mới.',
             );
           }
-          throw new Error(`git pull thất bại (exit ${result.exitCode})`);
+          throw new Error(`git fetch thất bại (exit ${fetchResult.exitCode})`);
         }
-        // Capture post-pull HEAD for changelog computation.
+
+        // 2) Detect remote default branch (main vs master, robust to changes)
+        let remoteDefault = 'main'; // sensible default
+        try {
+          const {stdout: lsremote} = shQuiet('git', ['-C', REPO_DIR, 'ls-remote', '--symref', 'origin', 'HEAD']);
+          const m = lsremote.match(/^ref:\s+refs\/heads\/(\S+)\s+HEAD/m);
+          if (m) remoteDefault = m[1];
+        } catch {
+          try {
+            const {stdout: sym} = shQuiet('git', ['-C', REPO_DIR, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+            remoteDefault = sym.trim().replace(/^origin\//, '') || remoteDefault;
+          } catch {}
+        }
+
+        // 3) Detect local current branch
+        let localBranch = '';
+        try {
+          const {stdout: lb} = shQuiet('git', ['-C', REPO_DIR, 'symbolic-ref', '--short', 'HEAD']);
+          localBranch = lb.trim();
+        } catch {}
+
+        // 4) If local branch != remote default → auto-switch (silent, no member action needed)
+        if (localBranch && localBranch !== remoteDefault) {
+          c.log(`Branch mismatch: local "${localBranch}" → remote "${remoteDefault}". Auto-switching...`);
+          await streamShIntoStep(
+            'git', ['-C', REPO_DIR, 'checkout', '-B', remoteDefault, `origin/${remoteDefault}`], c,
+          );
+          // Best-effort delete obsolete local branch (ignore failure if it has unique commits)
+          try { shQuiet('git', ['-C', REPO_DIR, 'branch', '-D', localBranch]); } catch {}
+          localBranch = remoteDefault;
+        }
+
+        // 5) Try fast-forward pull first (clean case)
+        const pullResult = await streamShIntoStep(
+          'git', ['-C', REPO_DIR, 'pull', '--ff-only'], c,
+        );
+
+        if (pullResult.exitCode !== 0) {
+          const out = ((pullResult.stderr || '') + (pullResult.stdout || '')).toLowerCase();
+
+          // 5a) Diverged or non-fast-forward → reset hard to remote (member-side clones are read-only consumers)
+          if (/non-fast-forward|diverged|cannot be fast-forwarded|no such ref was fetched|refusing to merge/i.test(out)) {
+            c.log(`Local diverged from origin/${remoteDefault} — auto-resetting to remote...`);
+            // Tag pre-reset HEAD for forensic recovery
+            try {
+              const tag = `local-pre-reset-${Date.now()}`;
+              shQuiet('git', ['-C', REPO_DIR, 'tag', tag]);
+            } catch {}
+            const resetResult = await streamShIntoStep(
+              'git', ['-C', REPO_DIR, 'reset', '--hard', `origin/${remoteDefault}`], c,
+            );
+            if (resetResult.exitCode !== 0) {
+              throw new Error(
+                `Auto-heal failed: cannot reset to origin/${remoteDefault}.\n` +
+                `Chạy thủ công: cd ~/.ai-kit/team-ai-config && git fetch origin && git reset --hard origin/${remoteDefault}`,
+              );
+            }
+          }
+          // 5b) Other failures → bubble up
+          else {
+            throw new Error(
+              `git pull thất bại (exit ${pullResult.exitCode})\n` +
+              `Chạy "ai-kit doctor" để chẩn đoán hoặc "ai-kit reset" rồi thử lại.`,
+            );
+          }
+        }
+
+        // 6) Capture post-pull HEAD for changelog computation
         try {
           const {stdout: newSha} = shQuiet('git', ['-C', REPO_DIR, 'rev-parse', 'HEAD']);
           c.ctx.newSha = newSha.trim();
         } catch {}
-        c.setLabel('Đã pull ai-kit');
+        c.setLabel(`Đã pull ai-kit (branch: ${remoteDefault})`);
       },
     },
     {

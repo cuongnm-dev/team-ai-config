@@ -156,7 +156,7 @@ The synthesizer implements every dimension in steps B.3.1–B.3.9 below. To cust
 re-implement in the writer agent.
 
 If MCP is unavailable: `GET /readyz` fails → BLOCK with message
-`"MCP etc-platform unavailable. Start: docker compose -f \"~/.ai-kit/team-ai-config/mcp/etc-platform/docker-compose.yml\" up -d"`.
+`"MCP etc-platform unavailable. Start: docker compose -f \"~/.ai-kit/ai-kit/mcp/etc-platform/docker-compose.yml\" up -d"`.
 
 ### Step 1 — Compute target TC count per feature
 

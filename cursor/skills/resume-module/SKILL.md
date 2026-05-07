@@ -270,7 +270,7 @@ Release advisory lock on every exit path.
 | Legacy F-NNN ID with alias entry | Auto-resolve via id-aliases.json → M-NNN, inform user |
 | F-NNN ID without alias (post-ADR-003 nested) | Step 2 fallback resolves as feature → suggests `/resume-module {parent_M}` (read `_feature.md.module-id`) |
 | H-NNN ID provided | Step 2 fallback suggests `/resume-feature {H-NNN}` (resume-module does not own hotfix flow) |
-| MCP server down | BLOCK — `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` |
+| MCP server down | BLOCK — `docker compose up -d` from `~/.ai-kit/ai-kit/mcp/etc-platform/` |
 
 ---
 

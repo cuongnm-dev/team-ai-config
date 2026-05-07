@@ -177,7 +177,7 @@ parse stdout JSON for { ok, data: { path, exists, metadata } }
 
 Returns: `{path, status, current_stage, pipeline_type, verdict_history}`.
 
-**MCP unavailable → BLOCK** per CD-8 v3: "Run `docker compose up -d` from `~/.ai-kit/team-ai-config/mcp/etc-platform/` then retry." NO Glob fallback (forbidden patterns audit T1-1).
+**MCP unavailable → BLOCK** per CD-8 v3: "Run `docker compose up -d` from `~/.ai-kit/ai-kit/mcp/etc-platform/` then retry." NO Glob fallback (forbidden patterns audit T1-1).
 
 **Not found** → stop: "No pipeline found for `{id}`. Run /resume-feature OR /new-feature {id} first."
 
