@@ -256,7 +256,9 @@ Note on `parent_module` lock: once Step 1.5 completed, parent_module is treated 
 
 ### 7b. Atomic scaffold (CLI flags strictly per `ai-kit sdlc scaffold feature --help`)
 
-CLI accepts ONLY these flags (verify any time via `ai-kit sdlc scaffold feature --help`): workspace, module, id, name, slug, description, business-intent, flow-summary, acceptance-criteria, consumed-by, priority, expected-version. Fields `role_visibility` / `depends_on` / `expected_pipeline_path` / `references` are NOT scaffold inputs — populate post-scaffold via `state update`.
+CLI accepts ONLY these flags (verify any time via `ai-kit sdlc scaffold feature --help`): workspace, module, id, name, slug, description, business-intent, flow-summary, acceptance-criteria, consumed-by, priority, expected-version, stages. Fields `role_visibility` / `depends_on` / `expected_pipeline_path` / `references` are NOT scaffold inputs — populate post-scaffold via `state update`.
+
+Note on `--stages` (audit 2026-05-07): default = no stage folders pre-created. Stage agents (dev, qa) mkdir their own folder when writing first artifact. Pass `--stages auto` if pipeline expects upfront `dev/` + `qa/` (legacy behavior); pass explicit csv like `--stages dev` to subset. Allowed values: `dev | qa`.
 
 ```
 result = Bash("ai-kit sdlc scaffold feature \

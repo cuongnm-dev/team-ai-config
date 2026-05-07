@@ -49,6 +49,12 @@ function parseFlags(argv) {
 const csv = (v) => v == null ? null : String(v).split(',').map(s => s.trim()).filter(Boolean);
 const jsonOrNull = (v) => v == null ? null : JSON.parse(String(v));
 const intOrNull = (v) => (v == null || v === '') ? null : parseInt(v, 10);
+// Parse --stages flag: null | 'auto' | string[]. Empty/missing → null (no pre-create).
+const parseStagesFlag = (v) => {
+  if (v == null || v === '') return null;
+  if (String(v).trim() === 'auto') return 'auto';
+  return csv(v) || [];
+};
 const bool = (v, def = false) => {
   if (v === undefined) return def;
   if (typeof v === 'boolean') return v;
@@ -63,20 +69,30 @@ function emit(result) {
   process.exit(result && result.ok ? 0 : 1);
 }
 
-async function emitFromCall(fn) {
+// LLM-friendly error decoration (audit 2026-05-07): every error response includes
+// `help_command` pointing to the right --help so LLM doesn't need to read source.
+// Caller passes helpCommand string (e.g. "ai-kit sdlc scaffold module --help");
+// emitFromCall injects it into error.help_command for SdlcError + internal errors.
+async function emitFromCall(fn, helpCommand = null) {
   try {
     const result = await fn();
     emit(result);
   } catch (err) {
     if (err instanceof SdlcError) {
-      emit(err.toResponse());
+      const resp = err.toResponse();
+      if (helpCommand && resp && resp.error) {
+        resp.error.help_command = helpCommand;
+      }
+      emit(resp);
     } else {
       // Unexpected — write to stderr, JSON shape to stdout for caller, exit 2
       process.stderr.write(`ai-kit sdlc internal error: ${err.stack || err.message}\n`);
-      process.stdout.write(JSON.stringify({
+      const internalResp = {
         ok: false,
         error: { code: 'MCP_E_INTERNAL', message: err.message, details: { stack: err.stack } },
-      }) + '\n');
+      };
+      if (helpCommand) internalResp.error.help_command = helpCommand;
+      process.stdout.write(JSON.stringify(internalResp) + '\n');
       process.exit(2);
     }
   }
@@ -203,45 +219,47 @@ const SCAFFOLD_HELP = {
     example: 'ai-kit sdlc scaffold app-or-service --workspace . --name iam-service --kind service --stack nodejs',
   },
   module: {
-    summary: 'Atomically scaffold a new module (M-NNN) with _state.md, module-brief.md, implementations.yaml + 7 stage subdirs + catalog/map updates.',
+    summary: 'Atomically scaffold a module (M-NNN): writes _state.md + module-brief.md + implementations.yaml; updates module-catalog.json + module-map.yaml + _meta.json. Stage subdirs lazy by default (use --stages to control).',
     required: [
-      ['--workspace, -w <path>', 'Workspace root path'],
-      ['--id <M-NNN>',           'Module ID (canonical M-NNN format)'],
-      ['--name <name>',          'Module name (Vietnamese OK)'],
-      ['--slug <kebab>',         'Slug (kebab-case ASCII)'],
+      ['--workspace, -w <path>', 'Absolute path to workspace root (must contain AGENTS.md or CLAUDE.md or docs/intel/)'],
+      ['--id <M-NNN>',           'Module ID — exact regex ^M-\\d{3}$ (e.g. M-007). Must not collide with existing in module-catalog.'],
+      ['--name <name>',          'Human-readable module name, min 3 chars (Vietnamese allowed, quote with spaces). E.g. "Logistics & Supply Chain"'],
+      ['--slug <kebab>',         'URL-safe slug — regex ^[a-z][a-z0-9]*(-[a-z0-9]+)*$. E.g. "logistics-supply-chain". Drives folder name docs/modules/{id}-{slug}.'],
     ],
     optional: [
-      ['--depends-on <csv>',          'Module dependencies (M-NNN,M-NNN,...)'],
-      ['--modules-in-scope <csv>',    'Sibling modules in same business scope'],
-      ['--primary-service <name>',    'Primary service for mono workspace'],
-      ['--business-goal <text>',      'Module business goal (>=50 chars)'],
-      ['--risk-path <S|M|L>',         'Risk path (default: M)'],
-      ['--output-mode <lean|full>',   'Output mode (default: lean)'],
-      ['--agent-flags <json>',        'JSON map of agent triggers'],
-      ['--expected-version <int>',    'Expected module-catalog version (optimistic lock)'],
+      ['--depends-on <csv>',          'Modules this depends on, csv of M-NNN. Each must exist in module-catalog. E.g. "M-001,M-003"'],
+      ['--modules-in-scope <csv>',    'Sibling modules in same business scope (informational). Csv of M-NNN.'],
+      ['--primary-service <name>',    'Primary backing service — kebab-case, ^[a-z][a-z0-9-]*$. Auto-populates implementations.yaml.services[0].path = services/{name}. E.g. "logistics-orchestrator". Forbidden: M-NNN-prefix patterns.'],
+      ['--business-goal <text>',      'Free-text business goal, recommended >=50 chars. Quote when contains spaces.'],
+      ['--risk-path <S|M|L>',         'Risk path enum exactly one of: S | M | L. Default: M. Drives stages_queue (S→4 stages, M→6, L→7).'],
+      ['--output-mode <lean|full>',   'Output verbosity enum: lean | full. Default: lean.'],
+      ['--agent-flags <json>',        'JSON object mapping agent name to trigger flags. E.g. \'{"designer":{"screen_count":5},"security":{"pii_found":true}}\'. Affects stages_queue + activeStageFoldersFor (when --stages auto).'],
+      ['--expected-version <int>',    'Expected module-catalog.json version (optimistic lock). Read from docs/intel/_meta.json.artifacts."module-catalog.json".version. Mismatch → ERR_VERSION_CONFLICT.'],
+      ['--stages <csv|auto>',         'Stage folders to pre-create. THREE modes: (a) omit → 0 folders (LAZY default — stage agents mkdir on first artifact write); (b) "auto" → derived from risk_path + agent_flags (4-7 folders, legacy); (c) csv of allowed names. Allowed: ba | sa | designer | security | tech-lead | dev | qa | reviewer.'],
     ],
-    example: 'ai-kit sdlc scaffold module --workspace . --id M-007 --name "Logistics" --slug logistics --depends-on M-001 --risk-path M',
+    example: 'ai-kit sdlc scaffold module --workspace /abs/path --id M-007 --name "Logistics" --slug logistics --depends-on "M-001,M-003" --risk-path M --primary-service logistics-orchestrator --business-goal "Streamline last-mile delivery routing for taxpayer orders"',
   },
   feature: {
-    summary: 'Atomically scaffold a new feature (F-NNN) nested under a parent module + update feature-catalog / sitemap / permission-matrix / feature-map atomically.',
+    summary: 'Atomically scaffold a feature (F-NNN) nested under parent module: writes _feature.md + implementations.yaml + test-evidence.json; updates feature-catalog.json + feature-map.yaml + module-catalog.json (parent.feature_ids[]). Stage subdirs lazy by default.',
     required: [
-      ['--workspace, -w <path>', 'Workspace root path'],
-      ['--module <M-NNN>',       'Parent module ID (FK to module-catalog)'],
-      ['--id <F-NNN>',           'Feature ID (canonical F-NNN format)'],
-      ['--name <name>',          'Feature name (Vietnamese OK)'],
-      ['--slug <kebab>',         'Slug (kebab-case ASCII)'],
+      ['--workspace, -w <path>', 'Absolute path to workspace root.'],
+      ['--module <M-NNN>',       'Parent module ID — must exist in module-catalog (FK). Run scaffold module first if missing.'],
+      ['--id <F-NNN>',           'Feature ID — regex ^F-\\d{3}[a-z]?$ (variant suffix optional, e.g. F-101 or F-101a). Must not collide.'],
+      ['--name <name>',          'Human-readable feature name, min 3 chars (Vietnamese allowed). E.g. "OTP Login"'],
+      ['--slug <kebab>',         'URL-safe slug — regex ^[a-z][a-z0-9]*(-[a-z0-9]+)*$. Drives folder docs/modules/{M-id}-*/_features/{F-id}-{slug}/.'],
     ],
     optional: [
-      ['--description <text>',         'Feature description'],
-      ['--business-intent <text>',     'Business intent (>=100 chars)'],
-      ['--flow-summary <text>',        'Flow summary (>=150 chars)'],
-      ['--acceptance-criteria <json>', 'JSON array of AC strings'],
-      ['--consumed-by <csv>',          'Cross-cutting consumer modules (M-NNN,...)'],
-      ['--priority <p>',               'critical|high|medium|low (default: medium)'],
-      ['--expected-version <int>',     'Expected module version (optimistic lock)'],
+      ['--description <text>',         'Free-text feature description (1-2 paragraphs).'],
+      ['--business-intent <text>',     'Why this feature exists (recommended >=100 chars). Quote with spaces.'],
+      ['--flow-summary <text>',        'Happy-path flow summary (recommended >=150 chars).'],
+      ['--acceptance-criteria <json>', 'JSON array of AC strings. E.g. \'["User can log in with OTP","Failed OTP shows error after 3 tries"]\'. Empty array OK.'],
+      ['--consumed-by <csv>',          'Cross-cutting: modules that consume this feature without owning it. Csv of M-NNN. Each must exist. Per CD-24, no duplicate feature folders across modules.'],
+      ['--priority <p>',               'Enum exactly: critical | high | medium | low. Default: medium.'],
+      ['--expected-version <int>',     'Expected module-catalog.json version (optimistic lock against parent module).'],
+      ['--stages <csv|auto>',          'Stage folders to pre-create. THREE modes: (a) omit → 0 folders (LAZY default); (b) "auto" → both dev,qa; (c) csv subset. Allowed: dev | qa.'],
     ],
-    note: 'Fields role_visibility, depends_on, expected_pipeline_path, references are NOT supported by scaffold flags; populate via `ai-kit sdlc state update --op field` after scaffold succeeds.',
-    example: 'ai-kit sdlc scaffold feature --workspace . --module M-001 --id F-101 --name "OTP Login" --slug otp-login --priority high --consumed-by M-002,M-003',
+    note: 'Fields role_visibility, depends_on, expected_pipeline_path, references are NOT supported by scaffold flags; populate post-scaffold via `ai-kit sdlc state update --op field --kind feature --id F-NNN --field <name> --value <v>`. Run `ai-kit sdlc state update --help` for ops.',
+    example: 'ai-kit sdlc scaffold feature --workspace /abs/path --module M-001 --id F-101 --name "OTP Login" --slug otp-login --priority high --consumed-by "M-002,M-003" --business-intent "Reduce account-takeover risk by adding OTP as 2FA second factor for sensitive operations" --acceptance-criteria \'["OTP delivered within 10s","3 failed attempts triggers cooldown"]\'',
   },
   hotfix: {
     summary: 'Atomically scaffold a hotfix (H-NNN) bypassing ba+sa+designer stages.',
@@ -324,7 +342,7 @@ async function dispatchScaffold(argv) {
       flags.stack || 'none',
       jsonOrNull(flags.config),
       bool(flags.force, false),
-    ));
+    ), 'ai-kit sdlc scaffold workspace --help');
   }
   if (sub === 'app-or-service') {
     return await emitFromCall(() => mod.scaffoldAppOrServiceImpl(
@@ -333,7 +351,7 @@ async function dispatchScaffold(argv) {
       flags.kind,
       flags.stack || 'none',
       { expected_workspace_version: intOrNull(flags['expected-version']) },
-    ));
+    ), 'ai-kit sdlc scaffold app-or-service --help');
   }
   if (sub === 'module') {
     return await emitFromCall(() => mod.scaffoldModuleImpl(
@@ -350,8 +368,9 @@ async function dispatchScaffold(argv) {
         output_mode: flags['output-mode'] || 'lean',
         risk_path: flags['risk-path'] || 'M',
         expected_catalog_version: intOrNull(flags['expected-version']),
+        stages_to_create: parseStagesFlag(flags.stages),
       },
-    ));
+    ), 'ai-kit sdlc scaffold module --help');
   }
   if (sub === 'feature') {
     return await emitFromCall(() => mod.scaffoldFeatureImpl(
@@ -368,8 +387,9 @@ async function dispatchScaffold(argv) {
         consumed_by_modules: csv(flags['consumed-by']) || [],
         priority: flags.priority || 'medium',
         expected_module_version: intOrNull(flags['expected-version']),
+        stages_to_create: parseStagesFlag(flags.stages),
       },
-    ));
+    ), 'ai-kit sdlc scaffold feature --help');
   }
   if (sub === 'hotfix') {
     return await emitFromCall(() => mod.scaffoldHotfixImpl(
@@ -383,7 +403,7 @@ async function dispatchScaffold(argv) {
         severity: flags.severity || 'high',
         severity_rationale: flags['severity-rationale'] || '',
       },
-    ));
+    ), 'ai-kit sdlc scaffold hotfix --help');
   }
   process.stderr.write(`Unknown scaffold target: ${sub}\n`);
   process.exit(2);

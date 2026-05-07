@@ -144,7 +144,7 @@ Print Vietnamese:
    -> Nếu cần consume từ module khác:
       cân nhắc thêm `consumed_by_modules: [{parent_module}]` vào {ID} thay vì duplicate.
    -> Nếu chắc chắn cần độc lập, re-run với --force-new."
-next-action: /update-feature {ID}
+next-action: /update-feature {ID} (chạy trong Cursor — skill chưa có ở Claude Code)
 EXIT
 ```
 
@@ -205,7 +205,9 @@ User chooses [enter] / [b] back (excl. locked: parent_module, ID, slug) / [a] ab
 
 ### 7b. Atomic scaffold (CLI flags strictly per `ai-kit sdlc scaffold feature --help`)
 
-CLI accepts ONLY these flags (verify via `ai-kit sdlc scaffold feature --help`): workspace, module, id, name, slug, description, business-intent, flow-summary, acceptance-criteria, consumed-by, priority, expected-version. Fields `role_visibility` / `depends_on` / `expected_pipeline_path` / `references` are NOT scaffold inputs — populate post-scaffold via `state update`.
+CLI accepts ONLY these flags (verify via `ai-kit sdlc scaffold feature --help`): workspace, module, id, name, slug, description, business-intent, flow-summary, acceptance-criteria, consumed-by, priority, expected-version, stages. Fields `role_visibility` / `depends_on` / `expected_pipeline_path` / `references` are NOT scaffold inputs — populate post-scaffold via `state update`.
+
+Note on `--stages` (audit 2026-05-07): default = no stage folders pre-created. Stage agents (dev, qa) mkdir their own folder when writing first artifact. Pass `--stages auto` if pipeline expects upfront `dev/` + `qa/` (legacy behavior); pass explicit csv like `--stages dev` to subset. Allowed values: `dev | qa`.
 
 ```
 result = Bash("ai-kit sdlc scaffold feature \
@@ -305,7 +307,7 @@ EXIT.
 | Intel stale | STOP `next-action: /intel-refresh` |
 | Strong dedup >= 0.85 | HARD-STOP `next-action: /update-feature {ID}` (Cursor) |
 | Partial dedup + `[c]` cross-cutting | Update existing.consumed_by_modules atomically; EXIT, suggest /resume-module |
-| Partial dedup + `[u]` | EXIT, suggest /update-feature |
+| Partial dedup + `[u]` | EXIT, suggest /update-feature (Cursor only) |
 | Partial dedup + `[n]` | Continue with references[] |
 | `depends_on` references unknown F-NNN | Drop + warn |
 | `consumed_by_modules` references unknown M-NNN | Drop + warn |

@@ -172,6 +172,23 @@ Display full SCAFFOLD PREVIEW block. User chooses:
 
 ### 7b. Atomic scaffold
 
+CLI flag spec (canonical — `ai-kit sdlc scaffold module --help` for full details):
+
+| Flag | Required | Constraint | Notes |
+|---|---|---|---|
+| `--workspace` / `-w` | yes | absolute path | workspace root (has AGENTS.md or docs/intel/) |
+| `--id` | yes | `^M-\d{3}$` | e.g. `M-007`. Must not collide. |
+| `--name` | yes | min 3 chars | quote with spaces. VN OK. |
+| `--slug` | yes | `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` | drives folder `docs/modules/{id}-{slug}/`. |
+| `--depends-on` | no | csv of M-NNN | each must exist. |
+| `--primary-service` | no | `^[a-z][a-z0-9-]*$` | auto-populates `implementations.yaml.services[]`. NEVER M-NNN prefix. |
+| `--business-goal` | no | text >=50 chars rec. | quote with spaces. |
+| `--risk-path` | no | `S\|M\|L` | default M. drives stages_queue. |
+| `--output-mode` | no | `lean\|full` | default lean. |
+| `--agent-flags` | no | JSON | e.g. `'{"designer":{"screen_count":5}}'`. |
+| `--expected-version` | no | int | optimistic lock for module-catalog.json. |
+| `--stages` | no | `auto\|<csv>` | omit = lazy (no folders); `auto` = risk-derived; csv subset. allowed: `ba\|sa\|designer\|security\|tech-lead\|dev\|qa\|reviewer`. |
+
 ```
 result = Bash("ai-kit sdlc scaffold module \
   --workspace . \
@@ -188,10 +205,10 @@ parse stdout JSON
 
 CLI atomically:
 - Creates `docs/modules/M-NNN-{slug}/` with `_state.md`, `module-brief.md`, `implementations.yaml`
-- Creates 7 stage subdirs (ba/sa/designer/security/tech-lead/qa/reviewer) with `.gitkeep`
+- Stage subdirs lazy by default (B-053 audit 2026-05-07). Pass `--stages auto` for legacy upfront-tree.
 - Updates `module-catalog.json`, `module-map.yaml`, `_meta.json`
 
-On error then surface, no partial state (CLI atomic guarantee).
+On error then surface, no partial state (CLI atomic guarantee). Error response includes `fix_hint` + `help_command` — read those first, do NOT spelunk into ai-kit source.
 
 ### 7c. Post-scaffold verify
 

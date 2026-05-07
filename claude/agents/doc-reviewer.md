@@ -11,7 +11,7 @@ tools: Read, Glob, Grep, WebSearch, WebFetch
 
 ```yaml
 contract_ref: LIFECYCLE.md (class=B verifier)
-role: Rà soát 4 chiều (nội dung, thể thức, pháp lý, nhất quán) sau mỗi wave. Read-only; emit review report only.
+role: 4-dimension review (content, format, legal, consistency) after each wave. Read-only; emit review report only.
 read_gates:
   required:
     - "{workspace}/projects/{slug}/sections/* (draft sections of current wave)"

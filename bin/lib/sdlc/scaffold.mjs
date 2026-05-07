@@ -109,18 +109,36 @@ export async function scaffoldWorkspaceImpl(workspacePath, workspaceType, stack 
 
 // ─── §3.3 scaffold_module ───
 
+// Allowed stage folder names — superset across S/M/L paths + special auto sentinel.
+const ALLOWED_STAGE_FOLDERS = new Set([
+  'ba', 'sa', 'designer', 'security', 'tech-lead', 'dev', 'qa', 'reviewer',
+]);
+
 export async function scaffoldModuleImpl(workspacePath, moduleId, moduleName, slug, opts = {}) {
   const {
     modules_in_scope = [], depends_on = [], primary_service = '',
     agent_flags = {}, business_goal = '', output_mode = 'lean',
     risk_path = 'M', expected_catalog_version = null,
+    stages_to_create = null,
   } = opts;
   const ws = validateWorkspacePath(workspacePath);
 
-  if (!isValidModuleId(moduleId)) throw new InvalidInputError(`Invalid module_id: ${JSON.stringify(moduleId)} (expected M-NNN)`, { details: { module_id: moduleId } });
-  if (!isValidSlug(slug)) throw new InvalidInputError(`Invalid slug: ${JSON.stringify(slug)} (expected kebab-case ASCII)`, { details: { slug } });
-  if ((moduleName || '').length < 3) throw new InvalidInputError('module_name too short (min 3 chars)', { details: { module_name: moduleName } });
-  if (!['S', 'M', 'L'].includes(risk_path)) throw new InvalidInputError(`Invalid risk_path: ${JSON.stringify(risk_path)}`, { details: { risk_path } });
+  if (!isValidModuleId(moduleId)) throw new InvalidInputError(`Invalid module_id: ${JSON.stringify(moduleId)} (expected M-NNN)`, {
+    details: { module_id: moduleId, expected_regex: '^M-\\d{3}$', flag: '--id' },
+    fixHint: 'Pass --id M-NNN where NNN is 3 digits, e.g. --id M-007. Allocate next free ID via `ai-kit sdlc resolve --kind module --next-id` or check docs/intel/module-catalog.json.',
+  });
+  if (!isValidSlug(slug)) throw new InvalidInputError(`Invalid slug: ${JSON.stringify(slug)} (expected kebab-case ASCII)`, {
+    details: { slug, expected_regex: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', flag: '--slug' },
+    fixHint: 'Pass --slug as lowercase kebab-case starting with letter. E.g. --slug logistics-supply-chain. No spaces, underscores, uppercase, or M-NNN prefix.',
+  });
+  if ((moduleName || '').length < 3) throw new InvalidInputError('module_name too short (min 3 chars)', {
+    details: { module_name: moduleName, min_chars: 3, flag: '--name' },
+    fixHint: 'Pass --name "<readable name>" min 3 chars. Vietnamese OK, quote when contains spaces.',
+  });
+  if (!['S', 'M', 'L'].includes(risk_path)) throw new InvalidInputError(`Invalid risk_path: ${JSON.stringify(risk_path)} (expected one of: S | M | L)`, {
+    details: { risk_path, allowed: ['S', 'M', 'L'], flag: '--risk-path' },
+    fixHint: 'Pass --risk-path S (4 stages, low complexity) | M (6 stages, default) | L (7 stages incl. security). Drives stages_queue + activeStageFoldersFor.',
+  });
 
   return await withWorkspaceLock(ws, async () => {
     const catalog = await io.readModuleCatalog(ws);
@@ -147,12 +165,31 @@ export async function scaffoldModuleImpl(workspacePath, moduleId, moduleName, sl
     const stagesQueue = stagesQueueFor(risk_path, agent_flags);
     const createdAt = utcIsoNow();
 
+    // Service-path resolution (canonical fix per audit 2026-05-07):
+    // When primary_service provided, auto-populate implementations.services[] so
+    // downstream tech-lead/dev agents have a deterministic physical-service-path source.
+    // Prevents drift where dev fallbacks to module-folder basename (services/M-NNN-{slug}).
+    // Validation: primary_service must be lowercase kebab-case (same constraint as scaffold_app_or_service.name).
+    let resolvedServices = agent_flags.services || [];
+    if (resolvedServices.length === 0 && primary_service) {
+      if (!/^[a-z][a-z0-9-]*$/.test(primary_service)) {
+        throw new InvalidInputError(
+          `Invalid primary_service: ${JSON.stringify(primary_service)} (must be lowercase kebab-case, start with letter)`,
+          {
+            details: { primary_service, expected_regex: '^[a-z][a-z0-9-]*$', flag: '--primary-service' },
+            fixHint: 'Pass --primary-service as lowercase kebab-case (same rule as scaffold_app_or_service.name). E.g. --primary-service logistics-orchestrator. NEVER use M-NNN-prefix patterns — that was the bug Fix A prevents (audit 2026-05-07).',
+          },
+        );
+      }
+      resolvedServices = [{ path: `services/${primary_service}`, status: 'planned', features: [] }];
+    }
+
     const ctx = {
       module_id: moduleId, module_name: moduleName, slug,
       modules_in_scope, depends_on, primary_service, agent_flags,
       business_goal, output_mode, repo_type: detectRepoType(ws),
       stages_queue: stagesQueue, created_at: createdAt,
-      services: agent_flags.services || [],
+      services: resolvedServices,
     };
     const stateMd = renderTemplate('module/_state.md', ctx);
     const briefMd = renderTemplate('module/module-brief.md', ctx);
@@ -174,12 +211,33 @@ export async function scaffoldModuleImpl(workspacePath, moduleId, moduleName, sl
     tx.add(join(modPath, '_state.md'), stateMd);
     tx.add(join(modPath, 'module-brief.md'), briefMd);
     tx.add(join(modPath, 'implementations.yaml'), implYaml);
-    // Active stage folders match risk_path + agent_flags (Issue 2b fix 2026-05-07).
-    // Path S → 4 folders (ba, tech-lead, dev, reviewer)
-    // Path M → 6 folders (+ sa, qa)
-    // Path L → 7 folders (+ security)
-    // + designer if agent_flags.designer.screen_count > 0
-    for (const sub of activeStageFoldersFor(risk_path, agent_flags)) {
+
+    // Stage folder pre-creation policy (audit 2026-05-07 — flexible scaffolding):
+    //   stages_to_create=null (default) → no folders pre-created. Stage agents
+    //     mkdir their own folder when writing first artifact (idempotent fs.mkdir).
+    //     Eliminates empty-folder noise; pipeline still driven by stages_queue in _state.md.
+    //   stages_to_create='auto' → legacy behavior — derive from risk_path + agent_flags
+    //     via activeStageFoldersFor(). Opt-in for callers that want upfront tree.
+    //   stages_to_create=[...names] → only those folders created (validated against
+    //     ALLOWED_STAGE_FOLDERS). LLM/skill controls exact subset.
+    let foldersToCreate = [];
+    if (stages_to_create === 'auto') {
+      foldersToCreate = activeStageFoldersFor(risk_path, agent_flags);
+    } else if (Array.isArray(stages_to_create)) {
+      for (const s of stages_to_create) {
+        if (!ALLOWED_STAGE_FOLDERS.has(s)) {
+          throw new InvalidInputError(
+            `Invalid stage folder: ${JSON.stringify(s)} (allowed: ${[...ALLOWED_STAGE_FOLDERS].join(', ')})`,
+            {
+              details: { invalid: s, allowed: [...ALLOWED_STAGE_FOLDERS], flag: '--stages' },
+              fixHint: 'Pass --stages as csv of allowed stage names, OR "auto" for risk-path-derived, OR omit for lazy creation. E.g. --stages ba,dev | --stages auto | (omit). Allowed names: ba | sa | designer | security | tech-lead | dev | qa | reviewer.',
+            },
+          );
+        }
+      }
+      foldersToCreate = [...new Set(stages_to_create)];  // dedup
+    }
+    for (const sub of foldersToCreate) {
       tx.add(join(modPath, sub, '.gitkeep'), '');
     }
     tx.add(io.moduleCatalogPath(ws), catContent);
@@ -197,25 +255,42 @@ export async function scaffoldModuleImpl(workspacePath, moduleId, moduleName, sl
       intel_updated: ['docs/intel/module-catalog.json', 'docs/intel/module-map.yaml'],
       new_versions: { 'module-catalog.json': newCatV, 'module-map.yaml': newMapV },
       stages_queue: stagesQueue,
+      stages_pre_created: foldersToCreate,
     });
   });
 }
 
 // ─── §3.4 scaffold_feature ───
 
+// Allowed feature stage folders — narrower set than module-level (features only run dev + qa).
+const ALLOWED_FEATURE_STAGE_FOLDERS = new Set(['dev', 'qa']);
+
 export async function scaffoldFeatureImpl(workspacePath, moduleId, featureId, featureName, slug, opts = {}) {
   const {
     description = '', business_intent = '', flow_summary = '',
     acceptance_criteria = [], consumed_by_modules = [],
     priority = 'medium', expected_module_version = null,
+    stages_to_create = null,
   } = opts;
   const ws = validateWorkspacePath(workspacePath);
 
-  if (!isValidModuleId(moduleId)) throw new InvalidInputError(`Invalid module_id: ${JSON.stringify(moduleId)}`, { details: { module_id: moduleId } });
-  if (!isValidFeatureId(featureId)) throw new InvalidInputError(`Invalid feature_id: ${JSON.stringify(featureId)}`, { details: { feature_id: featureId } });
-  if (!isValidSlug(slug)) throw new InvalidInputError(`Invalid slug: ${JSON.stringify(slug)}`, { details: { slug } });
+  if (!isValidModuleId(moduleId)) throw new InvalidInputError(`Invalid module_id: ${JSON.stringify(moduleId)} (expected M-NNN)`, {
+    details: { module_id: moduleId, expected_regex: '^M-\\d{3}$', flag: '--module' },
+    fixHint: 'Pass --module M-NNN of an existing parent module. Check docs/intel/module-catalog.json for valid IDs. If missing, run `ai-kit sdlc scaffold module` first.',
+  });
+  if (!isValidFeatureId(featureId)) throw new InvalidInputError(`Invalid feature_id: ${JSON.stringify(featureId)} (expected F-NNN or F-NNN<a-z>)`, {
+    details: { feature_id: featureId, expected_regex: '^F-\\d{3}[a-z]?$', flag: '--id' },
+    fixHint: 'Pass --id F-NNN (3 digits, optional lowercase letter suffix for variants), e.g. --id F-101 or F-101a. Check feature-catalog.json for next free.',
+  });
+  if (!isValidSlug(slug)) throw new InvalidInputError(`Invalid slug: ${JSON.stringify(slug)} (expected kebab-case ASCII)`, {
+    details: { slug, expected_regex: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', flag: '--slug' },
+    fixHint: 'Pass --slug as lowercase kebab-case starting with letter. E.g. --slug otp-login. No spaces or uppercase.',
+  });
   if (!['critical', 'high', 'medium', 'low'].includes(priority)) {
-    throw new InvalidInputError(`Invalid priority: ${JSON.stringify(priority)}`, { details: { priority } });
+    throw new InvalidInputError(`Invalid priority: ${JSON.stringify(priority)} (expected one of: critical | high | medium | low)`, {
+      details: { priority, allowed: ['critical', 'high', 'medium', 'low'], flag: '--priority' },
+      fixHint: 'Pass --priority critical | high | medium | low. Default: medium.',
+    });
   }
 
   return await withWorkspaceLock(ws, async () => {
@@ -282,11 +357,33 @@ export async function scaffoldFeatureImpl(workspacePath, moduleId, featureId, fe
     const featMapContent = io.serializeYaml(featMap);
     const modCatContent = io.serializeJson(modCat);
 
+    // Stage folder pre-creation policy (audit 2026-05-07 — flexible scaffolding):
+    //   stages_to_create=null (default) → no folders pre-created.
+    //   stages_to_create='auto' → legacy ['dev', 'qa'].
+    //   stages_to_create=[...names] → only those (validated against ALLOWED_FEATURE_STAGE_FOLDERS).
+    let foldersToCreate = [];
+    if (stages_to_create === 'auto') {
+      foldersToCreate = ['dev', 'qa'];
+    } else if (Array.isArray(stages_to_create)) {
+      for (const s of stages_to_create) {
+        if (!ALLOWED_FEATURE_STAGE_FOLDERS.has(s)) {
+          throw new InvalidInputError(
+            `Invalid feature stage folder: ${JSON.stringify(s)} (allowed: ${[...ALLOWED_FEATURE_STAGE_FOLDERS].join(', ')})`,
+            {
+              details: { invalid: s, allowed: [...ALLOWED_FEATURE_STAGE_FOLDERS], flag: '--stages' },
+              fixHint: 'Feature-level scaffold only allows dev | qa stages (module-level has more). Pass --stages dev | --stages qa | --stages dev,qa | --stages auto | (omit for lazy).',
+            },
+          );
+        }
+      }
+      foldersToCreate = [...new Set(stages_to_create)];
+    }
+
     const tx = new FileTransaction();
     tx.add(join(featPath, '_feature.md'), featureMd);
     tx.add(join(featPath, 'implementations.yaml'), implYaml);
     tx.add(join(featPath, 'test-evidence.json'), evidenceJson);
-    for (const sub of ['dev', 'qa']) tx.add(join(featPath, sub, '.gitkeep'), '');
+    for (const sub of foldersToCreate) tx.add(join(featPath, sub, '.gitkeep'), '');
     tx.add(io.featureCatalogPath(ws), featCatContent);
     tx.add(io.featureMapPath(ws), featMapContent);
     tx.add(io.moduleCatalogPath(ws), modCatContent);
@@ -304,6 +401,7 @@ export async function scaffoldFeatureImpl(workspacePath, moduleId, featureId, fe
       files_created: finals.map(p => relative(ws, p).replace(/\\/g, '/')),
       intel_updated: ['docs/intel/feature-catalog.json', 'docs/intel/feature-map.yaml', 'docs/intel/module-catalog.json'],
       new_versions: { 'feature-catalog.json': newFCV, 'feature-map.yaml': newFMV, 'module-catalog.json': newMCV },
+      stages_pre_created: foldersToCreate,
     });
   });
 }

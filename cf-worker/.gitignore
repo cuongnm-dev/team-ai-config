@@ -1,0 +1,7 @@
+# Wrangler local state
+.wrangler/
+.dev.vars
+.deployed.json
+
+# Logs
+*.log

@@ -106,7 +106,7 @@ Spawn 3 Explore agents in parallel for B.2:
 - Catalog flow_summary search
 - Codebase route handler / page implementation search
 
-Aggregate scores; HARD-STOP at >=0.85 with `next-action: /update-module {ID}`.
+Aggregate scores; HARD-STOP at >=0.85 with `next-action: /update-module {ID}` (run in Cursor — skill not available in Claude Code).
 
 ## Step 4 — Dependency suggest (Opus direct extraction)
 
@@ -141,6 +141,23 @@ Display full SCAFFOLD PREVIEW block. User chooses [enter] / [b] back-edit (excl.
 
 ### 7b. Atomic scaffold
 
+CLI flag spec (canonical — `ai-kit sdlc scaffold module --help` for full details):
+
+| Flag | Required | Constraint |
+|---|---|---|
+| `--workspace` | yes | absolute path |
+| `--id` | yes | `^M-\d{3}$` (e.g. `M-007`) |
+| `--name` | yes | min 3 chars; VN OK |
+| `--slug` | yes | `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` |
+| `--depends-on` | no | csv of M-NNN; each must exist |
+| `--primary-service` | no | `^[a-z][a-z0-9-]*$`; auto-populates `services[]`; NEVER M-NNN prefix |
+| `--business-goal` | no | text >=50 chars rec. |
+| `--risk-path` | no | `S\|M\|L` (default M) |
+| `--output-mode` | no | `lean\|full` (default lean) |
+| `--agent-flags` | no | JSON |
+| `--expected-version` | no | int (optimistic lock) |
+| `--stages` | no | `auto\|<csv>`; allowed names: `ba\|sa\|designer\|security\|tech-lead\|dev\|qa\|reviewer`; omit = lazy creation |
+
 ```
 result = Bash("ai-kit sdlc scaffold module \
   --workspace . \
@@ -154,7 +171,9 @@ result = Bash("ai-kit sdlc scaffold module \
   --agent-flags '{json or omit}'")
 ```
 
-CLI atomically creates folder + 7 stage subdirs + updates module-catalog.json + module-map.yaml + _meta.json. On error then surface, no partial state.
+CLI atomically writes `_state.md` + `module-brief.md` + `implementations.yaml`; updates `module-catalog.json` + `module-map.yaml` + `_meta.json`. Stage subdirs lazy by default (B-053 audit 2026-05-07).
+
+On error: response includes `error.code`, `error.message` (with valid range inline), `error.details.flag` (which CLI flag), `error.details.expected_regex` or `details.allowed`, `error.fix_hint` (concrete guidance), `error.help_command` (recovery action). Read those first — do NOT spelunk into ai-kit source.
 
 ### 7c. Post-scaffold verify
 
@@ -210,8 +229,8 @@ EXIT.
 | User provides arg | Step 0 ignore + warn |
 | Intel stale | STOP `next-action: /intel-refresh` |
 | User abort during interview | EXIT no state mutation |
-| Strong dedup >= 0.85 | HARD-STOP `next-action: /update-module {ID}` |
-| Partial dedup + user picks 'u' | EXIT, suggest `/update-module {ID}` |
+| Strong dedup >= 0.85 | HARD-STOP `next-action: /update-module {ID}` (Cursor only) |
+| Partial dedup + user picks 'u' | EXIT, suggest `/update-module {ID}` (Cursor only) |
 | Partial dedup + user picks 'n' | Continue with `references: [{IDs}]` populated |
 | `depends_on` cyclic | STOP `MOD-CYCLE-001` |
 | `depends_on` references unknown M-NNN | Drop + warn at Step 4 |

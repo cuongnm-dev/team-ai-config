@@ -2040,26 +2040,10 @@ const cmdUpdate = async () => {
   } catch {}
   try { writeManifest(); } catch {}
 
-  // ─── Auto-export telemetry (every 7 days, opt-out, silent) ──────────
-  // Member-share JSON saved locally to ~/.ai-kit/.telemetry-shares/
-  // No upload happens automatically (Phase 2 — gist sync). Maintainer collects manually.
-  try {
-    const tcfg = loadTelemetryConfig();
-    if (tcfg.enabled) {
-      const lastMs = tcfg.last_export ? new Date(tcfg.last_export).getTime() : 0;
-      const weekMs = 7 * 86400 * 1000;
-      if (Date.now() - lastMs > weekMs) {
-        // Silent export — suppress cmdStatistics console output by redirecting briefly
-        const origLog = console.log;
-        try {
-          console.log = () => {};
-          cmdTelemetry(['export']);
-        } finally {
-          console.log = origLog;
-        }
-      }
-    }
-  } catch {}
+  // ─── Auto-sync telemetry (every 2h, silent background) ─────────────
+  // Dispatcher hook fires too, but cmdUpdate is the highest-confidence trigger
+  // (member explicitly ran update — same network round-trip).
+  try { maybeAutoSyncTelemetry(); } catch {}
 
   if (ctx.dockerSkipped) {
     console.log('');
@@ -3152,12 +3136,17 @@ const computeAlerts = (stats, series, thresholds) => {
   return alerts;
 };
 
-// ─── telemetry (Phase 1: opt-out wrapper around statistics --member-share) ──
-// Default ON per maintainer choice. Anonymous member-share JSON saved to
-// ~/.ai-kit/.telemetry-shares/ for periodic upload to maintainer (Phase 2: auto-Gist).
+// ─── telemetry (Phase 1+2: opt-out wrapper around statistics --member-share) ──
+// Default ON per maintainer choice. Anonymous member-share JSON:
+//   - saved to ~/.ai-kit/.telemetry-shares/ (audit trail, member can view)
+//   - silently POSTed to Cloudflare Worker every 2h (Phase 2)
 // Privacy: see docs/privacy.md. NO project names, NO file paths, NO content.
+const TELEMETRY_ENDPOINT    = "https://ai-kit-telemetry.PLACEHOLDER.workers.dev";
 const TELEMETRY_CONFIG_PATH = path.join(AI_KIT_HOME, '.telemetry-config.json');
 const TELEMETRY_SHARES_DIR  = path.join(AI_KIT_HOME, '.telemetry-shares');
+const TELEMETRY_QUEUE_DIR   = path.join(AI_KIT_HOME, '.telemetry-queue');
+const TELEMETRY_SENT_DIR    = path.join(AI_KIT_HOME, '.telemetry-sent');
+const TELEMETRY_SYNC_INTERVAL_MS = 2 * 3600 * 1000; // 2 hours
 
 function loadTelemetryConfig() {
   try {
@@ -3180,15 +3169,34 @@ const cmdTelemetry = (args) => {
       try { return fs.readdirSync(TELEMETRY_SHARES_DIR).filter(f => f.endsWith('.json')).length; }
       catch { return 0; }
     })();
+    const sentCount = (() => {
+      try { return fs.readdirSync(TELEMETRY_SENT_DIR).filter(f => f.endsWith('.json')).length; }
+      catch { return 0; }
+    })();
+    const queueCount = (() => {
+      try { return fs.readdirSync(TELEMETRY_QUEUE_DIR).filter(f => f.endsWith('.json')).length; }
+      catch { return 0; }
+    })();
+    const nextSyncEta = (() => {
+      const lastMs = cfg.last_sync ? new Date(cfg.last_sync).getTime() : 0;
+      const dueMs  = lastMs + TELEMETRY_SYNC_INTERVAL_MS;
+      if (Date.now() >= dueMs) return C.green + '(due now — sẽ chạy ở lệnh ai-kit kế tiếp)' + C.reset;
+      const min = Math.round((dueMs - Date.now()) / 60000);
+      return `${C.gray}~${min} phút nữa${C.reset}`;
+    })();
+    const endpointShort = TELEMETRY_ENDPOINT.includes('PLACEHOLDER')
+      ? C.yellow + 'chưa cấu hình (maintainer chạy deploy-telemetry-worker.ps1)' + C.reset
+      : TELEMETRY_ENDPOINT;
     console.log([
       '',
       `${C.cyan}Telemetry status${C.reset}`,
       `  Enabled:      ${cfg.enabled ? C.green + '✓ ON' + C.reset : C.gray + '✗ OFF' + C.reset}`,
-      `  Last export:  ${cfg.last_export || C.gray + '(chưa bao giờ)' + C.reset}`,
-      `  Last sync:    ${cfg.last_sync || C.gray + '(chưa bao giờ — Phase 2: auto-Gist)' + C.reset}`,
-      `  Gist ID:      ${cfg.gist_id || C.gray + '(chưa tạo)' + C.reset}`,
-      `  Shares dir:   ${TELEMETRY_SHARES_DIR}`,
-      `  Files:        ${sharesCount} JSON`,
+      `  Endpoint:     ${endpointShort}`,
+      `  Last sync:    ${cfg.last_sync || C.gray + '(chưa bao giờ)' + C.reset}`,
+      `  Next sync:    ${nextSyncEta}`,
+      `  Queue:        ${queueCount} JSON pending`,
+      `  Sent (audit): ${sentCount} JSON  (${TELEMETRY_SENT_DIR})`,
+      `  Shares (manual export): ${sharesCount} JSON  (${TELEMETRY_SHARES_DIR})`,
       '',
       `${C.gray}Privacy${C.reset}: anonymized — no project names, no file paths, no content.`,
       `${C.gray}Schema${C.reset}: skill/agent/tool counts + token aggregates + error categories only.`,
@@ -3248,21 +3256,149 @@ const cmdTelemetry = (args) => {
   }
 
   if (sub === 'sync') {
-    console.log([
-      `${C.yellow}Sync to Gist: chưa hoàn thiện (Phase 2 — pending GitHub token UX).${C.reset}`,
-      '',
-      'Tạm thời (manual flow):',
-      '  1. ai-kit telemetry export                           # generate share JSON',
-      `  2. Send file ${TELEMETRY_SHARES_DIR}/ai-kit-share-*.json qua chat/email cho maintainer`,
-      '  3. Maintainer: ai-kit statistics --merge *.json      # aggregate',
-      '',
-    ].join('\n'));
-    return;
+    return cmdTelemetrySync(args, cfg);
   }
 
   err(`Unknown subcommand: ${sub}`);
   console.log('Usage: ai-kit telemetry [status|export|view|enable|disable|sync]');
 };
+
+// ─── Phase 2: HTTP sync to Cloudflare Worker ──────────────────────────
+// Generates share JSON → POST → on success move to .telemetry-sent (audit trail).
+// On fail: leave in queue for next attempt.
+async function cmdTelemetrySync(args, cfg) {
+  const silent = args.includes('--silent');
+  const log = silent ? () => {} : console.log;
+
+  if (!cfg.enabled) {
+    log(`${C.yellow}Telemetry đang OFF.${C.reset} Bật: ai-kit telemetry enable`);
+    return;
+  }
+  if (TELEMETRY_ENDPOINT.includes('PLACEHOLDER')) {
+    log(`${C.yellow}Telemetry endpoint chưa cấu hình.${C.reset}`);
+    log(`${C.gray}Maintainer cần chạy: node scripts/deploy-cf-worker.mjs${C.reset}`);
+    return;
+  }
+
+  fs.mkdirSync(TELEMETRY_QUEUE_DIR, {recursive: true});
+  fs.mkdirSync(TELEMETRY_SENT_DIR,  {recursive: true});
+
+  // Step 1: Generate fresh share JSON into queue dir
+  const oldCwd = process.cwd();
+  try {
+    process.chdir(TELEMETRY_QUEUE_DIR);
+    const origLog = console.log;
+    try {
+      console.log = silent ? () => {} : origLog;
+      cmdStatistics(['--since', '7d', '--member-share']);
+    } finally { console.log = origLog; }
+  } catch (e) {
+    log(`${C.yellow}Generate share fail:${C.reset} ${e.message}`);
+  } finally {
+    try { process.chdir(oldCwd); } catch {}
+  }
+
+  // Step 2: Read all queued JSONs (newly generated + any from previous failed attempts)
+  let pendingFiles = [];
+  try {
+    pendingFiles = fs.readdirSync(TELEMETRY_QUEUE_DIR)
+      .filter(f => f.endsWith('.json'))
+      .map(f => path.join(TELEMETRY_QUEUE_DIR, f))
+      .sort();
+  } catch {}
+
+  if (!pendingFiles.length) {
+    log(`${C.gray}Không có share JSON để sync.${C.reset}`);
+    return;
+  }
+
+  // Step 3: POST each, move successes to sent dir
+  let succeeded = 0, failed = 0, networkDown = false;
+  for (const file of pendingFiles) {
+    if (networkDown) break; // don't hammer dead network
+    let body;
+    try { body = fs.readFileSync(file, 'utf8'); } catch { continue; }
+
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const res = await fetch(`${TELEMETRY_ENDPOINT}/ingest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-AI-Kit-Version': VERSION || 'unknown',
+        },
+        body,
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const sentName = path.basename(file);
+        try { fs.renameSync(file, path.join(TELEMETRY_SENT_DIR, sentName)); } catch {}
+        succeeded++;
+      } else {
+        failed++;
+        log(`${C.yellow}POST fail (${res.status}):${C.reset} ${path.basename(file)}`);
+        // 4xx → bad payload, leave in queue (or maybe purge)
+        // 5xx → server hiccup, retry later
+      }
+    } catch (e) {
+      failed++;
+      networkDown = true; // skip remaining to avoid hammering
+      log(`${C.yellow}Network error:${C.reset} ${e.message}`);
+    }
+  }
+
+  cfg.last_sync = new Date().toISOString();
+  saveTelemetryConfig(cfg);
+
+  // Step 4: Auto-purge — sent > 90d, queue > 30d
+  purgeOldTelemetryFiles(TELEMETRY_SENT_DIR,  90 * 86400 * 1000);
+  purgeOldTelemetryFiles(TELEMETRY_QUEUE_DIR, 30 * 86400 * 1000);
+
+  log(`${C.green}✓${C.reset} Sync done — ${succeeded} sent, ${failed} failed${networkDown ? ' (network down)' : ''}.`);
+}
+
+function purgeOldTelemetryFiles(dir, maxAgeMs) {
+  try {
+    const now = Date.now();
+    for (const f of fs.readdirSync(dir)) {
+      const fp = path.join(dir, f);
+      try {
+        const stat = fs.statSync(fp);
+        if (now - stat.mtimeMs > maxAgeMs) fs.unlinkSync(fp);
+      } catch {}
+    }
+  } catch {}
+}
+
+// Auto-sync hook — fired from main dispatch on every ai-kit command.
+// Debounced via TELEMETRY_SYNC_INTERVAL_MS (2h). Spawns detached process,
+// returns immediately so user's command isn't slowed.
+function maybeAutoSyncTelemetry() {
+  try {
+    // Recursion guard: the spawned subprocess (telemetry sync --silent) would otherwise
+    // re-enter dispatcher and spawn itself again.
+    if (process.env.AI_KIT_TELEMETRY_CHILD) return;
+
+    const cfg = loadTelemetryConfig();
+    if (!cfg.enabled) return;
+    if (TELEMETRY_ENDPOINT.includes('PLACEHOLDER')) return;
+
+    const lastMs = cfg.last_sync ? new Date(cfg.last_sync).getTime() : 0;
+    if (Date.now() - lastMs < TELEMETRY_SYNC_INTERVAL_MS) return;
+
+    // Spawn detached, no stdio, no console output, no blocking
+    // AI_KIT_TELEMETRY_CHILD prevents the spawned process from re-spawning itself.
+    const child = spawn(process.execPath, [process.argv[1], 'telemetry', 'sync', '--silent'], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: { ...process.env, AI_KIT_TELEMETRY_CHILD: '1' },
+    });
+    child.unref();
+  } catch {}
+}
 
 const cmdStatistics = (args) => {
   const sinceArg = (() => {
@@ -4242,6 +4378,12 @@ if (MAINTAINER_COMMANDS.has(resolved) && !IS_MAINTAINER) {
 // Record history (after resolution, before dispatch) — Batch 4
 if (cmd && resolved !== 'help' && resolved !== 'version') {
   recordHistory([cmd, ...args]);
+}
+
+// Auto-sync telemetry — silent background, debounced 2h, recursion-guarded.
+// Fires for every command except `telemetry sync --silent` (child process).
+if (resolved !== 'telemetry') {
+  try { maybeAutoSyncTelemetry(); } catch {}
 }
 
 switch (resolved) {

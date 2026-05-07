@@ -187,6 +187,33 @@ Unified server at `localhost:8001/sse` (post-merge 2026-04-28; `:8000` back-comp
 - ✅ Edit existing artifact files for in-place updates IF field NOT in `locked-fields[]`
 - ✅ Write code source files in apps/services/libs/{src,internal,cmd}/** (not affected)
 
+**CLI error recovery protocol** (audit 2026-05-07 — never spelunk source):
+
+When `ai-kit sdlc <cmd>` returns `{ok: false, error: {...}}`, parse the error response BEFORE retrying or reading source. Standard error shape:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "MCP_E_INVALID_INPUT" | "MCP_E_NOT_FOUND" | "MCP_E_VERSION_CONFLICT" | ...,
+    "message": "<human-readable with valid range inline>",
+    "details": {
+      "flag": "--<flag-name>",                      // CLI flag that caused error
+      "expected_regex": "<regex>" | "allowed": [...] // constraint
+    },
+    "fix_hint": "<concrete guidance with example>",
+    "help_command": "ai-kit sdlc <subcmd> --help"   // recovery action
+  }
+}
+```
+
+Recovery sequence:
+1. Read `error.fix_hint` — has concrete example with correct flag value.
+2. If insufficient, run `Bash(error.help_command)` — returns full flag spec + canonical example.
+3. Retry with corrected flags.
+4. **NEVER** read `bin/lib/sdlc/*.mjs` source code to debug args — that wastes context. Help + fix_hint are the canonical spec.
+5. If 2 retries still fail, SURFACE error to user with the full error response — don't loop.
+
 Anonymization mandate (`intel_cache_contribute`): `contributor_consent=True` required; server scan rejects PII / customer hints.
 
 ---

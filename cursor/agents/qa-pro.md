@@ -483,8 +483,8 @@ Keep under 250 words.
 | Condition                                                        | Output                                                                    |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Verdict = `Pass` or `Pass with risks`, no coverage gaps          | `→ Auto-invoking: reviewer` — PM will delegate immediately                |
-| Verdict = `Pass with risks` AND significant test gaps noted      | `→ Suggested: /gen-tests {module}` — improve coverage before next release |
-| Verdict = `Fail` with defects that need root-cause investigation | `→ Suggested: /fix-bug "{defect title}"` — after pipeline closes          |
+| Verdict = `Pass with risks` AND significant test gaps noted      | `→ Suggested: /quality gen-tests {module}` — improve coverage before next release |
+| Verdict = `Fail` with defects that need root-cause investigation | `→ Suggested: /code-change fix "{defect title}"` — after pipeline closes  |
 | Verdict = `Fail` — defects routed back to dev                    | `→ Stopped. Blocker: [defect list]. PM will re-route to dev.`             |
 | Verdict = `Blocked`                                              | `→ Stopped. Blocker: [reason]. Escalate to Product Owner.`                |
 

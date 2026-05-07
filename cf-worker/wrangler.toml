@@ -1,0 +1,21 @@
+# Cloudflare Worker config for ai-kit telemetry
+# Deploy: node scripts/deploy-cf-worker.mjs
+# Manual deploy: cd cf-worker && wrangler deploy
+
+name = "ai-kit-telemetry"
+main = "worker.mjs"
+compatibility_date = "2026-01-01"
+
+# KV namespace for storing per-member share JSONs
+# Auto-populated by scripts/deploy-cf-worker.mjs after `wrangler kv:namespace create AI_KIT_TELEMETRY`
+[[kv_namespaces]]
+binding = "AI_KIT_TELEMETRY"
+id = "<KV_NAMESPACE_ID>"
+
+# Observability — built-in Workers logs (free)
+[observability]
+enabled = true
+
+# Tail rate limit — useful when debugging via `wrangler tail`
+[placement]
+mode = "smart"
