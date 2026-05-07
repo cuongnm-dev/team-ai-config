@@ -2040,6 +2040,27 @@ const cmdUpdate = async () => {
   } catch {}
   try { writeManifest(); } catch {}
 
+  // ─── Auto-export telemetry (every 7 days, opt-out, silent) ──────────
+  // Member-share JSON saved locally to ~/.ai-kit/.telemetry-shares/
+  // No upload happens automatically (Phase 2 — gist sync). Maintainer collects manually.
+  try {
+    const tcfg = loadTelemetryConfig();
+    if (tcfg.enabled) {
+      const lastMs = tcfg.last_export ? new Date(tcfg.last_export).getTime() : 0;
+      const weekMs = 7 * 86400 * 1000;
+      if (Date.now() - lastMs > weekMs) {
+        // Silent export — suppress cmdStatistics console output by redirecting briefly
+        const origLog = console.log;
+        try {
+          console.log = () => {};
+          cmdTelemetry(['export']);
+        } finally {
+          console.log = origLog;
+        }
+      }
+    }
+  } catch {}
+
   if (ctx.dockerSkipped) {
     console.log('');
     printDockerGuide(ctx.dockerSkipped);
@@ -3131,6 +3152,118 @@ const computeAlerts = (stats, series, thresholds) => {
   return alerts;
 };
 
+// ─── telemetry (Phase 1: opt-out wrapper around statistics --member-share) ──
+// Default ON per maintainer choice. Anonymous member-share JSON saved to
+// ~/.ai-kit/.telemetry-shares/ for periodic upload to maintainer (Phase 2: auto-Gist).
+// Privacy: see docs/privacy.md. NO project names, NO file paths, NO content.
+const TELEMETRY_CONFIG_PATH = path.join(AI_KIT_HOME, '.telemetry-config.json');
+const TELEMETRY_SHARES_DIR  = path.join(AI_KIT_HOME, '.telemetry-shares');
+
+function loadTelemetryConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(TELEMETRY_CONFIG_PATH, 'utf8'));
+  } catch {
+    return { enabled: true, last_export: null, last_sync: null, gist_id: null, schema: 1 };
+  }
+}
+function saveTelemetryConfig(cfg) {
+  fs.mkdirSync(AI_KIT_HOME, {recursive: true});
+  fs.writeFileSync(TELEMETRY_CONFIG_PATH, JSON.stringify(cfg, null, 2));
+}
+
+const cmdTelemetry = (args) => {
+  const sub = args[0] || 'status';
+  const cfg = loadTelemetryConfig();
+
+  if (sub === 'status') {
+    const sharesCount = (() => {
+      try { return fs.readdirSync(TELEMETRY_SHARES_DIR).filter(f => f.endsWith('.json')).length; }
+      catch { return 0; }
+    })();
+    console.log([
+      '',
+      `${C.cyan}Telemetry status${C.reset}`,
+      `  Enabled:      ${cfg.enabled ? C.green + '✓ ON' + C.reset : C.gray + '✗ OFF' + C.reset}`,
+      `  Last export:  ${cfg.last_export || C.gray + '(chưa bao giờ)' + C.reset}`,
+      `  Last sync:    ${cfg.last_sync || C.gray + '(chưa bao giờ — Phase 2: auto-Gist)' + C.reset}`,
+      `  Gist ID:      ${cfg.gist_id || C.gray + '(chưa tạo)' + C.reset}`,
+      `  Shares dir:   ${TELEMETRY_SHARES_DIR}`,
+      `  Files:        ${sharesCount} JSON`,
+      '',
+      `${C.gray}Privacy${C.reset}: anonymized — no project names, no file paths, no content.`,
+      `${C.gray}Schema${C.reset}: skill/agent/tool counts + token aggregates + error categories only.`,
+      `${C.gray}Doc${C.reset}: ai-kit doc privacy`,
+      '',
+    ].join('\n'));
+    return;
+  }
+
+  if (sub === 'enable') {
+    cfg.enabled = true;
+    saveTelemetryConfig(cfg);
+    console.log(`${C.green}✓${C.reset} Telemetry đã bật.`);
+    return;
+  }
+
+  if (sub === 'disable') {
+    cfg.enabled = false;
+    saveTelemetryConfig(cfg);
+    console.log(`${C.green}✓${C.reset} Telemetry đã tắt. Re-enable: ai-kit telemetry enable`);
+    return;
+  }
+
+  if (sub === 'export') {
+    if (!cfg.enabled) {
+      console.log(`${C.yellow}Telemetry đang OFF.${C.reset} Bật bằng: ai-kit telemetry enable`);
+      return;
+    }
+    fs.mkdirSync(TELEMETRY_SHARES_DIR, {recursive: true});
+    const sinceIdx = args.indexOf('--since');
+    const since = sinceIdx >= 0 ? args[sinceIdx + 1] : '7d';
+
+    // Reuse cmdStatistics --member-share which writes to cwd; redirect cwd
+    const oldCwd = process.cwd();
+    try {
+      process.chdir(TELEMETRY_SHARES_DIR);
+      cmdStatistics(['--since', since, '--member-share']);
+    } finally {
+      try { process.chdir(oldCwd); } catch {}
+    }
+    cfg.last_export = new Date().toISOString();
+    saveTelemetryConfig(cfg);
+    return;
+  }
+
+  if (sub === 'view') {
+    let files = [];
+    try { files = fs.readdirSync(TELEMETRY_SHARES_DIR).filter(f => f.endsWith('.json')).sort(); } catch {}
+    if (!files.length) {
+      console.log('Chưa có export. Chạy: ai-kit telemetry export');
+      return;
+    }
+    const latest = path.join(TELEMETRY_SHARES_DIR, files[files.length - 1]);
+    console.log(`${C.gray}File:${C.reset} ${latest}\n`);
+    console.log(fs.readFileSync(latest, 'utf8'));
+    return;
+  }
+
+  if (sub === 'sync') {
+    console.log([
+      `${C.yellow}Sync to Gist: chưa hoàn thiện (Phase 2 — pending GitHub token UX).${C.reset}`,
+      '',
+      'Tạm thời (manual flow):',
+      '  1. ai-kit telemetry export                           # generate share JSON',
+      `  2. Send file ${TELEMETRY_SHARES_DIR}/ai-kit-share-*.json qua chat/email cho maintainer`,
+      '  3. Maintainer: ai-kit statistics --merge *.json      # aggregate',
+      '',
+    ].join('\n'));
+    return;
+  }
+
+  err(`Unknown subcommand: ${sub}`);
+  console.log('Usage: ai-kit telemetry [status|export|view|enable|disable|sync]');
+};
+
 const cmdStatistics = (args) => {
   const sinceArg = (() => {
     const i = args.findIndex(a => a === '--since');
@@ -4176,6 +4309,7 @@ switch (resolved) {
   case 'rollback':     cmdRollback(args); break;
   case 'clean':        cmdClean(args); break;
   case 'statistics':   cmdStatistics(args); break;
+  case 'telemetry':    cmdTelemetry(args); break;
   case 'verify':       cmdVerify(args); break;
   case 'search':       cmdSearch(args); break;
   case 'config':       cmdConfig(args); break;
